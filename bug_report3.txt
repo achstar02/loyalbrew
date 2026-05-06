@@ -1,0 +1,110 @@
+=== TA Section Duplicate Keys ===
+  menu: first at line 1493, duplicate at line 1526
+  order_id_optional: first at line 1516, duplicate at line 1688
+  complaintCategory: first at line 1676, duplicate at line 1736
+  all: first at line 1496, duplicate at line 1775
+  cleanliness: first at line 1679, duplicate at line 1788
+  cold_drinks: first at line 1502, duplicate at line 1791
+  description: first at line 1684, duplicate at line 1803
+  desserts: first at line 1504, duplicate at line 1804
+  done: first at line 1499, duplicate at line 1805
+  food: first at line 1503, duplicate at line 1810
+  hot_drinks: first at line 1501, duplicate at line 1813
+  other: first at line 1683, duplicate at line 1832
+  pending: first at line 1497, duplicate at line 1836
+  preparing: first at line 1498, duplicate at line 1840
+  snacks: first at line 1505, duplicate at line 1850
+  wrong_order: first at line 1681, duplicate at line 1858
+  end_date: first at line 1807, duplicate at line 1868
+  welcomeBack: first at line 1885, duplicate at line 1908
+  drinkToday: first at line 1886, duplicate at line 1909
+  firebaseNote: first at line 1887, duplicate at line 1910
+  enter: first at line 1888, duplicate at line 1911
+  view: first at line 1890, duplicate at line 1913
+  back: first at line 1891, duplicate at line 1914
+  superAdmin: first at line 1892, duplicate at line 1915
+  quickActions: first at line 1893, duplicate at line 1916
+  viewOrders2: first at line 1894, duplicate at line 1917
+  menuMgmt2: first at line 1895, duplicate at line 1918
+  shopSettings2: first at line 1896, duplicate at line 1919
+  kitchenDisplay2: first at line 1897, duplicate at line 1920
+  confirmPoints: first at line 1898, duplicate at line 1921
+  topUpGateway: first at line 1899, duplicate at line 1922
+  shopInfo: first at line 1900, duplicate at line 1923
+  shopName: first at line 1901, duplicate at line 1924
+  announcement: first at line 1902, duplicate at line 1925
+  bannerUrl: first at line 1903, duplicate at line 1926
+  saveShop: first at line 1904, duplicate at line 1927
+  pointsSettings: first at line 1905, duplicate at line 1928
+  pointsPerRM: first at line 1906, duplicate at line 1929
+  savePoints2: first at line 1907, duplicate at line 1930
+
+=== MS Section Underscore Keys (non-mPh): 93 ===
+  Line 1172: food_quality
+  Line 1175: waiting_time
+  Line 1176: wrong_order
+  Line 1177: pricing_issue
+  Line 1181: tap_to_upload_photo
+  Line 1182: photo_upload_hint
+  Line 1183: order_id_optional
+  Line 1250: active_new_launches
+  Line 1251: active_stamp_cards
+  Line 1252: add_bonus_rule
+  Line 1253: add_new_item
+  Line 1254: add_points
+  Line 1255: add_points_manually
+  Line 1256: add_rule
+  Line 1257: add_to_menu
+  Line 1260: all_members
+  Line 1261: all_orders
+  Line 1262: announcement_placeholder
+  Line 1263: announcement_text
+  Line 1264: bank_transfer
+
+=== t() calls with keys NOT in LANGS: 89 ===
+  t("T") - KEY NOT FOUND
+  t("bonusLabel") - KEY NOT FOUND
+  t("browseMenu") - KEY NOT FOUND
+  t("cartChange") - KEY NOT FOUND
+  t("cartTakeaway") - KEY NOT FOUND
+  t("confirmItems") - KEY NOT FOUND
+  t("confirmPhone") - KEY NOT FOUND
+  t("confirmPointsEarned") - KEY NOT FOUND
+  t("confirmTable2") - KEY NOT FOUND
+  t("confirmTotalPaid") - KEY NOT FOUND
+  t("confirmTypeTakeaway") - KEY NOT FOUND
+  t("div") - KEY NOT FOUND
+  t("enterTable") - KEY NOT FOUND
+  t("free") - KEY NOT FOUND
+  t("input") - KEY NOT FOUND
+  t("invalidTable") - KEY NOT FOUND
+  t("m") - KEY NOT FOUND
+  t("mBonusPct") - KEY NOT FOUND
+  t("mBonusPtsLabel") - KEY NOT FOUND
+  t("mChooseAnItem") - KEY NOT FOUND
+  t("mComplaintInProgress") - KEY NOT FOUND
+  t("mComplaintNoPhoto") - KEY NOT FOUND
+  t("mDeactivateBtn") - KEY NOT FOUND
+  t("mDeactivateMember") - KEY NOT FOUND
+  t("mDeleteRule") - KEY NOT FOUND
+  t("mDetailCategory") - KEY NOT FOUND
+  t("mDetailCustomer") - KEY NOT FOUND
+  t("mDetailDate") - KEY NOT FOUND
+  t("mEnterCardName") - KEY NOT FOUND
+  t("mEnterRewardValue") - KEY NOT FOUND
+  t("mEnterValidBill") - KEY NOT FOUND
+  t("mFreeCoffee") - KEY NOT FOUND
+  t("mFreeItem") - KEY NOT FOUND
+  t("mKitchenCompleted") - KEY NOT FOUND
+  t("mKitchenCookingStarted") - KEY NOT FOUND
+  t("mKitchenPickup") - KEY NOT FOUND
+  t("mKitchenTakeaway") - KEY NOT FOUND
+  t("mMemberInactive") - KEY NOT FOUND
+  t("mNiDelete") - KEY NOT FOUND
+  t("mNiNoEndDate") - KEY NOT FOUND
+
+=== Potential JS Bugs ===
+
+=== Firebase calls without error handling: 0 ===
+
+=== Direct localStorage calls (should use safeLS): 0 ===

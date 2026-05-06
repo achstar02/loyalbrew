@@ -1,0 +1,64 @@
+// ===== DATA STORE (localStorage) =====
+const DB = {
+  getMembers()      { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_members')) || '[]'); },
+  saveMembers(m)    { localStorage.setItem(_getMerchantStorageKey('loyalbrew_members'), JSON.stringify(m)); },
+  getTxns()         { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_txns')) || '[]'); },
+  saveTxns(t)       { localStorage.setItem(_getMerchantStorageKey('loyalbrew_txns'), JSON.stringify(t)); },
+  getOrders()       { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_orders')) || '[]'); },
+  saveOrders(o)     { localStorage.setItem(_getMerchantStorageKey('loyalbrew_orders'), JSON.stringify(o)); },
+  getMenu()         { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_menu')) || 'null'); },
+  saveMenu(m)       { localStorage.setItem(_getMerchantStorageKey('loyalbrew_menu'), JSON.stringify(m)); },
+  getNewItems()     { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_new_items')) || '[]'); },
+  saveNewItems(n)   { localStorage.setItem(_getMerchantStorageKey('loyalbrew_new_items'), JSON.stringify(n)); },
+  getAnnounceSeen()   { return localStorage.getItem('loyalbrew_announce_seen') || ''; },
+  setAnnounceSeen(v)  { localStorage.setItem('loyalbrew_announce_seen', v); },
+  getStampCards()   { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_stamp_cards')) || '[]'); },
+  saveStampCards(s) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_stamp_cards'), JSON.stringify(s)); },
+  getMemberStamps() { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_member_stamps')) || '{}'); },
+  saveMemberStamps(s) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_member_stamps'), JSON.stringify(s)); },
+  getWallets()      { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_wallets')) || '{}'); },
+  saveWallets(w)    { localStorage.setItem(_getMerchantStorageKey('loyalbrew_wallets'), JSON.stringify(w)); },
+  getWalletTxns()   { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_wallet_txns')) || '[]'); },
+  saveWalletTxns(t) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_wallet_txns'), JSON.stringify(t)); },
+  getComplaints()   { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_complaints')) || '[]'); },
+  saveComplaints(c) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_complaints'), JSON.stringify(c)); },
+  getTopupRequests() { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_topup_requests')) || '[]'); },
+  saveTopupRequests(r) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_topup_requests'), JSON.stringify(r)); },
+  getCommissions()  { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_commissions')) || '[]'); },
+  saveCommissions(c) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_commissions'), JSON.stringify(c)); },
+  getPaymentProofs() { return JSON.parse(localStorage.getItem(_getMerchantStorageKey('loyalbrew_payment_proofs')) || '[]'); },
+  savePaymentProofs(p) { localStorage.setItem(_getMerchantStorageKey('loyalbrew_payment_proofs'), JSON.stringify(p)); },
+  getCurrentMemberPhone()  { return localStorage.getItem('loyalbrew_current_member') || null; },
+  setCurrentMemberPhone(p) { if (p) localStorage.setItem('loyalbrew_current_member', p); else localStorage.removeItem('loyalbrew_current_member'); },
+};
+
+// ===== MERCHANT DATA ISOLATION HELPER =====
+function _getCurrentMerchantId() {
+  return window._currentMerchantId || 'default';
+}
+function _getMerchantStorageKey(baseKey) {
+  const mid = _getCurrentMerchantId();
+  return mid === 'default' ? baseKey : baseKey + '_' + mid;
+}
+
+// ===== MULTI-LANGUAGE SYSTEM =====
+const LANGS = {
+  en: {
+    // Landing
+    tagline: 'Order ÃÂÃÂ¢ÃÂ¢ÃÂÃÂ¬ÃÂÃÂ¢ Earn Points ÃÂÃÂ¢ÃÂ¢ÃÂÃÂ¬ÃÂÃÂ¢ Get Rewards',
+    loginLabel: 'ÃÂÃÂ¤ÃÂÃÂ¼ÃÂÃÂ¡ÃÂÃÂ¥ÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂ¢ÃÂÃÂ¢ÃÂÃÂ»ÃÂÃÂ¥ÃÂ¢ÃÂÃÂ¦ÃÂÃÂ¥', myAccount: 'My Account', orderNow: 'Order Now', myStampCard: 'My Stamp Card',
+    topUp: 'Top Up', merchant: 'Merchant',
+    feat1Title: 'Scan & Order', feat1Desc: 'Scan table QR, order in seconds',
+    feat2Title: 'Earn Points', feat2Desc: 'RM1 spent = 1 point earned',
+    feat3Title: 'Free Drinks', feat3Desc: 'Redeem for free beverages',
+    // Menu
+    menu: 'Menu', dineIn: 'Dine In', takeaway: 'Takeaway',
+    table: 'Table', change: 'Change',
+    selectTable: 'Select Your Table', enterTable: 'Enter your table number to start ordering',
+    confirmTable: 'Confirm Table', invalidTable: 'Please enter a valid table number',
+    // Menu categories
+    catAll: 'All', catNewItems: 'ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ¨ New Items',
+    catHotDrinks: 'Hot Drinks', catColdDrinks: 'Cold Drinks',
+    catFood: 'Food', catDesserts: 'Desserts', catSnacks: 'Snacks',
+    // Float cart
+    flo

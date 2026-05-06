@@ -1,0 +1,121 @@
+=== All t() calls with keys NOT in LANGS: 89 ===
+  t("T") x12 - MISSING FROM LANGS
+  t("bonusLabel") x1 - MISSING FROM LANGS
+  t("browseMenu") x1 - MISSING FROM LANGS
+  t("cartChange") x2 - MISSING FROM LANGS
+  t("cartTakeaway") x1 - MISSING FROM LANGS
+  t("confirmItems") x1 - MISSING FROM LANGS
+  t("confirmPhone") x1 - MISSING FROM LANGS
+  t("confirmPointsEarned") x1 - MISSING FROM LANGS
+  t("confirmTable2") x1 - MISSING FROM LANGS
+  t("confirmTotalPaid") x1 - MISSING FROM LANGS
+  t("confirmTypeTakeaway") x1 - MISSING FROM LANGS
+  t("div") x6 - MISSING FROM LANGS
+  t("enterTable") x1 - MISSING FROM LANGS
+  t("free") x1 - MISSING FROM LANGS
+  t("input") x3 - MISSING FROM LANGS
+  t("invalidTable") x1 - MISSING FROM LANGS
+  t("m") x1 - MISSING FROM LANGS
+  t("mBonusPct") x1 - MISSING FROM LANGS
+  t("mBonusPtsLabel") x1 - MISSING FROM LANGS
+  t("mChooseAnItem") x1 - MISSING FROM LANGS
+  t("mComplaintInProgress") x2 - MISSING FROM LANGS
+  t("mComplaintNoPhoto") x1 - MISSING FROM LANGS
+  t("mDeactivateBtn") x1 - MISSING FROM LANGS
+  t("mDeactivateMember") x1 - MISSING FROM LANGS
+  t("mDeleteRule") x2 - MISSING FROM LANGS
+  t("mDetailCategory") x1 - MISSING FROM LANGS
+  t("mDetailCustomer") x1 - MISSING FROM LANGS
+  t("mDetailDate") x1 - MISSING FROM LANGS
+  t("mEnterCardName") x1 - MISSING FROM LANGS
+  t("mEnterRewardValue") x1 - MISSING FROM LANGS
+  t("mEnterValidBill") x1 - MISSING FROM LANGS
+  t("mFreeCoffee") x1 - MISSING FROM LANGS
+  t("mFreeItem") x1 - MISSING FROM LANGS
+  t("mKitchenCompleted") x1 - MISSING FROM LANGS
+  t("mKitchenCookingStarted") x1 - MISSING FROM LANGS
+  t("mKitchenPickup") x1 - MISSING FROM LANGS
+  t("mKitchenTakeaway") x1 - MISSING FROM LANGS
+  t("mMemberInactive") x1 - MISSING FROM LANGS
+  t("mNiDelete") x2 - MISSING FROM LANGS
+  t("mNiNoEndDate") x1 - MISSING FROM LANGS
+  t("mNiSpecial") x1 - MISSING FROM LANGS
+  t("mNiWas") x1 - MISSING FROM LANGS
+  t("mNoExpiry") x1 - MISSING FROM LANGS
+  t("mNoMembersYet") x1 - MISSING FROM LANGS
+  t("mNoOrdersCategory") x1 - MISSING FROM LANGS
+  t("mNoPastLaunches") x1 - MISSING FROM LANGS
+  t("mNoStampCardsYet") x1 - MISSING FROM LANGS
+  t("mNoTopupHistory") x1 - MISSING FROM LANGS
+  t("mNotOrderedYet") x1 - MISSING FROM LANGS
+  t("mOrderPickup") x1 - MISSING FROM LANGS
+  t("mOrderPrepare") x1 - MISSING FROM LANGS
+  t("mOrderTakeaway") x1 - MISSING FROM LANGS
+  t("mPaymentRejected") x1 - MISSING FROM LANGS
+  t("mPctOff") x1 - MISSING FROM LANGS
+  t("mPoints") x1 - MISSING FROM LANGS
+  t("mQRPrint") x1 - MISSING FROM LANGS
+  t("mQRTable") x1 - MISSING FROM LANGS
+  t("mRefreshed") x1 - MISSING FROM LANGS
+  t("mReject") x2 - MISSING FROM LANGS
+  t("mRewardBonusPoints") x1 - MISSING FROM LANGS
+  t("mRewardFlatDiscount") x1 - MISSING FROM LANGS
+  t("mRmOff") x1 - MISSING FROM LANGS
+  t("mStampActive") x1 - MISSING FROM LANGS
+  t("mStampMembers") x1 - MISSING FROM LANGS
+  t("mStampPaused") x1 - MISSING FROM LANGS
+  t("mStampPerPurchase") x1 - MISSING FROM LANGS
+  t("mStampPerRM") x1 - MISSING FROM LANGS
+  t("mTopupApproved") x1 - MISSING FROM LANGS
+  t("mTopupRejected") x1 - MISSING FROM LANGS
+  t("mVerify") x1 - MISSING FROM LANGS
+  t("noBonus") x1 - MISSING FROM LANGS
+  t("noPickupTime") x1 - MISSING FROM LANGS
+  t("noStampCards") x1 - MISSING FROM LANGS
+  t("pendingVerification") x1 - MISSING FROM LANGS
+  t("pickup") x2 - MISSING FROM LANGS
+  t("removeItem") x1 - MISSING FROM LANGS
+  t("stampBonusPoints") x1 - MISSING FROM LANGS
+  t("stampClaimBtn") x1 - MISSING FROM LANGS
+  t("stampEmpty") x1 - MISSING FROM LANGS
+  t("stampFreeItemGeneric") x1 - MISSING FROM LANGS
+  t("stampPctOff") x1 - MISSING FROM LANGS
+  t("stampsToUnlockPlural") x1 - MISSING FROM LANGS
+  t("tapToChange") x1 - MISSING FROM LANGS
+  t("tierNameGold") x1 - MISSING FROM LANGS
+  t("tierNamePlatinum") x1 - MISSING FROM LANGS
+  t("topUpGet") x2 - MISSING FROM LANGS
+  t("totalBonusEarned") x1 - MISSING FROM LANGS
+  t("totalToppedUp") x1 - MISSING FROM LANGS
+  t("加分成功") x1 - MISSING FROM LANGS
+
+=== MERCHANT_LANGS TA underscore keys: 0 ===
+
+=== MERCHANT_LANGS EN vs ZH key comparison ===
+EN keys: 79, ZH keys: 80
+In ZH but not EN: ['zh']
+
+=== Potential Event Handler Bugs ===
+HTML onclick functions not found in JS: ['if', 'showSuperAdminPage']
+
+JS getElementById references not in HTML: 31 (static only)
+  #main-content
+  #mreg-credits
+  #mreg-err
+  #mreg-id
+  #mreg-name
+  #mreg-password
+  #mreg-phone
+  #mreg-submit
+  #ppm-clear-btn
+  #ppm-item-id
+  #ppm-item-name
+  #ppm-normal-price
+  #ppm-promo-price
+  #promo-price-modal
+  #sa-deactivate-confirm
+  #sa-email-badge
+  #sa-list
+  #sa-login-email
+  #sa-login-error
+  #sa-login-modal

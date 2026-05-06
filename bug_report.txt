@@ -1,0 +1,80 @@
+LANGS region: 1-6324
+MERCHANT_LANGS region: 6325-7756
+
+=== DUPLICATE LANGS KEYS (2+ times) ===
+  [id]: 19x at lines [2371, 2518, 2532, 3240, 3264, 3528, 3836, 4181, 4307, 4475, 4476, 4477, 4536, 4576, 4594, 4728, 5015, 5547, 5648]
+  [complaintCategory]: 9x at lines [223, 282, 354, 679, 739, 1171, 1220, 1676, 1736]
+  [cleanliness]: 8x at lines [226, 682, 791, 1174, 1272, 1679, 1788, 4946]
+  [wrong_order]: 8x at lines [228, 684, 861, 1176, 1342, 1681, 1858, 4948]
+  [other]: 8x at lines [230, 686, 835, 1178, 1316, 1683, 1832, 4950]
+  [pending]: 8x at lines [839, 1320, 1497, 1836, 5172, 5173, 5239, 5316]
+  [mPhComplaintDesc]: 7x at lines [191, 518, 647, 1002, 1130, 1483, 1644]
+  [mPhComplaintOrderId]: 7x at lines [192, 519, 648, 1003, 1131, 1484, 1645]
+  [description]: 7x at lines [231, 687, 806, 1179, 1287, 1684, 1803]
+  [end_date]: 7x at lines [393, 810, 871, 1291, 1352, 1807, 1868]
+  [welcomeBack]: 7x at lines [410, 888, 911, 1369, 1392, 1885, 1908]
+  [drinkToday]: 7x at lines [411, 889, 912, 1370, 1393, 1886, 1909]
+  [firebaseNote]: 7x at lines [412, 890, 913, 1371, 1394, 1887, 1910]
+  [enter]: 7x at lines [413, 891, 914, 1372, 1395, 1888, 1911]
+  [view]: 7x at lines [415, 893, 916, 1374, 1397, 1890, 1913]
+  [back]: 7x at lines [416, 894, 917, 1375, 1398, 1891, 1914]
+  [superAdmin]: 7x at lines [417, 895, 918, 1376, 1399, 1892, 1915]
+  [quickActions]: 7x at lines [418, 896, 919, 1377, 1400, 1893, 1916]
+  [viewOrders2]: 7x at lines [419, 897, 920, 1378, 1401, 1894, 1917]
+  [menuMgmt2]: 7x at lines [420, 898, 921, 1379, 1402, 1895, 1918]
+  [shopSettings2]: 7x at lines [421, 899, 922, 1380, 1403, 1896, 1919]
+  [kitchenDisplay2]: 7x at lines [422, 900, 923, 1381, 1404, 1897, 1920]
+  [confirmPoints]: 7x at lines [423, 901, 924, 1382, 1405, 1898, 1921]
+  [topUpGateway]: 7x at lines [424, 902, 925, 1383, 1406, 1899, 1922]
+  [shopInfo]: 7x at lines [425, 903, 926, 1384, 1407, 1900, 1923]
+  [shopName]: 7x at lines [426, 904, 927, 1385, 1408, 1901, 1924]
+  [announcement]: 7x at lines [427, 905, 928, 1386, 1409, 1902, 1925]
+  [bannerUrl]: 7x at lines [428, 906, 929, 1387, 1410, 1903, 1926]
+  [saveShop]: 7x at lines [429, 907, 930, 1388, 1411, 1904, 1927]
+  [pointsSettings]: 7x at lines [430, 908, 931, 1389, 1412, 1905, 1928]
+  [pointsPerRM]: 7x at lines [431, 909, 932, 1390, 1413, 1906, 1929]
+  [savePoints2]: 7x at lines [432, 910, 933, 1391, 1414, 1907, 1930]
+  [month: 'short', day: 'numeric', year]: 6x at lines [3624, 3665, 4846, 4925, 5088, 5176]
+  [submitComplaint]: 5x at lines [220, 676, 1168, 1614, 1673]
+  [food_quality]: 5x at lines [224, 680, 1172, 1677, 4944]
+  [service]: 5x at lines [225, 681, 1173, 1678, 4945]
+  [waiting_time]: 5x at lines [227, 683, 1175, 1680, 4947]
+  [order_id_optional]: 5x at lines [235, 691, 1183, 1516, 1688]
+  [stampCollectedDetail]: 5x at lines [238, 312, 695, 1159, 1692]
+  [walletTopupPending]: 5x at lines [239, 313, 696, 1160, 1693]
+Total: 397 duplicate keys
+
+=== MISSING TRANSLATION KEYS (in HTML but not in LANGS) ===
+HTML refs: 277, LANGS keys: 1046, Missing: 32
+  MISSING: backHome
+  MISSING: bankAccountDisplay
+  MISSING: commission_rate
+  MISSING: credited_to_referrer_s_wallet_after_first_order
+  MISSING: customer_complaints
+  MISSING: enter_your_referrer_s_phone_number_to_link_commissions
+  MISSING: friends_referred
+  MISSING: generate_qr_codes
+  MISSING: generate_table_qr_codes
+  MISSING: in_progress
+  MISSING: kitchen_display
+  MISSING: member_stamp_progress
+  MISSING: member_wallet_balances
+  MISSING: merchantNameDisplay
+  MISSING: new
+  MISSING: no_friends_referred_yet
+  MISSING: no_pending_payment_proofs
+  MISSING: no_pending_requests
+  MISSING: number_of_tables
+  MISSING: pending_payment_proofs
+  MISSING: pending_top_up_requests
+  MISSING: refresh
+  MISSING: resolved
+  MISSING: search_for_a_member
+  MISSING: takeaway
+  MISSING: tierGold
+  MISSING: tierPlatinum
+  MISSING: tierSilver
+  MISSING: top_up_bonus_settings
+  MISSING: top_up_history
+  MISSING: total_earned
+  MISSING: will_earn

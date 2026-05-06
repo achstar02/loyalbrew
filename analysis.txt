@@ -1,0 +1,95 @@
+File has 7884 lines
+
+=== EN (63-553) ===
+  mPhComplaintDesc at line 191:     mPhComplaintDesc: 'Please describe your issue in detail...',
+  mPhComplaintOrderId at line 192:     mPhComplaintOrderId: 'e.g. ORD123456',
+  newComplaint at line 254:     newComplaint: 'New Complaint',
+  complaintCategory at line 255:     complaintCategory: 'Complaint Category',
+  food_quality at line 256:     food_quality: 'Food Quality',
+  waiting_time at line 259:     waiting_time: 'Waiting Time',
+  wrong_order at line 260:     wrong_order: 'Wrong Order',
+  pricing_issue at line 261:     pricing_issue: 'Pricing Issue',
+  tap_to_upload_photo at line 265:     tap_to_upload_photo: 'Tap to upload photo',
+  order_id_optional at line 267:     order_id_optional: 'Order ID (optional)',
+  complaintCategory at line 314:     complaintCategory: 'Complaint Category',
+  complaintCategory at line 386:     complaintCategory: 'Complaint Category',
+  mPhComplaintDesc at line 550:     mPhComplaintDesc: 'Please describe your issue in detail...',
+  mPhComplaintOrderId at line 551:     mPhComplaintOrderId: 'e.g. ORD123456',
+
+=== ZH (553-1069) ===
+  mPhComplaintDesc at line 679:     mPhComplaintDesc: '请详细描述您的问题...',
+  mPhComplaintOrderId at line 680:     mPhComplaintOrderId: '例如：ORD123456',
+  newComplaint at line 742:     newComplaint: '新投诉',
+  complaintCategory at line 743:     complaintCategory: '投诉类别',
+  food_quality at line 744:     food_quality: '食品质量',
+  waiting_time at line 747:     waiting_time: '等待时间',
+  wrong_order at line 748:     wrong_order: '订单错误',
+  pricing_issue at line 749:     pricing_issue: '价格问题',
+  tap_to_upload_photo at line 753:     tap_to_upload_photo: '点击上传照片',
+  order_id_optional at line 755:     order_id_optional: '订单ID（可选）',
+  complaintCategory at line 803:     complaintCategory: '投诉类别',
+  complaint_category at line 863:     complaint_category: '投诉类别',
+  new_complaint at line 891:     new_complaint: '新投诉',
+  wrong_order at line 925:     wrong_order: '错单',
+  mPhComplaintDesc at line 1066:     mPhComplaintDesc: '请详细描述您的问题...',
+  mPhComplaintOrderId at line 1067:     mPhComplaintOrderId: '例如：ORD123456',
+
+=== MS (1069-1582) ===
+  mPhComplaintDesc at line 1194:     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...',
+  mPhComplaintOrderId at line 1195:     mPhComplaintOrderId: 'cth. ORD123456',
+  newComplaint at line 1266:     newComplaint: 'Aduan Baru',
+  complaintCategory at line 1267:     complaintCategory: 'Kategori Aduan',
+  food_quality at line 1268:     food_quality: 'Kualiti Makanan',
+  waiting_time at line 1271:     waiting_time: 'Masa Menunggu',
+  wrong_order at line 1272:     wrong_order: 'Pesanan Salah',
+  pricing_issue at line 1273:     pricing_issue: 'Isu Harga',
+  tap_to_upload_photo at line 1277:     tap_to_upload_photo: 'Ketik untuk muat naik foto',
+  order_id_optional at line 1279:     order_id_optional: 'ID Pesanan (pilihan)',
+  complaintCategory at line 1316:     complaintCategory: 'Kategori Aduan',
+  complaint_category at line 1376:     complaint_category: 'Kategori Aduan',
+  new_complaint at line 1404:     new_complaint: 'Aduan Baru',
+  wrong_order at line 1438:     wrong_order: 'Pesanan Salah',
+  mPhComplaintDesc at line 1579:     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...',
+  mPhComplaintOrderId at line 1580:     mPhComplaintOrderId: 'cth: ORD123456',
+
+=== TA (1582-2060) ===
+  order_id_optional at line 1612:     order_id_optional: 'ஆர்டர் ஐடி (கட்டாயமற்றது)',
+  mPhComplaintDesc at line 1740:     mPhComplaintDesc: 'உங்கள் பிரச்சனையை விரிவாக விவரிக்கவும்...',
+  mPhComplaintOrderId at line 1741:     mPhComplaintOrderId: 'எ.கா. ORD123456',
+  newComplaint at line 1803:     newComplaint: 'புதிய புகார்',
+  complaintCategory at line 1804:     complaintCategory: 'புகார் வகை',
+  food_quality at line 1805:     food_quality: 'உணவு தரம்',
+  waiting_time at line 1808:     waiting_time: 'காத்திருக்கும் நேரம்',
+  wrong_order at line 1809:     wrong_order: 'தவறான ஆர்டர்',
+  pricing_issue at line 1810:     pricing_issue: 'விலை பிரச்சனை',
+  tap_to_upload_photo at line 1814:     tap_to_upload_photo: 'புகைப்படம் பதிவேற்ற தட்டவும்',
+  order_id_optional at line 1816:     order_id_optional: 'ஆர்டர் ID (விருப்பம்)',
+  complaintCategory at line 1864:     complaintCategory: 'புகார் வகை',
+  complaint_category at line 1924:     complaint_category: 'புகார் வகை',
+  new_complaint at line 1952:     new_complaint: 'புதிய புகார்',
+  wrong_order at line 1986:     wrong_order: 'தவறான ஆர்டர்',
+
+=== HTML complaint data-i18n ===
+  HTML line 89: data-i18n="orderNow"
+  HTML line 237: data-i18n="orderType"
+  HTML line 356: data-i18n="orderSummary"
+  HTML line 395: data-i18n="orderPlaced"
+  HTML line 401: data-i18n="orderSent"
+  HTML line 424: data-i18n="orderMore"
+  HTML line 560: data-i18n="submitComplaint"
+  HTML line 647: data-i18n="orders"
+  HTML line 653: data-i18n="complaints"
+  HTML line 666: data-i18n="orders_today"
+  HTML line 720: data-i18n="all_orders"
+  HTML line 749: data-i18n="food"
+  HTML line 990: data-i18n="customer_complaints"
+  HTML line 1032: data-i18n="credited_to_referrer_s_wallet_after_first_order"
+  HTML line 1407: data-i18n="submitComplaint"
+  HTML line 1413: data-i18n="new_complaint"
+  HTML line 1415: data-i18n="complaint_category"
+  HTML line 1417: data-i18n="food_quality"
+  HTML line 1420: data-i18n="waiting_time"
+  HTML line 1421: data-i18n="wrong_order"
+  HTML line 1441: data-i18n="order_id_optional"
+  HTML line 1445: data-i18n="submitComplaintBtn"
+  HTML line 1451: data-i18n="myComplaints"

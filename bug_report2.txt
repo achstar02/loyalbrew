@@ -1,0 +1,194 @@
+=== TA section keys (lines 1486-1937) ===
+Total keys: 438
+Keys with underscore (not mPh): 111
+Keys with camelCase: 327
+
+--- Underscore keys (suspicious, may not match HTML data-i18n) ---
+  Line 1487: loyalbrew_brand
+  Line 1488: merchant_name_default
+  Line 1489: demo_label
+  Line 1490: email_optional
+  Line 1491: referral_code_label
+  Line 1492: admin_label
+  Line 1494: new_items
+  Line 1495: bill_amount
+  Line 1500: price_label
+  Line 1501: hot_drinks
+  Line 1502: cold_drinks
+  Line 1506: card_emoji_icon
+  Line 1507: flat_discount
+  Line 1508: min_amount
+  Line 1509: qr_description
+  Line 1511: stamps_collected
+  Line 1512: whats_new_title
+  Line 1513: invite_friends_title
+  Line 1514: no_commissions_yet
+  Line 1515: upload_photo_optional
+  Line 1516: order_id_optional
+  Line 1517: response_action_taken
+  Line 1677: food_quality
+  Line 1680: waiting_time
+  Line 1681: wrong_order
+  Line 1682: pricing_issue
+  Line 1686: tap_to_upload_photo
+  Line 1687: photo_upload_hint
+  Line 1688: order_id_optional
+  Line 1766: active_new_launches
+  Line 1767: active_stamp_cards
+  Line 1768: add_bonus_rule
+  Line 1769: add_new_item
+  Line 1770: add_points
+  Line 1771: add_points_manually
+  Line 1772: add_rule
+  Line 1773: add_to_menu
+  Line 1776: all_members
+  Line 1777: all_orders
+  Line 1778: announcement_placeholder
+  Line 1779: announcement_text
+  Line 1780: bank_transfer
+  Line 1781: bonus_points
+  Line 1783: card_color_theme
+  Line 1784: card_name
+  Line 1785: card_name_placeholder
+  Line 1789: click_to_upload_photo
+  Line 1791: cold_drinks
+  Line 1792: commission_history
+  Line 1793: commission_records
+
+--- Checking if underscore TA keys have camelCase equivalents in EN ---
+  loyalbrew_brand -> loyalbrewBrand NOT in EN (orphan key?)
+  merchant_name_default -> merchantNameDefault NOT in EN (orphan key?)
+  demo_label -> demoLabel NOT in EN (orphan key?)
+  email_optional -> emailOptional NOT in EN (orphan key?)
+  referral_code_label -> referralCodeLabel NOT in EN (orphan key?)
+  admin_label -> adminLabel NOT in EN (orphan key?)
+  new_items -> newItems NOT in EN (orphan key?)
+  bill_amount -> billAmount NOT in EN (orphan key?)
+  price_label -> priceLabel NOT in EN (orphan key?)
+  hot_drinks -> hotDrinks NOT in EN (orphan key?)
+  cold_drinks -> coldDrinks NOT in EN (orphan key?)
+  card_emoji_icon -> cardEmojiIcon NOT in EN (orphan key?)
+  flat_discount -> flatDiscount NOT in EN (orphan key?)
+  min_amount -> minAmount NOT in EN (orphan key?)
+  qr_description -> qrDescription NOT in EN (orphan key?)
+  stamps_collected -> stampsCollected NOT in EN (orphan key?)
+  whats_new_title -> whatsNewTitle NOT in EN (orphan key?)
+  invite_friends_title -> inviteFriendsTitle NOT in EN (orphan key?)
+  no_commissions_yet -> noCommissionsYet NOT in EN (orphan key?)
+  upload_photo_optional -> uploadPhotoOptional EXISTS in EN
+  order_id_optional -> orderIdOptional NOT in EN (orphan key?)
+  response_action_taken -> responseActionTaken NOT in EN (orphan key?)
+  food_quality -> foodQuality NOT in EN (orphan key?)
+  waiting_time -> waitingTime NOT in EN (orphan key?)
+  wrong_order -> wrongOrder NOT in EN (orphan key?)
+  pricing_issue -> pricingIssue NOT in EN (orphan key?)
+  tap_to_upload_photo -> tapToUploadPhoto NOT in EN (orphan key?)
+  photo_upload_hint -> photoUploadHint EXISTS in EN
+  order_id_optional -> orderIdOptional NOT in EN (orphan key?)
+  active_new_launches -> activeNewLaunches NOT in EN (orphan key?)
+  active_stamp_cards -> activeStampCards NOT in EN (orphan key?)
+  add_bonus_rule -> addBonusRule NOT in EN (orphan key?)
+  add_new_item -> addNewItem NOT in EN (orphan key?)
+  add_points -> addPoints NOT in EN (orphan key?)
+  add_points_manually -> addPointsManually NOT in EN (orphan key?)
+  add_rule -> addRule NOT in EN (orphan key?)
+  add_to_menu -> addToMenu NOT in EN (orphan key?)
+  all_members -> allMembers NOT in EN (orphan key?)
+  all_orders -> allOrders NOT in EN (orphan key?)
+  announcement_placeholder -> announcementPlaceholder NOT in EN (orphan key?)
+  announcement_text -> announcementText NOT in EN (orphan key?)
+  bank_transfer -> bankTransfer NOT in EN (orphan key?)
+  bonus_points -> bonusPoints NOT in EN (orphan key?)
+  card_color_theme -> cardColorTheme NOT in EN (orphan key?)
+  card_name -> cardName NOT in EN (orphan key?)
+  card_name_placeholder -> cardNamePlaceholder NOT in EN (orphan key?)
+  click_to_upload_photo -> clickToUploadPhoto NOT in EN (orphan key?)
+  cold_drinks -> coldDrinks NOT in EN (orphan key?)
+  commission_history -> commissionHistory NOT in EN (orphan key?)
+  commission_records -> commissionRecords NOT in EN (orphan key?)
+  commission_settings -> commissionSettings NOT in EN (orphan key?)
+  complaint_category -> complaintCategory EXISTS in EN
+  complaint_detail -> complaintDetail NOT in EN (orphan key?)
+  confirm_deactivate -> confirmDeactivate NOT in EN (orphan key?)
+  create_account -> createAccount NOT in EN (orphan key?)
+  create_stamp_card -> createStampCard NOT in EN (orphan key?)
+  deactivate_member -> deactivateMember NOT in EN (orphan key?)
+  emoji_icon -> emojiIcon NOT in EN (orphan key?)
+  end_date -> endDate NOT in EN (orphan key?)
+  enter_your_referrer_s_phone_number_to_link_commissions -> enterYourReferrerSPhoneNumberToLinkCommissions NOT in EN (orphan key?)
+  expiry_date -> expiryDate NOT in EN (orphan key?)
+  free_item -> freeItem NOT in EN (orphan key?)
+  free_menu_item -> freeMenuItem NOT in EN (orphan key?)
+  hot_drinks -> hotDrinks NOT in EN (orphan key?)
+  item_name -> itemName NOT in EN (orphan key?)
+  item_photo -> itemPhoto NOT in EN (orphan key?)
+  launch_date -> launchDate NOT in EN (orphan key?)
+  launch_new_item -> launchNewItem NOT in EN (orphan key?)
+  login_to_dashboard -> loginToDashboard NOT in EN (orphan key?)
+  menu_items -> menuItems NOT in EN (orphan key?)
+  merchant_login -> merchantLogin NOT in EN (orphan key?)
+  new_complaint -> newComplaint EXISTS in EN
+  no_active_new_items -> noActiveNewItems NOT in EN (orphan key?)
+  no_past_launches -> noPastLaunches NOT in EN (orphan key?)
+  no_pickup_time_set -> noPickupTimeSet NOT in EN (orphan key?)
+  no_stamp_cards_yet -> noStampCardsYet NOT in EN (orphan key?)
+  orders_today -> ordersToday NOT in EN (orphan key?)
+  past_launches -> pastLaunches NOT in EN (orphan key?)
+  phone_number -> phoneNumber EXISTS in EN
+  points_issued -> pointsIssued NOT in EN (orphan key?)
+  qr_codes -> qrCodes NOT in EN (orphan key?)
+  recent_transactions -> recentTransactions NOT in EN (orphan key?)
+  referral_commission_rate -> referralCommissionRate EXISTS in EN
+  remove_photo -> removePhoto NOT in EN (orphan key?)
+  revenue_today -> revenueToday NOT in EN (orphan key?)
+  reward_type -> rewardType NOT in EN (orphan key?)
+  save_password -> savePassword NOT in EN (orphan key?)
+  select_menu_item -> selectMenuItem EXISTS in EN
+  stamp_cards -> stampCards NOT in EN (orphan key?)
+  stamp_rule -> stampRule NOT in EN (orphan key?)
+  stamp_rule_placeholder -> stampRulePlaceholder NOT in EN (orphan key?)
+  stamps_required_to_complete -> stampsRequiredToComplete NOT in EN (orphan key?)
+  submit_complaint -> submitComplaint EXISTS in EN
+  top_up -> topUp EXISTS in EN
+  wrong_order -> wrongOrder NOT in EN (orphan key?)
+  create_ad -> createAd NOT in EN (orphan key?)
+  ad_title -> adTitle NOT in EN (orphan key?)
+  ad_link -> adLink NOT in EN (orphan key?)
+  start_date -> startDate NOT in EN (orphan key?)
+  end_date -> endDate NOT in EN (orphan key?)
+  ad_image -> adImage NOT in EN (orphan key?)
+  click_to_upload_ad_image -> clickToUploadAdImage NOT in EN (orphan key?)
+  ad_position -> adPosition NOT in EN (orphan key?)
+  ad_priority -> adPriority NOT in EN (orphan key?)
+  higher_shows_first -> higherShowsFirst NOT in EN (orphan key?)
+  active_ads -> activeAds NOT in EN (orphan key?)
+  no_active_ads -> noActiveAds NOT in EN (orphan key?)
+  all_ads -> allAds NOT in EN (orphan key?)
+  no_ads_yet -> noAdsYet NOT in EN (orphan key?)
+  ad_statistics -> adStatistics NOT in EN (orphan key?)
+  landing_page_top -> landingPageTop NOT in EN (orphan key?)
+
+=== setLang() analysis ===
+  Line 1939: function setLang(lang) {
+  Line 1955:   root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+  Line 1956:     const key = el.getAttribute('data-i18n-placeholder');
+
+=== applyMerchantLang() analysis ===
+  Line 6702:   // BUT skip elements that already have data-mi18n (those are handled by applyMerchantLang)
+  Line 6710: function applyMerchantLang() {
+
+=== Hardcoded English text in HTML (potential untranslated strings) ===
+  Line 591: Merchant
+  Line 618: Enter your Merchant ID and password
+  Line 626: Admin
+  Line 648: Menu
+  Line 1086: Promo hides when active orders reach this number
+  Line 1104: Leave empty to use default banner
+  Line 1371: Referral Program
+  Line 1379: Share your phone number as a referral code. When your friend
+  Line 1382: Copy
+  Line 1392: Commission History
+  Line 1397: Friends You Referred
+  Line 1482: Complaint Detail
+  Line 1489: Mark Resolved
+  Line 1499: Order Details

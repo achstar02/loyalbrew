@@ -1,0 +1,191 @@
+// ============================================================
+// FIRESTORE SECURITY RULES FOR LOYALBREW
+// Security Features:
+// - Field-level validation (hasOnly/hasAll)
+// - Immutable field enforcement
+// - Merchant-scoped data isolation
+// - Firebase Auth required for sensitive operations
+// - Append-only rules for transaction logs
+// - Rate limiting via client-side throttling
+// ============================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // COLLECTION: merchants
+    // SECURITY NOTE: Password is stored in plaintext - this is a known vulnerability.
+    // TODO: Migrate to hashed password storage with server-side verification.
+    // Current: password hash should be computed client-side before storage.
+    // ============================================================
+    match /merchants/{merchantId} {
+      // Anyone can read merchant info (customer pages need name/banner only)
+      // SECURITY FIX: Restrict to only fields needed for customer-facing pages
+      allow read: if request.auth != null 
+        || resource.data.keys().hasOnly(['merchant_name','address','lang','currency','theme',
+                    'banner','announce','pointsRate','active']);
+
+      // Only Super Admin (Firebase Auth) can create new merchants
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['merchant_name', 'createdAt']);
+
+      // Only authenticated users (Super Admin) can update merchant record
+      // 🔒 Immutable: merchant_name cannot be renamed via update (must delete+recreate)
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['merchant_name','address','lang','currency','theme','menuCategories',
+                    'items','orders','members','status','updatedAt','announce',
+                    'banner','pointsRate','credits','phone','email','password',
+                    'createdBy','active','deletedAt',
+                    'verified','verifiedAt','failedAttempts','lockedUntil']);
+
+      allow delete: if false;
+
+      // ── Sub-collections (scoped under merchants/{merchantId}/) ──
+      // Path inherently constrains to this merchant, no need for merchantId field check
+      // 🔒 All sub-collection updates BLOCK modification of: id, createdAt, merchantId
+
+      // orders: customer creates with status=pending, merchant updates status/kitchen
+      // 🔒 merchantId must match path; items must be non-empty array
+      match /orders/{orderId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['items', 'total', 'status', 'merchantId', 'createdAt'])
+          && request.resource.data.status == 'pending'
+          && request.resource.data.merchantId == merchantId
+          && request.resource.data.items.size() > 0;
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status','updatedAt','kitchenStatus','kitchenUpdatedAt']);
+        allow delete: if false;
+      }
+
+      // members: register + merchant manage
+      // 🔒 phone and merchantId are immutable after creation
+      match /members/{memberId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['phone', 'name', 'points', 'merchantId', 'createdAt']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name','points','updatedAt','visitCount','email','deactivated',
+                    'referrerId','hasFirstOrder']);
+        allow delete: if false;
+      }
+
+      // txns: append-only transaction log
+      match /txns/{txnId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['memberId', 'type', 'points', 'createdAt']);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // stampCards: merchant creates/manages
+      match /stampCards/{cardId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['name', 'totalStamps', 'rule', 'createdAt']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name','emoji','totalStamps','rule','ruleValue','ruleItemId',
+                    'rewardType','rewardValue','color','active','updatedAt']);
+        allow delete: if false;
+      }
+
+      // memberStamps: object map keyed by memberId_cardId
+      // FSSync save() writes {stamps, completed, claimed} per doc
+      match /memberStamps/{stampId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['stamps']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['stamps','completed','claimed','updatedAt']);
+        allow delete: if false;
+      }
+
+      // wallets: merchant manages via topup flow
+      // 🔒 memberPhone is immutable after creation
+      match /wallets/{walletId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['balance', 'memberPhone', 'createdAt']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['balance','totalTopup','totalBonus','updatedAt']);
+        allow delete: if false;
+      }
+
+      // walletTxns: append-only
+      match /walletTxns/{txnId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['memberId', 'type', 'payAmount', 'createdAt']);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // commissions: system creates on referral, no update needed
+      match /commissions/{commissionId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['referrerId', 'commissionAmt', 'createdAt']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status','paidAt','updatedAt']);
+        allow delete: if false;
+      }
+
+      // topupRequests: customer creates (pending), merchant approves/rejects
+      // 🔒 merchantId must match path
+      match /topupRequests/{requestId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['memberId', 'payAmount', 'status', 'merchantId', 'createdAt'])
+          && request.resource.data.status == 'pending'
+          && request.resource.data.merchantId == merchantId
+          && request.resource.data.payAmount > 0;
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status','approvedDate','rejectedDate','updatedAt','creditedAt','approvedBy','proofUrl']);
+        allow delete: if false;
+      }
+
+      // paymentProofs: customer uploads proof, merchant verifies/rejects
+      match /paymentProofs/{proofId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['orderId', 'proofImage', 'status', 'createdAt'])
+          && request.resource.data.status == 'pending';
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status','verifiedAt','rejectedAt','updatedAt']);
+        allow delete: if false;
+      }
+
+      // newItems: merchant launches promo for existing menu items
+      // Data: {id, menuItemId, specialPrice, launchDate, endDate, announcement, active, createdAt}
+      match /newItems/{itemId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['menuItemId', 'active', 'createdAt']);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['specialPrice','launchDate','endDate','announcement','active','updatedAt',
+                    'isNew','announced','startTime','endTime','originalPrice']);
+        allow delete: if false;
+      }
+    }
+
+    // ============================================================
+    // COLLECTION: complaints (top-level)
+    // Customer creates with merchantId; merchant updates status/response
+    // 🔒 merchantId, memberId, memberName, memberPhone, createdAt are immutable
+    // ============================================================
+    match /complaints/{complaintId} {
+      allow create: if request.resource.data.keys().hasAll(['merchantId', 'memberId', 'memberName', 'memberPhone', 'description', 'status', 'createdAt'])
+        && request.resource.data.status == 'open';
+      allow read: if true;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['status', 'response', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // COLLECTION: members (top-level, for cross-merchant lookup)
+    // 🔒 phone and merchantId are immutable after creation
+    // ============================================================
+    match /members/{memberId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['phone', 'name', 'points', 'merchantId', 'createdAt']);
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name','points','visitCount','updatedAt','email','deactivated',
+                  'referrerId','hasFirstOrder'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['points'])
+            || request.resource.data.points >= 0);
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,32 @@
+EN=364 ZH=451 MS=449 TA=588
+Missing from all: 15, real: 12
+--- REAL MISSING ---
+  mDeactivateBtn
+  mDeactivateMember
+  mEnterValidBill
+  mFreeCoffee
+  mMemberInactive
+  mNoMembersYet
+  mOrderPickup
+  mOrderPrepare
+  mOrderTakeaway
+  mPoints
+  mQRPrint
+  mQRTable
+--- SUSPICIOUS CONTEXT ---
+  line 7066: const today   = new Date().toISOString().split('T')[0];
+  line 7372: const div = document.createElement('div');
+  line 7509: const merchantId = params.get('m');
+--- MISMATCH CHECK ---
+  mDeactivateBtn (merchant prefix, should use mt())
+  mDeactivateMember (merchant prefix, should use mt())
+  mEnterValidBill (merchant prefix, should use mt())
+  mFreeCoffee (merchant prefix, should use mt())
+  mMemberInactive (merchant prefix, should use mt())
+  mNoMembersYet (merchant prefix, should use mt())
+  mOrderPickup (merchant prefix, should use mt())
+  mOrderPrepare (merchant prefix, should use mt())
+  mOrderTakeaway (merchant prefix, should use mt())
+  mPoints (merchant prefix, should use mt())
+  mQRPrint (merchant prefix, should use mt())
+  mQRTable (merchant prefix, should use mt())

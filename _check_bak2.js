@@ -1,0 +1,8898 @@
+// ===== FIRESTORE DATA SYNC LAYER =====
+// This layer syncs localStorage data with Firestore for cross-device access
+const FSSync = {
+  // In-memory cache for Firestore data
+  _cache: {
+    members: null,
+    orders: null,
+    txns: null,
+    stampCards: null,
+    memberStamps: null,
+    wallets: null,
+    walletTxns: null,
+    commissions: null,
+    topupRequests: null,
+    paymentProofs: null,
+    newItems: null,
+    menu: null
+  },
+  
+  // Get merchant-scoped collection path
+  _col(name) {
+    const mid = MERCHANT_DOC_PATH.id;
+    return `merchants/${mid}/${name}`;
+  },
+  
+  // Load all data from Firestore to cache
+  async loadAll() {
+    const fb = window.__lbFirebase;
+    if (!fb?.db) return;
+    
+    console.log('[FSSync] Loading all data from Firestore...');
+    
+    const collections = ['members', 'orders', 'txns', 'stampCards', 'memberStamps', 
+                         'wallets', 'walletTxns', 'commissions', 'topupRequests', 
+                         'paymentProofs', 'newItems', 'menu'];
+    
+    for (const col of collections) {
+      try {
+        const snap = await fb.getDocs(fb.collection(fb.db, this._col(col)));
+        this._cache[col] = snap.docs.map(d => d.data());
+        console.log(`[FSSync] Loaded ${this._cache[col].length} ${col}`);
+      } catch(e) {
+        console.error(`[FSSync] Failed to load ${col}:`, e);
+        this._cache[col] = [];
+      }
+    }
+    
+    // Mark Firestore as ready
+    window.__fsReady = true;
+    console.log('[FSSync] ? All data loaded from Firestore');
+  },
+  
+  // Get data (from cache or localStorage)
+  get(col) {
+    // Use cache if available (from Firestore)
+    if (this._cache[col] !== null) {
+      return this._cache[col];
+    }
+    // Fallback to localStorage
+    return safeLS.json(_getMerchantStorageKey('loyalbrew_' + col), []);
+  },
+  
+  // Save data (to cache, localStorage, and Firestore)
+  async save(col, data) {
+    // 1. Update cache immediately
+    this._cache[col] = data;
+    
+    // 2. Save to localStorage for offline access
+    safeLS.setJSON(_getMerchantStorageKey('loyalbrew_' + col), data);
+    
+    // 3. Sync to Firestore (non-blocking)
+    this._syncToFirestore(col, data).catch(e => {
+      console.error(`[FSSync] Firestore sync failed for ${col}:`, e);
+    });
+  },
+  
+  // Sync data to Firestore
+  async _syncToFirestore(col, data) {
+    const fb = window.__lbFirebase;
+    if (!fb?.db) return;
+    
+    try {
+      // Handle both Array and Object formats
+      const entries = Array.isArray(data)
+        ? data.filter(item => item && item.id).map(item => [item.id, item])
+        : Object.entries(data || {}).filter(([, v]) => v).map(([key, val]) => [key, { ...val, id: key }]);
+      
+      for (const [id, item] of entries) {
+        await fb.setDoc(fb.doc(fb.db, this._col(col), id), item, { merge: true });
+      }
+      console.log(`[FSSync] Synced ${entries.length} items to ${col}`);
+    } catch(e) {
+      console.error(`[FSSync] Sync error for ${col}:`, e);
+    }
+  },
+  
+  // Add single item to Firestore
+  async addItem(col, item) {
+    const fb = window.__lbFirebase;
+    if (!fb?.db || !item?.id) return;
+    
+    try {
+      await fb.setDoc(fb.doc(fb.db, this._col(col), item.id), item);
+      console.log(`[FSSync] Added item to ${col}:`, item.id);
+    } catch(e) {
+      console.error(`[FSSync] Add item failed:`, e);
+    }
+  },
+  
+  // Update single item in Firestore
+  async updateItem(col, id, updates) {
+    const fb = window.__lbFirebase;
+    if (!fb?.db) return;
+    
+    try {
+      await fb.updateDoc(fb.doc(fb.db, this._col(col), id), updates);
+      console.log(`[FSSync] Updated item ${id} in ${col}`);
+    } catch(e) {
+      console.error(`[FSSync] Update item failed:`, e);
+    }
+  },
+  
+  // Delete single item from Firestore
+  async deleteItem(col, id) {
+    const fb = window.__lbFirebase;
+    if (!fb?.db) return;
+    
+    try {
+      await fb.deleteDoc(fb.doc(fb.db, this._col(col), id));
+      console.log(`[FSSync] Deleted item ${id} from ${col}`);
+    } catch(e) {
+      console.error(`[FSSync] Delete item failed:`, e);
+    }
+  },
+
+  // Real-time listener for a collection
+  subscribe(col, callback) {
+    const fb = window.__lbFirebase;
+    if (!fb?.db) return null;
+    
+    try {
+      return fb.onSnapshot(fb.collection(fb.db, this._col(col)), (snap) => {
+        this._cache[col] = snap.docs.map(d => d.data());
+        if (callback) callback(this._cache[col]);
+      });
+    } catch(e) {
+      console.error(`[FSSync] Subscribe failed:`, e);
+      return null;
+    }
+  }
+};
+
+// ===== SAFE LOCALSTORAGE WRAPPER =====
+const safeLS = (() => {
+  const noop = () => {};
+  const ls = (() => { try { return localStorage; } catch(e) { return { getItem: noop, setItem: noop, removeItem: noop }; } })();
+  return {
+    get(k, fb)  { try { const v = ls.getItem(k); return v !== null ? v : (fb !== undefined ? fb : null); } catch(e) { return fb !== undefined ? fb : null; } },
+    set(k, v)  { try { ls.setItem(k, String(v)); } catch(e) { /* quota/unavailable */ } },
+    del(k)     { try { ls.removeItem(k); } catch(e) { /* noop */ } },
+    json(k, fb){ try { const v = ls.getItem(k); if (v === null) return fb !== undefined ? fb : null; return JSON.parse(v); } catch(e) { return fb !== undefined ? fb : null; } },
+    setJSON(k, v) { try { ls.setItem(k, JSON.stringify(v)); } catch(e) { /* quota/unavailable */ } }
+  };
+})();
+
+// ===== DATASTORE (localStorage + Firestore sync) =====
+const DB = {
+  _key(o) { return _getMerchantStorageKey('loyalbrew_' + o); },
+  
+  // Orders
+  getOrders()    { return FSSync.get('orders'); },
+  saveOrders(v)  { FSSync.save('orders', v); },
+  
+  // Members
+  getMembers()   { return FSSync.get('members'); },
+  saveMembers(v) { FSSync.save('members', v); },
+  
+  // Transactions
+  getTxns()     { return FSSync.get('txns'); },
+  saveTxns(v)   { FSSync.save('txns', v); },
+  
+  // Menu (synced to Firestore)
+  getMenu()     { return FSSync.get('menu'); },
+  saveMenu(v)   { FSSync.save('menu', v); },
+  
+  // Stamp Cards
+  getStampCards() { return FSSync.get('stampCards'); },
+  saveStampCards(v) { FSSync.save('stampCards', v); },
+  
+  // Payment Proofs
+  getPaymentProofs() { return FSSync.get('paymentProofs'); },
+  savePaymentProofs(v) { FSSync.save('paymentProofs', v); },
+  
+  // Current Member Phone (session, stays in localStorage)
+  getCurrentMemberPhone() { return safeLS.get(this._key('current_member_phone'), null); },
+  setCurrentMemberPhone(v) { safeLS.set(this._key('current_member_phone'), v); },
+  
+  // New Items
+  getNewItems()       { return FSSync.get('newItems'); },
+  saveNewItems(v)     { FSSync.save('newItems', v); },
+  
+  // Wallets
+  getWallets()        { return FSSync.get('wallets'); },
+  saveWallets(v)      { FSSync.save('wallets', v); },
+  
+  // Wallet Transactions
+  getWalletTxns()     { return FSSync.get('walletTxns'); },
+  saveWalletTxns(v)   { FSSync.save('walletTxns', v); },
+  
+  // Member Stamps
+  getMemberStamps()   { return FSSync.get('memberStamps'); },
+  saveMemberStamps(v) { FSSync.save('memberStamps', v); },
+  
+  // Complaints (handled separately in Firestore)
+  getComplaints()     { return safeLS.json(this._key('complaints'), []); },
+  saveComplaints(v)   { safeLS.setJSON(this._key('complaints'), v); },
+  
+  // Commissions
+  getCommissions()    { return FSSync.get('commissions'); },
+  saveCommissions(v)  { FSSync.save('commissions', v); },
+  
+  // Topup Requests
+  getTopupRequests()  { return FSSync.get('topupRequests'); },
+  saveTopupRequests(v){ FSSync.save('topupRequests', v); },
+  
+  // Announce Seen (session state)
+  getAnnounceSeen()   { return safeLS.json(this._key('announce_seen'), {}); },
+  setAnnounceSeen(v)  { safeLS.setJSON(this._key('announce_seen'), v); }
+};
+
+// ===== MERCHANT DATA ISOLATION HELPER =====
+function _getCurrentMerchantId() {
+  return window._currentMerchantId || 'default';
+}
+function _getMerchantStorageKey(baseKey) {
+  const mid = _getCurrentMerchantId();
+  return mid === 'default' ? baseKey : baseKey + '_' + mid;
+}
+
+// ===== MULTI-LANGUAGE SYSTEM =====
+const LANGS = {
+  en: {
+    mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
+    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional � for off-peak special',
+    // Landing
+    tagline: 'Order � Earn Points � Get Rewards',
+    loginLabel: 'Member Login', myAccount: 'My Account', orderNow: 'Order Now', myStampCard: 'My Stamp Card',
+    topUp: 'Top Up', merchant: 'Merchant',
+    feat1Title: 'Scan & Order', feat1Desc: 'Scan table QR, order in seconds',
+    feat2Title: 'Earn Points', feat2Desc: 'RM1 spent = 1 point earned',
+    feat3Title: 'Free Drinks', feat3Desc: 'Redeem for free beverages',
+    // Menu
+    menu: 'Menu', dineIn: 'Dine In', takeaway: 'Takeaway',
+    table: 'Table', change: 'Change',
+    selectTable: 'Select Your Table', enterTable: 'Enter your table number to start ordering',
+    confirmTable: 'Confirm Table', invalidTable: 'Please enter a valid table number',
+    // Menu categories
+    catAll: 'All', catNewItems: '? New Items',
+    catHotDrinks: 'Hot Drinks', catColdDrinks: 'Cold Drinks',
+    catFood: 'Food', catDesserts: 'Desserts', catSnacks: 'Snacks',
+    // Float cart
+    floatViewCart: 'View Cart ?',
+    floatItem: 'item', floatItems: 'items',
+    // Takeaway info bar
+    takeawayOrder: 'Takeaway Order', noPickupTime: 'No pickup time set', pickup: 'Pickup',
+    // Cart
+    yourOrder: 'Your Order', orderType: 'Order Type',
+    phoneNumber: 'Phone Number', pickupTime: 'Pickup Time',
+    pickupHint: "We'll prepare your order by this time.",
+    loyaltyPoints: 'Loyalty Points & Stamp',
+    earnHint: 'Enter your phone & tap ?? to earn points & stamps',
+    phoneLoyalty: 'Phone Number (earn points & stamps)',
+    payWallet: 'Pay with Wallet', useWallet: 'Use wallet balance to pay', walletBalance: 'Balance',
+    paymentMethod: 'Payment Method',
+    cartEmpty: 'Your cart is empty', browseMenu: 'Browse Menu',
+    eachUnit: 'each', removeItem: 'Remove',
+    orderSummary: 'Order Summary', subtotal: 'Subtotal', sst: 'SST (6%)',
+    walletDeduction: 'Wallet Deduction', totalLabel: 'Total',
+    pointsEarnLabel: "Points you'll earn",
+    specialRequest: 'Special Request', specialRequestPlaceholder: 'e.g. less sugar, no ice...',
+    placeOrder: 'Place Order',
+    // Order type display in cart
+    cartDineIn: 'Dine In', cartTakeaway: 'Takeaway', cartChange: 'Change',
+    // Confirm details
+    confirmType: 'Type', confirmTable2: 'Table', confirmPhone: 'Phone',
+    confirmPickup: 'Pickup Time', confirmItems: 'Items',
+    confirmWalletPaid: 'Wallet Paid', confirmTotalPaid: 'Total Paid',
+    confirmPayment: 'Payment', confirmPointsEarned: 'Points Earned',
+    confirmNote: 'Note', pendingVerification: 'Pending Verification',
+    confirmTypeDineIn: '?? Dine In', confirmTypeTakeaway: '??? Takeaway',
+    // Cash pay confirm
+    cashPayCounter: 'Please pay at the counter, then tap the button below.',
+    cashPaidBtn: "I've Paid � Notify Kitchen",
+    cashPaidDone: 'Payment confirmed! Kitchen is preparing your order.',
+    confirmReceivedBtn: 'Confirm Received / Complete Order',
+    orderCompletedMsg: '?? Order completed! Thank you for your order.',
+    orderCompletedTitle: 'Order Completed',
+    // Toast
+    toastTakeaway: '??? Takeaway order placed!', toastDineIn: '?? Order sent to kitchen!',
+    toastNoPhone: 'Please enter your phone number for Takeaway',
+    toastNoTime: 'Please set a pickup time',
+    toastNoProof: 'Please upload your payment screenshot first.',
+    // Stamp
+    enterPhone: 'Enter Your Phone',
+    notMember: 'Not a member?', registerHere: 'Register here',
+    // Order Confirm
+    orderPlaced: 'Order Placed!', thankYou: 'Thank You!',
+    orderSent: 'Your order has been sent to the kitchen.',
+    orderMore: 'Order More', viewStamp: 'View My Stamp Card', backHome: 'Back to Home',
+    // Takeaway modal
+    takeawayModalTitle: 'Takeaway Order', takeawayModalSubtitle: 'Enter your pickup details',
+    confirmTakeaway: 'Confirm Takeaway', cancelBtn: 'Cancel',
+    pickupReadyHint: "We'll have your order ready by this time.",
+    // Payment section
+    tngScanTitle: 'Scan to Pay via Touch & Go',
+    tngAmountLabel: 'Amount', tngUploadHint: 'After payment, upload your screenshot below.',
+    uploadScreenshot: 'Upload Payment Screenshot', uploadReceipt: 'Upload Transfer Receipt',
+    uploadSizeHint: 'JPG / PNG up to 5MB', bankTitle: 'Bank Transfer Details',
+    // Stamp card
+    stampReward: 'Reward', stampClaimBtn: 'Claim Reward',
+    stampPerPurchase: '1 stamp per purchase',
+    stampPerAmount: '1 stamp per RM{v} spent',
+    stampPerItem: '1 stamp per {item}',
+    stampPerItemGeneric: '1 stamp per qualifying item',
+    stampFreeItem: 'Free {item}', stampFreeItemGeneric: 'Free Item',
+    stampRmOff: 'RM{v} Off', stampPctOff: '{v}% Off', stampBonusPoints: '+{v} Bonus Points',
+    stampsToUnlock: '{n} more stamp to unlock reward', stampsToUnlockPlural: '{n} more stamps to unlock reward',
+    stampCollected: 'Collected', stampEmpty: 'Empty',
+    stampCompleted: 'Completed {n}�',
+    // Customer Auth
+    login: 'Sign In', register: 'Register', fullName: 'Full Name',
+    memberDeactivatedMsg: 'Your account has been deactivated. Please contact the merchant.',
+    // Dashboard
+    memberLabel: 'Member', totalPoints: 'Total Points', memberId: 'Member ID',
+    tierProgress: 'Tier Progress',
+    tierBronze: 'Bronze\n0', tierSilver: 'Silver\n200', tierGold: 'Gold\n500', tierPlatinum: 'Platinum\n1000',
+    redeemRewards: 'Redeem Rewards', viewAllStampCards: 'View All Stamp Cards',
+    myOrders: 'My Orders', viewAllOrders: 'View All Orders',
+    referralCommissions: 'Referral Commissions', myReferralProgram: 'My Referral Program',
+    transactionHistory: 'Transaction History', logout: 'Logout', submitComplaint: 'Submit a Complaint',
+    // My Orders page
+    loginRequired: 'Member Login Required', loginToViewOrders: 'Please login to view your order history.',
+    goToLogin: 'Go to Member Login',
+    filterAll: 'All', filterPending: 'Pending', filterPreparing: 'Preparing', filterDone: 'Done',
+    // Top Up page
+    topUpWallet: 'Top Up Wallet', myWallet: 'My Wallet', bonusIncluded: 'bonus included',
+    topUpBonusTitle: 'Top Up Bonus!', topUpBonusDesc: 'Top up RM100 and get RM120 credit (FREE RM20 bonus!)',
+    selectTopUpAmount: 'Select Top Up Amount', topUpGet: 'Get', noBonus: 'No bonus',
+    bestDeal: 'BEST DEAL', free: 'FREE',
+    orCustomAmount: 'Or enter custom amount (RM)',
+    topUpCustomHint: 'Min RM10. Bonus applies to RM100 and above.',
+    youPay: 'You Pay', youGet: 'You Get', bonusLabel: 'Bonus',
+    confirmTopUp: 'Confirm Top Up', walletHistory: 'Wallet History',
+    // Wallet dashboard
+    availableBalance: 'Available Balance', totalToppedUp: 'Total Topped Up', totalBonusEarned: 'Total Bonus Earned',
+    // Tier hint
+    sinceLabel: 'Since',
+    pointsToReach: '{n} more points to reach {tier}!',
+    highestTier: '?? You reached the highest tier!',
+    tierNameSilver: 'Silver', tierNameGold: 'Gold', tierNamePlatinum: 'Platinum',
+    // Upload
+    screenshotUploaded: 'Screenshot uploaded. Pending merchant verification.',
+    screenshotUploaded2: 'Screenshot uploaded', tapToChange: 'Tap to change',
+    // Topup submit
+    topupSubmitted: '? Top up request submitted! Pending merchant approval.',
+    // Error toasts
+    selectTableFirst: 'Please select a table first!',
+    photoUnder5MB: 'Photo must be under 5MB',
+    // Promos
+    noPromos: 'No promos right now',
+    noComplaintsYet: 'No complaints submitted yet',
+    mPhComplaintDesc: 'Please describe your issue in detail...',
+    mPhComplaintOrderId: 'e.g. ORD123456',    mPromoEngineTitle: '???????', mPromoEngineDesc: '?????????????????????????',
+    mEnablePromo: '????', mStartTime: '????', mEndTime: '????',
+    mActiveDays: '????', mBusyThreshold: '????(??????)', mPromoHideHint: '?????????????????',
+    mDaySun: '?', mDayMon: '?', mDayTue: '?', mDayWed: '?', mDayThu: '?', mDayFri: '?', mDaySat: '?',
+    enterValidRate: 'Enter a valid rate (1�100)',
+    T: 'T',
+    div: 'div',
+    input: 'input',
+    m: 'm',
+    mDeactivateBtn: 'Deactivate',
+    mDeactivateMember: 'Deactivate Member',
+    mEnterValidBill: 'Enter valid bill',
+    mFreeCoffee: 'Free Coffee',
+    mMemberInactive: 'Member Inactive',
+    mNoMembersYet: 'No members yet',
+    mOrderPickup: 'Order Pickup',
+    mOrderPrepare: 'Order Prepare',
+    mOrderTakeaway: 'Order Takeaway',
+    mPoints: 'Points',
+    mQRPrint: 'Print QR',
+    mQRTable: 'Table QR Code',
+    backHome: 'Back to Home',
+    bankAccountDisplay: 'Bank Account',
+    commission_rate: 'Commission Rate',
+    credited_to_referrer_s_wallet_after_first_order: 'Credited to referrer\'s wallet after first order',
+    customer_complaints: 'Customer Complaints',
+    enter_your_referrer_s_phone_number_to_link_commissions: 'Enter your referrer\'s phone number to link commissions',
+    friends_referred: 'Friends Referred',
+    generate_qr_codes: 'Generate QR Codes',
+    generate_table_qr_codes: 'Generate Table QR Codes',
+    in_progress: 'In Progress',
+    kitchen_display: 'Kitchen Display',
+    member_stamp_progress: 'Stamp Progress',
+    member_wallet_balances: 'Wallet Balance',
+    merchantNameDisplay: 'Merchant Name',
+    new: 'New',
+    no_friends_referred_yet: 'No friends referred yet',
+    no_pending_payment_proofs: 'No pending payment proofs',
+    no_pending_requests: 'No pending requests',
+    number_of_tables: 'Number of Tables',
+    pending_payment_proofs: 'Pending Payment Proofs',
+    pending_top_up_requests: 'Pending Top-up Requests',
+    refresh: 'Refresh',
+    resolved: 'Resolved',
+    search_for_a_member: 'Search for a member',
+    takeaway: 'Takeaway',
+    tierGold: 'Gold',
+    tierPlatinum: 'Platinum',
+    tierSilver: 'Silver',
+    top_up_bonus_settings: 'Top-up Bonus Settings',
+    top_up_history: 'Top-up History',
+    total_earned: 'Total Earned',
+    will_earn: 'Will earn',
+    selectMenuItem: 'Please select a menu item',
+    enterPhoneNumber: 'Please enter your phone number',
+    memberNotFound: 'Member not found. Please register first.',
+    noUnclaimedRewards: 'No unclaimed rewards',
+    enterCardName: 'Please enter a card name',
+    enterRewardValue: 'Please enter the reward value',
+    minimumTopup: 'Minimum top up is RM10',
+    selectTopupAmount: 'Please select a top up amount',
+    sessionExpired: 'Session expired, please re-enter phone',
+    memberNotFoundShort: 'Member not found',
+    pleaseLoginFirst: 'Please member login first',
+    pleaseDescribeIssue: 'Please describe your issue',
+    enterPhoneToLogin: 'Please enter phone number',
+    memberNotFoundRegister: 'Member not found. Please register.',
+    fillNamePhone: 'Please fill in name and phone',
+    phoneRegistered: 'Phone already registered!',
+    email_optional: 'Email (optional)',
+    referral_code_label: "Referral Code (Referrer's Phone, optional)",
+    registeringAsMember: 'You are registering as a member of this merchant',
+    referrerNotFound: 'Referrer not found. Please check the phone number.',
+    notEnoughPoints: 'Not enough points!',
+    invalidCredentials: 'Invalid credentials!',
+    enterPhoneSearch: 'Enter phone number',
+    memberNotFoundExcl: 'Member not found!',
+    enterValidBill: 'Enter valid bill amount',
+    fillNamePrice: 'Fill in name and price',
+    qrNotReady: 'QR not ready yet',
+    complaintSubmitted: '? Complaint submitted! We\'ll get back to you soon.',
+    // Complaint form
+    submitComplaint: 'Submit Complaint',
+    submitComplaintBtn: 'Submit Complaint',
+    newComplaint: 'New Complaint',
+    complaintCategory: 'Complaint Category',
+    food_quality: 'Food Quality',
+    other: 'Other',
+    pricing_issue: 'Pricing Issue',
+    waiting_time: 'Waiting Time',
+    wrong_order: 'Wrong Order',
+    food_quality: 'Food Quality',
+    service: 'Service',
+    cleanliness: 'Cleanliness',
+    waiting_time: 'Waiting Time',
+    wrong_order: 'Wrong Order',
+    pricing_issue: 'Pricing Issue',
+    other: 'Other',
+    description: 'Description',
+    uploadPhotoOptional: 'Upload Photo (optional)',
+    tap_to_upload_photo: 'Tap to upload photo',
+    photo_upload_hint: 'JPG, PNG up to 5MB',
+    order_id_optional: 'Order ID (optional)',
+    myComplaints: 'My Complaints',
+    stampCollectedMsg: 'Stamp collected!',
+    stampCollectedDetail: 'View your card to claim rewards',
+    walletTopupPending: 'Awaiting merchant approval',
+    myOrdersEmpty: 'No orders found',
+    myOrdersNoOrdersYet: 'No orders yet',
+    walletTxnsEmpty: 'No wallet transactions yet',
+    txnNoTransactions: 'No transactions yet',
+    topupHistoryEmpty: 'No top up history yet',
+    complaintsEmpty: 'No complaints found',
+    photoUploadHint: 'JPG, PNG up to 5MB',
+    orderDetailTitle: 'Order Details',
+    orderDetailOrderId: 'Order ID',
+    orderDetailStatus: 'Status',
+    orderDetailType: 'Type',
+    orderDetailDate: 'Date',
+    orderDetailItems: 'Items Ordered',
+    orderDetailSubtotal: 'Subtotal',
+    orderDetailTax: 'SST',
+    walletTopupLabel: 'Top Up',
+    paymentCash: 'Cash',
+    paymentTng: 'Touch & Go',
+    paymentBank: 'Bank Transfer',
+    statusPending: 'Pending',
+    statusPreparing: 'Preparing',
+    statusDone: 'Done',
+    stampRedeemTitle: 'Congratulations!',
+    stampRedeemMsg: 'You\'ve collected all stamps!',
+    stampRedeemClaim: 'Claim Reward',
+    stampRedeemLater: 'Maybe Later',
+    newItemsTitle: 'What\'s New at LoyalBrew!',
+    newItemsMsg: 'Fresh launches just for you ??',
+    newItemsOrderNow: 'Order Now',
+    newItemsClose: 'Close',
+    referralReferral: 'Referral Program',
+    referralInviteFriends: 'Invite Friends, Earn Commission!',
+    referralShareCode: 'Share your phone number as a referral code. When your friend makes their first order, you earn a commission credited to your wallet!',
+    referralCopyCode: 'Copy',
+    referralFriendsReferred: 'Friends Referred',
+    referralTotalEarned: 'Total Earned',
+    referralCommissionRate: 'Commission Rate',
+    referralCommissionHistory: 'Commission History',
+    referralFriendsYouReferred: 'Friends You Referred',
+    referralNoCommissions: 'No commissions yet. Start referring!',
+    referralNoFriends: 'No friends referred yet.',
+    complaintSubmitComplaint: 'Submit Complaint',
+    complaintCategory: 'Complaint Category',
+    complaintDescription: 'Description',
+    complaintUploadPhoto: 'Upload Photo (optional)',
+    complaintTapUpload: 'Tap to upload photo',
+    complaintOrderIdOpt: 'Order ID (optional)',
+    complaintSubmit: 'Submit Complaint',
+    complaintMyComplaints: 'My Complaints',
+    complaintComplaintDetail: 'Complaint Detail',
+    complaintResponse: 'Response / Action Taken',
+    complaintResolve: 'Mark Resolved',
+    complaintClose: 'Close',
+    complaintNoPhoto: 'Photo attached',
+    complaintResolveDone: 'Complaint marked as resolved ?',
+    complaintDetailTitle: 'Complaint Detail',
+    complaintEnterResponse: 'Enter your response...',
+    newItemsBanner: 'NEW',
+    newItemsSpecial: 'Special:',
+    newItemsWas: 'was',
+    newItemsUntil: 'Until:',
+    newItemsNoEnd: 'No end date',
+    complaintPhotoAlt: 'Photo',
+    awaitingMerchantApproval: 'Awaiting merchant approval',
+    newItemsNewTag: 'NEW',
+    stampComplete: 'COMPLETE!',
+    complaintTab: 'Complaint',
+    referralTab: 'Referral',
+    orderDetailTotal: 'Total',
+    orderDetailPointsEarned: 'Points Earned',
+    orderDetailWalletPaid: 'Wallet',
+    orderDetailWalletDeductLabel: 'Wallet Deduction',
+    stampCollectedDetail: 'View your card to claim rewards',
+    walletTopupPending: 'Awaiting merchant approval',
+    myOrdersEmpty: 'No orders found',
+    myOrdersNoOrdersYet: 'No orders yet',
+    walletTxnsEmpty: 'No wallet transactions yet',
+    topupHistoryEmpty: 'No top up history yet',
+    complaintsEmpty: 'No complaints found',
+    orderDetailTitle: 'Order Details',
+    orderDetailOrderId: 'Order ID',
+    orderDetailStatus: 'Status',
+    orderDetailType: 'Type',
+    orderDetailDate: 'Date',
+    orderDetailItems: 'Items Ordered',
+    orderDetailSubtotal: 'Subtotal',
+    orderDetailTax: 'SST',
+    walletTopupLabel: 'Top Up',
+    paymentCash: 'Cash',
+    paymentTng: 'Touch & Go',
+    paymentBank: 'Bank Transfer',
+    statusPending: 'Pending',
+    statusPreparing: 'Preparing',
+    statusDone: 'Done',
+    stampRedeemTitle: 'Congratulations!',
+    stampRedeemMsg: 'You\'ve collected all stamps!',
+    stampRedeemClaim: 'Claim Reward',
+    stampRedeemLater: 'Maybe Later',
+    newItemsTitle: 'What\'s New at LoyalBrew!',
+    newItemsMsg: 'Fresh launches just for you ??',
+    newItemsOrderNow: 'Order Now',
+    newItemsClose: 'Close',
+    referralReferral: 'Referral Program',
+    referralInviteFriends: 'Invite Friends, Earn Commission!',
+    referralShareCode: 'Share your phone number as a referral code. When your friend makes their first order, you earn a commission credited to your wallet!',
+    referralCopyCode: 'Copy',
+    referralFriendsReferred: 'Friends Referred',
+    referralTotalEarned: 'Total Earned',
+    referralCommissionRate: 'Commission Rate',
+    referralCommissionHistory: 'Commission History',
+    referralFriendsYouReferred: 'Friends You Referred',
+    referralNoCommissions: 'No commissions yet. Start referring!',
+    referralNoFriends: 'No friends referred yet.',
+    complaintSubmitComplaint: 'Submit Complaint',
+    complaintCategory: 'Complaint Category',
+    complaintDescription: 'Description',
+    complaintUploadPhoto: 'Upload Photo (optional)',
+    complaintTapUpload: 'Tap to upload photo',
+    complaintOrderIdOpt: 'Order ID (optional)',
+    complaintSubmit: 'Submit Complaint',
+    complaintMyComplaints: 'My Complaints',
+    complaintComplaintDetail: 'Complaint Detail',
+    complaintResponse: 'Response / Action Taken',
+    complaintResolve: 'Mark Resolved',
+    complaintClose: 'Close',
+    complaintNoPhoto: 'Photo attached',
+    complaintResolveDone: 'Complaint marked as resolved ?',
+    complaintDetailTitle: 'Complaint Detail',
+    complaintEnterResponse: 'Enter your response...',
+    newItemsBanner: 'NEW',
+    newItemsSpecial: 'Special:',
+    newItemsWas: 'was',
+    newItemsUntil: 'Until:',
+    newItemsNoEnd: 'No end date',
+    complaintPhotoAlt: 'Photo',
+    awaitingMerchantApproval: 'Awaiting merchant approval',
+    newItemsNewTag: 'NEW',
+    stampComplete: 'COMPLETE!',
+    complaintTab: 'Complaint',
+    referralTab: 'Referral',
+    orderDetailTotal: 'Total',
+    orderDetailPointsEarned: 'Points Earned',
+    orderDetailWalletPaid: 'Wallet',
+    orderDetailWalletDeductLabel: 'Wallet Deduction',
+    referralCommissionEarned: 'Commission Earned',
+    referralCurrentRate: 'Current Rate',
+    referralSharePrompt: 'Share your phone {phone} as referral code to earn {rate}% from friends\' first order!',
+    // Ads
+    ads: 'Ads',
+    create_ad: 'Create New Ad',
+    ad_title: 'Ad Title',
+    ad_link: 'Link URL (optional)',
+    start_date: 'Start Date',
+    end_date: 'End Date',
+    ad_image: 'Ad Image',
+    click_to_upload_ad_image: 'Click to upload ad image',
+    ad_position: 'Display Position',
+    ad_priority: 'Priority',
+    higher_shows_first: 'Higher number = shown first',
+    active_ads: 'Active Ads',
+    no_active_ads: 'No active ads',
+    all_ads: 'All Ads',
+    no_ads_yet: 'No ads yet',
+    ad_statistics: 'Ad Statistics',
+    landing_page_top: 'Landing Page Top',
+    promosAndDeals: 'Promos & Deals',
+    viewAllPromos: 'View All Promos',
+    allPromos: 'All Promos',
+    noPromosNow: 'No promos available right now. Check back soon!',
+ 
+    welcomeBack: 'Welcome Back',
+    drinkToday: 'What\'s your drink today?',
+    firebaseNote: 'Main button will connect to Firebase: check merchant credits, auto-deduct 1 on success.',
+    enter: 'Enter',
+    get: 'Get',
+    view: 'View',
+    back: 'Back',
+    superAdmin: 'Super Admin',
+    quickActions: 'Quick Actions',
+    viewOrders2: 'View Orders',
+    menuMgmt2: 'Menu Management',
+    shopSettings2: 'Shop Settings',
+    kitchenDisplay2: 'Kitchen Display',
+    confirmPoints: 'Confirm Points',
+    topUpGateway: 'Top Up (Payment Gateway)',
+    shopInfo: 'Shop Info',
+    shopName: 'Shop Name',
+    announcement: 'Announcement',
+    bannerUrl: 'Banner Image URL',
+    saveShop: 'Save Shop Info',
+    pointsSettings: 'Points Settings',
+    pointsPerRM: 'Points per RM',
+    savePoints2: 'Save Points Settings',
+    // Merchant nav tabs
+    overview: 'Overview',
+    orders: 'Orders',
+    menu_items: 'Menu',
+    members: 'Members',
+    new_items: 'New Items',
+    stamp_cards: 'Stamp Cards',
+    top_up: 'Top Up',
+    complaints: 'Complaints',
+    commissions: 'Commissions',
+    qr_codes: 'QR Codes',
+    settings: 'Settings',
+    // ===== MISSING KEYS (Merchant Dashboard + Others) =====
+    // Merchant - General
+    mLoginBtn: 'Login', mVerify: 'Verify', mRefreshed: 'Refreshed',
+    mInvalidCredentials: 'Invalid credentials',
+    mMemberActive: 'Active', mMemberInactive: 'Inactive',
+    mActivateMember: 'Activate Member', mDeactivateMember: 'Deactivate Member',
+    mActivateBtn: 'Activate', mDeactivateBtn: 'Deactivate',
+    mConfirmActivate: 'Confirm activate this member?',
+    mConfirmDeactivate: 'Confirm deactivate this member?',
+    // Merchant - Orders
+    mOrderDone: 'Done', mOrderPrepare: 'Preparing',
+    mOrderCompleted: 'Completed', mOrderPickup: 'Ready for Pickup',
+    mOrderTable: 'Table', mOrderTakeaway: 'Takeaway',
+    mOrderMovedPreparing: 'Moved to Preparing',
+    mFirstOrderDone: 'First order completed!', mNotOrderedYet: 'Not ordered yet',
+    mNoOrdersFound: 'No orders found.', mNoOrdersCategory: 'No orders in this category.',
+    // Merchant - Kitchen
+    mKitchenStartCooking: 'Start Cooking', mKitchenCookingStarted: 'Cooking Started',
+    mKitchenMarkDone: 'Mark as Done', mKitchenCompleted: 'Completed',
+    mKitchenOrderCompleted: 'Order Completed', mKitchenGuest: 'Guest',
+    mKitchenTable: 'Table', mKitchenTakeaway: 'Takeaway', mKitchenPickup: 'Pickup',
+    // Merchant - Members
+    mEnterPhone: 'Enter phone number', mEnterCardName: 'Enter card name',
+    mFillNamePrice: 'Fill in name and price',
+    mNoMembersFound: 'No members found.', mNoMembersYet: 'No members yet.',
+    // Merchant - Stamp Cards
+    mStampActivate: 'Activate', mStampActive: 'Active',
+    mStampPause: 'Pause', mStampPaused: 'Paused',
+    mStampDelete: 'Delete', mStampMembers: 'Members',
+    mStampPerItem: 'Per Item', mStampPerPurchase: 'Per Purchase', mStampPerRM: 'Per RM',
+    mStampsLabel: 'Stamps', mNoStampCardsYet: 'No stamp cards yet.',
+    // Merchant - New Items
+    mNiLaunch: 'Launch', mNiWas: 'was', mNiSpecial: 'Special:',
+    mNiEnds: 'Ends:', mNiNoEndDate: 'No end date',
+    mNiDeactivate: 'Deactivate', mNiDelete: 'Delete',
+    mNoActiveItems: 'No active items.', mNoPastLaunches: 'No past launches.',
+    // Merchant - Top-up
+    mTopupSubmitted: 'Top-up submitted!', mTopupApproved: 'Approved', mTopupRejected: 'Rejected',
+    mNoPendingRequests: 'No pending requests.', mNoTopupHistory: 'No top-up history.',
+    mMinTopupAmount: 'Minimum top-up amount is RM10',
+    // Merchant - Wallet / Points
+    mBalance: 'Balance', mPoints: 'Points',
+    mNoTransactions: 'No transactions.',
+    // Merchant - Bonus Rules
+    mAddRule: 'Add Rule', mDeleteRule: 'Delete Rule',
+    mBonusPercent: 'Bonus %', mBonusPct: '%', mBonusPtsLabel: 'Bonus Points',
+    mBonusExpiry: 'Expiry', mNoExpiry: 'No expiry',
+    mMinAmt: 'Min Amount (RM)', mEnterValidBill: 'Enter valid bill amount',
+    mEnterValidRate: 'Enter valid rate (1-100)',
+    mRewardFreeItem: 'Free Item', mRewardFlatDiscount: 'Flat Discount (RM)',
+    mRewardPctDiscount: 'Percentage Discount (%)', mRewardBonusPoints: 'Bonus Points',
+    mPurchase: 'Purchase', mRmOff: 'RM Off', mPctOff: '% Off',
+    mFreePrefix: 'FREE', mFreeItem: 'Free Item', mFreeCoffee: 'Free Coffee',
+    // Merchant - Complaints
+    mComplaintOpen: 'Open', mComplaintInProgress: 'In Progress',
+    mComplaintResolved: 'Resolved', mComplaintNoPhoto: 'No photo',
+    mApprove: 'Approve', mReject: 'Reject',
+    mNoComplaintsFound: 'No complaints found.',
+    // Merchant - Commissions
+    mNoCommissions: 'No commissions found.',
+    // Merchant - Payment Proof
+    mPaymentVerified: 'Verified', mPaymentRejected: 'Rejected',
+    mNoPaymentProofs: 'No payment proofs.',
+    mPhotoUnder5MB: 'Photo must be under 5MB',
+    // Merchant - QR
+    mQRNotReady: 'QR not ready', mQRPrint: 'Print QR', mQRTable: 'Table QR',
+    // Merchant - Menu
+    mSelectMenuItem: 'Select a menu item', mChooseAnItem: 'Choose an item',
+    mExpired: 'Expired',
+    // Merchant - Detail view
+    mDetailStatus: 'Status', mDetailDate: 'Date', mDetailCustomer: 'Customer',
+    mDetailOrder: 'Order', mDetailCategory: 'Category',
+    mDetailPrevResponse: 'Previous Response',
+    // Other missing keys
+    points: 'Points', noStampCards: 'No stamp cards',
+    'Item removed': 'Item removed',
+    'Points settings saved! / ???????': 'Points settings saved!',
+    'Shop info saved! / ???????': 'Shop info saved!',
+    loyalbrew_lang: 'en',
+    loyalbrew_merchant_lang: 'en',
+    loyalbrew_merchant_phone: '',
+    loyalbrew_topup_bonus_rules: '',
+    '????': 'Points added successfully!',
+    '?? Stamp collected! Check your stamp card!': '?? Stamp collected! Check your stamp card!',
+    '?? New item launched!': '?? New item launched!',
+    mPhComplaintDesc: 'Please describe your issue in detail...',
+    mPhComplaintOrderId: 'e.g. ORD123456',    mPromoEngineTitle: '???????', mPromoEngineDesc: '?????????????????????????',
+    mEnablePromo: '????', mStartTime: '????', mEndTime: '????',
+    mActiveDays: '????', mBusyThreshold: '????(??????)', mPromoHideHint: '?????????????????',
+    mDaySun: '?', mDayMon: '?', mDayTue: '?', mDayWed: '?', mDayThu: '?', mDayFri: '?', mDaySat: '?',
+  },
+  zh: {
+    mCatHotDrinks: '??', mCatColdDrinks: '??', mCatFood: '??', mCatDesserts: '??', mCatSnacks: '??', mCatPromotions: '??',
+    mPromoPrice: '???(RM)', mPromoPriceDesc: '?? � ?????',
+    // Landing
+    tagline: '?? � ??? � ???',
+    loginLabel: 'Member Login', myAccount: '????', orderNow: '????', myStampCard: '???',
+    topUp: '??', merchant: '??',
+    feat1Title: '????', feat1Desc: '??????,????',
+    feat2Title: '????', feat2Desc: '??RM1 = 1??',
+    feat3Title: '????', feat3Desc: '????????',
+    // Menu
+    menu: '??', dineIn: '??', takeaway: '??',
+    table: '??', change: '??',
+    selectTable: '????', enterTable: '??????????',
+    confirmTable: '????', invalidTable: '???????',
+    // Menu categories
+    catAll: '??', catNewItems: '? ??',
+    catHotDrinks: '??', catColdDrinks: '??',
+    catFood: '??', catDesserts: '??', catSnacks: '??',
+    // Float cart
+    floatViewCart: '????? ?',
+    floatItem: '?', floatItems: '?',
+    // Takeaway info bar
+    takeawayOrder: '????', noPickupTime: '???????', pickup: '??',
+    // Cart
+    yourOrder: '????', orderType: '????',
+    phoneNumber: '????', pickupTime: '????',
+    pickupHint: '??????????????',
+    loyaltyPoints: '?? & ??',
+    earnHint: '???????? ?? ????????',
+    phoneLoyalty: '????(??? & ??)',
+    payWallet: '????', useWallet: '????????', walletBalance: '??',
+    paymentMethod: '????',
+    cartEmpty: '??????', browseMenu: '????',
+    eachUnit: '??', removeItem: '??',
+    orderSummary: '????', subtotal: '??', sst: '??? (6%)',
+    walletDeduction: '????', totalLabel: '??',
+    pointsEarnLabel: '???????',
+    specialRequest: '????', specialRequestPlaceholder: '?:??????...',
+    placeOrder: '??',
+    // Order type display in cart
+    cartDineIn: '??', cartTakeaway: '??', cartChange: '??',
+    // Confirm details
+    confirmType: '??', confirmTable2: '??', confirmPhone: '??',
+    confirmPickup: '????', confirmItems: '??',
+    confirmWalletPaid: '????', confirmTotalPaid: '????',
+    confirmPayment: '????', confirmPointsEarned: '????',
+    confirmNote: '??', pendingVerification: '???',
+    confirmTypeDineIn: '?? ??', confirmTypeTakeaway: '??? ??',
+    // Cash pay confirm
+    cashPayCounter: '??????,?????????',
+    cashPaidBtn: '???? � ????',
+    cashPaidDone: '?????!???????????',
+    confirmReceivedBtn: '???? / ????',
+    orderCompletedMsg: '?? ?????!???????',
+    orderCompletedTitle: '?????',
+    // Toast
+    toastTakeaway: '??? ???????!', toastDineIn: '?? ????????!',
+    toastNoPhone: '?????????',
+    toastNoTime: '???????',
+    toastNoProof: '?????????',
+    // Payment section
+    tngScanTitle: '?? Touch & Go ??',
+    tngAmountLabel: '??', tngUploadHint: '???,?????????',
+    uploadScreenshot: '??????', uploadReceipt: '??????',
+    uploadSizeHint: 'JPG / PNG,?? 5MB',
+    bankTitle: '??????',
+    // Takeaway modal
+    takeawayModalTitle: '????', takeawayModalSubtitle: '???????',
+    confirmTakeaway: '????', cancelBtn: '??',
+    pickupReadyHint: '??????????????',
+    // Stamp
+    enterPhone: '???????',
+    notMember: '??????', registerHere: '????',
+    // Order Confirm
+    orderPlaced: '????!', thankYou: '??!',
+    orderSent: '???????????',
+    orderMore: '????', viewStamp: '?????', backHome: '????',
+    // Stamp card
+    stampReward: '??', stampClaimBtn: '????',
+    stampPerPurchase: '?????1???',
+    stampPerAmount: '???RM{v}?1???',
+    stampPerItem: '???{item}?1???',
+    stampPerItemGeneric: '????????1???',
+    stampFreeItem: '??{item}', stampFreeItemGeneric: '????',
+    stampRmOff: '??RM{v}', stampPctOff: '{v}???', stampBonusPoints: '+{v}??',
+    stampsToUnlock: '??{n}???????', stampsToUnlockPlural: '??{n}???????',
+    stampCollected: '??', stampEmpty: '??',
+    stampCompleted: '???{n}?',
+    // Customer Auth
+    login: 'Sign In', register: '??', fullName: '??',
+    memberDeactivatedMsg: '???????????????????',
+    // Dashboard
+    memberLabel: '??', totalPoints: '???', memberId: '???',
+    tierProgress: '????',
+    tierBronze: '??\n0', tierSilver: '??\n200', tierGold: '??\n500', tierPlatinum: '??\n1000',
+    redeemRewards: '????', viewAllStampCards: '???????',
+    myOrders: '????', viewAllOrders: '??????',
+    referralCommissions: '????', myReferralProgram: '??????',
+    transactionHistory: '????', logout: '????', submitComplaint: '????',
+    // My Orders page
+    loginRequired: '??????', loginToViewOrders: '????????????',
+    goToLogin: '??????',
+    filterAll: '??', filterPending: '???', filterPreparing: '???', filterDone: '??',
+    // Top Up page
+    topUpWallet: '????', myWallet: '????', bonusIncluded: '?????',
+    topUpBonusTitle: '????!', topUpBonusDesc: '??RM100??RM120(????RM20!)',
+    selectTopUpAmount: '??????', topUpGet: '??', noBonus: '???',
+    bestDeal: '???', free: '??',
+    orCustomAmount: '???????? (RM)',
+    topUpCustomHint: '??RM10???RM100????????',
+    youPay: '???', youGet: '???', bonusLabel: '??',
+    confirmTopUp: '????', walletHistory: '????',
+    // Wallet dashboard
+    availableBalance: '????', totalToppedUp: '????', totalBonusEarned: '????',
+    // Tier hint
+    sinceLabel: '???',
+    pointsToReach: '??{n}????{tier}!',
+    highestTier: '?? ??????!',
+    tierNameSilver: '??', tierNameGold: '??', tierNamePlatinum: '??',
+    // Upload
+    screenshotUploaded: '?????,???????',
+    screenshotUploaded2: '?????', tapToChange: '????',
+    topupSubmitted: '? ???????!???????',
+    selectTableFirst: '??????!',
+    photoUnder5MB: '????????5MB',
+    noPromos: '????',
+    noComplaintsYet: '??????',
+    mPhComplaintDesc: '?????????...',
+    mPhComplaintOrderId: '??:ORD123456',    mPromoEngineTitle: '????-???? ??????? ?????? ???????', mPromoEngineDesc: '???? ??????? ????????????? ?????? ????????? ??????? ??????. ????????? ??????????? ????????.',
+    mEnablePromo: '???????? ??????', mStartTime: '?????? ?????', mEndTime: '?????? ?????',
+    mActiveDays: '?????????? ???????', mBusyThreshold: '???? ????????? (??????????????)', mPromoHideHint: '?????????? ????????? ???? ????? ??????????? ?????? ????????',
+    mDaySun: '??', mDayMon: '??', mDayTue: '??', mDayWed: '??', mDayThu: '??', mDayFri: '??', mDaySat: '??',
+    enterValidRate: '???????(1�100)',
+    T: 'T',
+    div: 'div',
+    input: 'input',
+    m: 'm',
+    mDeactivateBtn: '??',
+    mDeactivateMember: '????',
+    mEnterValidBill: '??????',
+    mFreeCoffee: '????',
+    mMemberInactive: '?????',
+    mNoMembersYet: '????',
+    mOrderPickup: '????',
+    mOrderPrepare: '???',
+    mOrderTakeaway: '????',
+    mPoints: '??',
+    mQRPrint: '?????',
+    mQRTable: '?????',
+    backHome: '????',
+    bankAccountDisplay: '????',
+    commission_rate: '????',
+    credited_to_referrer_s_wallet_after_first_order: '????????????',
+    customer_complaints: '????',
+    enter_your_referrer_s_phone_number_to_link_commissions: '?????????????',
+    friends_referred: '?????',
+    generate_qr_codes: '?????',
+    generate_table_qr_codes: '???????',
+    in_progress: '???',
+    kitchen_display: '????',
+    member_stamp_progress: '????',
+    member_wallet_balances: '????',
+    merchantNameDisplay: '????',
+    new: '??',
+    no_friends_referred_yet: '??????',
+    no_pending_payment_proofs: '?????????',
+    no_pending_requests: '???????',
+    number_of_tables: '??',
+    pending_payment_proofs: '???????',
+    pending_top_up_requests: '???????',
+    refresh: '??',
+    resolved: '???',
+    search_for_a_member: '????',
+    takeaway: '??',
+    tierGold: '??',
+    tierPlatinum: '??',
+    tierSilver: '??',
+    top_up_bonus_settings: '??????',
+    top_up_history: '????',
+    total_earned: '????',
+    will_earn: '???',
+    selectMenuItem: '???????',
+    enterPhoneNumber: '?????????',
+    memberNotFound: '?????,?????',
+    noUnclaimedRewards: '????????',
+    enterCardName: '??????',
+    enterRewardValue: '???????',
+    minimumTopup: '???????RM10',
+    selectTopupAmount: '???????',
+    sessionExpired: '?????,????????',
+    memberNotFoundShort: '?????',
+    pleaseLoginFirst: '??????',
+    pleaseDescribeIssue: '???????',
+    enterPhoneToLogin: '???????',
+    memberNotFoundRegister: '?????,????',
+    fillNamePhone: '?????????',
+    phoneRegistered: '???????!',
+    referrerNotFound: '??????,???????',
+    notEnoughPoints: '????!',
+    invalidCredentials: '????????!',
+    enterPhoneSearch: '???????',
+    memberNotFoundExcl: '?????!',
+    enterValidBill: '?????????',
+    fillNamePrice: '????????',
+    qrNotReady: '???????',
+    complaintSubmitted: '? ?????!?????????',
+    // Complaint form
+    submitComplaint: '????',
+    submitComplaintBtn: '????',
+    newComplaint: '???',
+    complaintCategory: '????',
+    food_quality: '????',
+    other: '??',
+    pricing_issue: '????',
+    waiting_time: '????',
+    wrong_order: '????',
+    food_quality: '????',
+    service: '??',
+    cleanliness: '??',
+    waiting_time: '????',
+    wrong_order: '????',
+    pricing_issue: '????',
+    other: '??',
+    description: '??',
+    uploadPhotoOptional: '????(??)',
+    tap_to_upload_photo: '??????',
+    photo_upload_hint: 'JPG?PNG,??5MB',
+    order_id_optional: '??ID(??)',
+    myComplaints: '????',
+    // Dynamic render strings
+    stampCollectedMsg: '????!',
+    stampCollectedDetail: '?????????',
+    walletTopupPending: '??????',
+    myOrdersEmpty: '??????',
+    myOrdersNoOrdersYet: '????',
+    walletTxnsEmpty: '????????',
+    txnNoTransactions: '??????',
+    topupHistoryEmpty: '??????',
+    complaintsEmpty: '??????',
+    photoUploadHint: 'JPG?PNG,?? 5MB',
+    orderDetailTitle: '????',
+    orderDetailOrderId: '???',
+    orderDetailStatus: '??',
+    orderDetailType: '??',
+    orderDetailDate: '??',
+    orderDetailItems: '????',
+    orderDetailSubtotal: '??',
+    orderDetailTax: '???',
+    walletTopupLabel: '??',
+    paymentCash: '??',
+    paymentTng: 'Touch & Go',
+    paymentBank: '????',
+    statusPending: '???',
+    statusPreparing: '???',
+    statusDone: '???',
+    stampRedeemTitle: '??!',
+    stampRedeemMsg: '????????!',
+    stampRedeemClaim: '????',
+    stampRedeemLater: '??',
+    newItemsTitle: 'LoyalBrew ????!',
+    newItemsMsg: '????????? ??',
+    newItemsOrderNow: '????',
+    newItemsClose: '??',
+    referralReferral: '????',
+    referralInviteFriends: '????,????!',
+    referralShareCode: '????????????,???????????????!',
+    referralCopyCode: '??',
+    referralFriendsReferred: '?????',
+    referralTotalEarned: '????',
+    referralCommissionRate: '????',
+    referralCommissionHistory: '????',
+    referralFriendsYouReferred: '??????',
+    referralNoCommissions: '??????,?????!',
+    referralNoFriends: '???????',
+    complaintSubmitComplaint: '????',
+    complaintCategory: '????',
+    complaintDescription: '??',
+    complaintUploadPhoto: '????(??)',
+    complaintTapUpload: '??????',
+    complaintOrderIdOpt: '???(??)',
+    complaintSubmit: '????',
+    complaintMyComplaints: '????',
+    complaintComplaintDetail: '????',
+    complaintResponse: '?? / ?????',
+    complaintResolve: '??????',
+    complaintClose: '??',
+    complaintNoPhoto: '?????',
+    complaintResolveDone: '????????? ?',
+    complaintDetailTitle: '????',
+    complaintEnterResponse: '???????...',
+    newItemsBanner: '??',
+    newItemsSpecial: '??:',
+    newItemsWas: '??',
+    newItemsUntil: '??:',
+    newItemsNoEnd: '?????',
+    complaintPhotoAlt: '??',
+    awaitingMerchantApproval: '??????',
+    newItemsNewTag: '??',
+    stampComplete: '???!',
+    complaintTab: '??',
+    referralTab: '??',
+    orderDetailTotal: '??',
+    orderDetailPointsEarned: '????',
+    orderDetailWalletPaid: '????',
+    orderDetailWalletDeductLabel: '????',
+    active_new_launches: '???????',
+    active_stamp_cards: '??????',
+    add_bonus_rule: '??????',
+    add_new_item: '?????',
+    add_points: '????',
+    add_points_manually: '??????',
+    add_rule: '????',
+    add_to_menu: '?????',
+    admin: '???',
+    all: '??',
+    all_members: '????',
+    all_orders: '????',
+    announcement_placeholder: '??????...',
+    announcement_text: '????',
+    bank_transfer: '????',
+    bonus_points: '????',
+    cancel: '??',
+    card_color_theme: '??????',
+    card_name: '???',
+    card_name_placeholder: '??:??10????????',
+    cash: '??',
+    category: '??',
+    cleanliness: '???',
+    click_to_upload_photo: '??????',
+    close: '??',
+    cold_drinks: '??',
+    commission_history: '????',
+    commission_records: '????',
+    commission_settings: '????',
+    commissions: '??',
+    complaint_category: '????',
+    complaint_detail: '????',
+    complaints: '??',
+    confirm_deactivate: '????',
+    create_account: '????',
+    email_optional: '??(??)',
+    referral_code_label: '???(??????,??)',
+    registeringAsMember: '?????????????',
+    create_stamp_card: '?????',
+    deactivate_member: '????',
+    description: '??',
+    desserts: '??',
+    done: '???',
+    emoji_icon: '????',
+    end_date: '????',
+    enter_your_referrer_s_phone_number_to_link_commissions: '??????????????',
+    expiry_date: '????',
+    food: '??',
+    free_item: '????',
+    free_menu_item: '??????',
+    hot_drinks: '??',
+    item_name: '????',
+    item_photo: '????',
+    kitchen: '??',
+    launch_date: '????',
+    launch_new_item: '?????',
+    login_to_dashboard: '??????',
+    members: '??',
+    menu_items: '????',
+    merchant: '??',
+    merchant_login: '????',
+    new_complaint: '???',
+    no_active_new_items: '?????????',
+    no_past_launches: '???????',
+    no_pickup_time_set: '???????',
+    no_stamp_cards_yet: '??????',
+    optional: '??',
+    orders: '??',
+    orders_today: '????',
+    other: '??',
+    overview: '??',
+    password: '??',
+    past_launches: '?????',
+    pending: '???',
+    phone_number: '????',
+    points: '??',
+    points_issued: '?????',
+    preparing: '???',
+    qr_codes: '???',
+    recent_transactions: '????',
+    referral_commission_rate: '?????',
+    remove_photo: '????',
+    revenue_today: '????',
+    reward_type: '????',
+    save_password: '????',
+    select_menu_item: '??????',
+    settings: '??',
+    snacks: '??',
+    stamp_cards: '???',
+    stamp_rule: '????',
+    stamp_rule_placeholder: '??:???RM10?1???',
+    stamps_required_to_complete: '???????',
+    submit_complaint: '????',
+    top_up: '??',
+    username: '???',
+    wrong_order: '??',
+    referralCommissionEarned: '????',
+    referralCurrentRate: '????',
+    referralSharePrompt: '??????? {phone} ?????,?????? {rate}% ??!',
+    new_items: '??',
+    // Ads
+    ads: '??',
+    create_ad: '?????',
+    ad_title: '????',
+    ad_link: '?? URL(??)',
+    start_date: '????',
+    end_date: '????',
+    ad_image: '????',
+    click_to_upload_ad_image: '????????',
+    ad_position: '????',
+    ad_priority: '???',
+    higher_shows_first: '???????',
+    active_ads: '????',
+    no_active_ads: '??????',
+    all_ads: '????',
+    no_ads_yet: '????',
+    ad_statistics: '????',
+    landing_page_top: '????',
+    promosAndDeals: '????',
+    viewAllPromos: '??????',
+    allPromos: '????',
+    noPromosNow: '??????,?????!',
+ 
+    welcomeBack: '????',
+    drinkToday: '????????',
+    firebaseNote: '???????? Firebase:???? credits,???????? 1?',
+    enter: '??',
+    get: '??',
+    view: '??',
+    back: '??',
+    superAdmin: '????',
+    quickActions: '???? / Quick Actions',
+    viewOrders2: '????',
+    menuMgmt2: '????',
+    shopSettings2: '????',
+    kitchenDisplay2: '????',
+    confirmPoints: '????',
+    topUpGateway: '??(??????)',
+    shopInfo: '????',
+    shopName: '??',
+    announcement: '??',
+    bannerUrl: '????',
+    saveShop: '??',
+    pointsSettings: '????',
+    pointsPerRM: '?RM??',
+    savePoints2: '??', 
+    // ===== MISSING KEYS (Merchant Dashboard + Others) =====
+    mLoginBtn: '??', mVerify: '??', mRefreshed: '???',
+    mInvalidCredentials: '????????',
+    mMemberActive: '???', mMemberInactive: '???',
+    mActivateMember: '????', mDeactivateMember: '????',
+    mActivateBtn: '??', mDeactivateBtn: '??',
+    mConfirmActivate: '????????',
+    mConfirmDeactivate: '????????',
+    mOrderDone: '???', mOrderPrepare: '???',
+    mOrderCompleted: '???', mOrderPickup: '???',
+    mOrderTable: '??', mOrderTakeaway: '??',
+    mOrderMovedPreparing: '??????',
+    mFirstOrderDone: '????!', mNotOrderedYet: '????',
+    mNoOrdersFound: '??????', mNoOrdersCategory: '???????',
+    mKitchenStartCooking: '????', mKitchenCookingStarted: '?????',
+    mKitchenMarkDone: '????', mKitchenCompleted: '???',
+    mKitchenGuest: '??', mKitchenTable: '??', mKitchenTakeaway: '??', mKitchenPickup: '??',
+    mEnterPhone: '?????', mEnterCardName: '?????',
+    mFillNamePrice: '???????',
+    mNoMembersFound: '??????', mNoMembersYet: '?????',
+    mStampActivate: '??', mStampActive: '??',
+    mStampPause: '??', mStampPaused: '???',
+    mStampDelete: '??', mStampMembers: '??',
+    mStampPerItem: '??', mStampPerPurchase: '??', mStampPerRM: '???',
+    mStampsLabel: '???', mNoStampCardsYet: '??????',
+    mNiLaunch: '??', mNiWas: '??', mNiSpecial: '??:',
+    mNiEnds: '??:', mNiNoEndDate: '?????',
+    mNiDeactivate: '??', mNiDelete: '??',
+    mNoActiveItems: '?????????', mNoPastLaunches: '???????',
+    mTopupSubmitted: '???????!', mTopupApproved: '???', mTopupRejected: '???',
+    mNoPendingRequests: '??????', mNoTopupHistory: '???????',
+    mMinTopupAmount: '????RM10',
+    mBalance: '??', mPoints: '??',
+    mNoTransactions: '???????',
+    mAddRule: '????', mDeleteRule: '????',
+    mBonusPercent: '????', mBonusPct: '%', mBonusPtsLabel: '????',
+    mBonusExpiry: '???', mNoExpiry: '????',
+    mMinAmt: '????(RM)', mEnterValidBill: '???????',
+    mEnterValidRate: '???????(1-100)',
+    mRewardFreeItem: '????', mRewardFlatDiscount: '????(RM)',
+    mRewardPctDiscount: '?????(%)', mRewardBonusPoints: '????',
+    mPurchase: '??', mRmOff: '??RM', mPctOff: '?',
+    mFreePrefix: '??', mFreeItem: '????', mFreeCoffee: '????',
+    mComplaintOpen: '???', mComplaintInProgress: '???',
+    mComplaintResolved: '???', mComplaintNoPhoto: '???',
+    mApprove: '??', mReject: '??',
+    mNoComplaintsFound: '??????',
+    mNoCommissions: '???????',
+    mPaymentVerified: '???', mPaymentRejected: '???',
+    mNoPaymentProofs: '???????',
+    mPhotoUnder5MB: '??????5MB',
+    mQRNotReady: '??????', mQRPrint: '?????', mQRTable: '?????',
+    mSelectMenuItem: '?????', mChooseAnItem: '????',
+    mExpired: '???',
+    mDetailStatus: '??', mDetailDate: '??', mDetailCustomer: '??',
+    mDetailOrder: '??', mDetailCategory: '??',
+    mDetailPrevResponse: '????',
+    points: '??', noStampCards: '?????',
+    'Item removed': '?????',
+    'Points settings saved! / ???????': '???????!',
+    'Shop info saved! / ???????': '???????!',
+    loyalbrew_lang: 'zh',
+    loyalbrew_merchant_lang: 'zh',
+    loyalbrew_merchant_phone: '',
+    loyalbrew_topup_bonus_rules: '',
+    '????': '????',
+    '?? Stamp collected! Check your stamp card!': '?? ?????!?????!',
+    '?? New item launched!': '?? ?????!',
+    mPhComplaintDesc: '?????????...',
+    mPhComplaintOrderId: '??:ORD123456',    mPromoEngineTitle: '????-???? ??????? ?????? ???????', mPromoEngineDesc: '???? ??????? ????????????? ?????? ????????? ??????? ??????. ????????? ??????????? ????????.',
+    mEnablePromo: '???????? ??????', mStartTime: '?????? ?????', mEndTime: '?????? ?????',
+    mActiveDays: '?????????? ???????', mBusyThreshold: '???? ????????? (??????????????)', mPromoHideHint: '?????????? ????????? ???? ????? ??????????? ?????? ????????',
+    mDaySun: '??', mDayMon: '??', mDayTue: '??', mDayWed: '??', mDayThu: '??', mDayFri: '??', mDaySat: '??',
+  },
+  ms: {
+    mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
+    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan � untuk promosi off-peak',
+    // Landing
+    tagline: 'Pesan � Kumpul Mata � Dapatkan Hadiah',
+    loginLabel: 'Log Masuk Ahli', myAccount: 'Akaun Saya', orderNow: 'Pesan Sekarang', myStampCard: 'Kad Setem',
+    topUp: 'Tambah Nilai', merchant: 'Peniaga',
+    feat1Title: 'Imbas & Pesan', feat1Desc: 'Imbas QR meja, pesan dalam saat',
+    feat2Title: 'Kumpul Mata', feat2Desc: 'RM1 belanja = 1 mata',
+    feat3Title: 'Minuman Percuma', feat3Desc: 'Tukar mata untuk minuman percuma',
+    // Menu
+    menu: 'Menu', dineIn: 'Makan Di Sini', takeaway: 'Bawa Balik',
+    table: 'Meja', change: 'Tukar',
+    selectTable: 'Pilih Meja Anda', enterTable: 'Masukkan nombor meja untuk mula memesan',
+    confirmTable: 'Sahkan Meja', invalidTable: 'Sila masukkan nombor meja yang sah',
+    // Menu categories
+    catAll: 'Semua', catNewItems: '? Item Baru',
+    catHotDrinks: 'Minuman Panas', catColdDrinks: 'Minuman Sejuk',
+    catFood: 'Makanan', catDesserts: 'Pencuci Mulut', catSnacks: 'Snek',
+    // Float cart
+    floatViewCart: 'Lihat Troli ?',
+    floatItem: 'item', floatItems: 'item',
+    // Takeaway info bar
+    takeawayOrder: 'Pesanan Bawa Balik', noPickupTime: 'Masa belum ditetapkan', pickup: 'Ambil',
+    // Cart
+    yourOrder: 'Pesanan Saya', orderType: 'Jenis Pesanan',
+    phoneNumber: 'Nombor Telefon', pickupTime: 'Masa Pengambilan',
+    pickupHint: 'Kami akan sediakan pesanan anda pada masa ini.',
+    loyaltyPoints: 'Mata & Setem',
+    earnHint: 'Masukkan telefon & tekan ?? untuk kumpul mata & setem',
+    phoneLoyalty: 'Nombor Telefon (kumpul mata & setem)',
+    payWallet: 'Bayar dengan Dompet', useWallet: 'Guna baki dompet untuk bayar', walletBalance: 'Baki',
+    paymentMethod: 'Kaedah Bayaran',
+    cartEmpty: 'Troli anda kosong', browseMenu: 'Lihat Menu',
+    eachUnit: 'setiap', removeItem: 'Buang',
+    orderSummary: 'Ringkasan Pesanan', subtotal: 'Subtotal', sst: 'SST (6%)',
+    walletDeduction: 'Tolak Dompet', totalLabel: 'Jumlah',
+    pointsEarnLabel: 'Mata yang akan anda dapat',
+    specialRequest: 'Permintaan Khas', specialRequestPlaceholder: 'cth: kurang gula, tanpa ais...',
+    placeOrder: 'Buat Pesanan',
+    // Order type display in cart
+    cartDineIn: 'Makan Di Sini', cartTakeaway: 'Bawa Balik', cartChange: 'Tukar',
+    // Confirm details
+    confirmType: 'Jenis', confirmTable2: 'Meja', confirmPhone: 'Telefon',
+    confirmPickup: 'Masa Ambil', confirmItems: 'Item',
+    confirmWalletPaid: 'Bayaran Dompet', confirmTotalPaid: 'Jumlah Dibayar',
+    confirmPayment: 'Pembayaran', confirmPointsEarned: 'Mata Diperoleh',
+    confirmNote: 'Nota', pendingVerification: 'Pengesahan Tertunda',
+    confirmTypeDineIn: '?? Makan Di Sini', confirmTypeTakeaway: '??? Bawa Balik',
+    // Cash pay confirm
+    cashPayCounter: 'Sila bayar di kaunter, kemudian tekan butang di bawah.',
+    cashPaidBtn: 'Saya Sudah Bayar � Beritahu Dapur',
+    cashPaidDone: 'Bayaran disahkan! Dapur sedang menyediakan pesanan anda.',
+    confirmReceivedBtn: 'Sahkan Terima / Lengkapkan Pesanan',
+    orderCompletedMsg: '?? Pesanan selesai! Terima kasih atas pesanan anda.',
+    orderCompletedTitle: 'Pesanan Selesai',
+    // Toast
+    toastTakeaway: '??? Pesanan bawa balik dibuat!', toastDineIn: '?? Pesanan dihantar ke dapur!',
+    toastNoPhone: 'Sila masukkan nombor telefon untuk Bawa Balik',
+    toastNoTime: 'Sila tetapkan masa pengambilan',
+    toastNoProof: 'Sila muat naik tangkapan skrin pembayaran anda dahulu.',
+    // Stamp
+    enterPhone: 'Masukkan Nombor Telefon',
+    notMember: 'Bukan ahli?', registerHere: 'Daftar di sini',
+    // Order Confirm
+    orderPlaced: 'Pesanan Berjaya!', thankYou: 'Terima Kasih!',
+    orderSent: 'Pesanan anda telah dihantar ke dapur.',
+    orderMore: 'Pesan Lagi', viewStamp: 'Lihat Kad Setem', backHome: 'Kembali ke Utama',
+    // Takeaway modal
+    takeawayModalTitle: 'Pesanan Bawa Balik', takeawayModalSubtitle: 'Masukkan butiran pengambilan anda',
+    confirmTakeaway: 'Sahkan Bawa Balik', cancelBtn: 'Batal',
+    pickupReadyHint: 'Kami akan sediakan pesanan anda pada masa ini.',
+    // Payment section
+    tngScanTitle: 'Imbas untuk Bayar melalui Touch & Go',
+    tngAmountLabel: 'Jumlah', tngUploadHint: 'Selepas bayaran, muat naik tangkapan skrin di bawah.',
+    uploadScreenshot: 'Muat Naik Tangkapan Skrin', uploadReceipt: 'Muat Naik Resit',
+    uploadSizeHint: 'JPG / PNG sehingga 5MB', bankTitle: 'Maklumat Pemindahan Bank',
+    // Stamp card
+    stampReward: 'Ganjaran', stampClaimBtn: 'Tuntut Ganjaran',
+    stampPerPurchase: '1 setem setiap pembelian',
+    stampPerAmount: '1 setem setiap RM{v} dibelanjakan',
+    stampPerItem: '1 setem setiap {item}',
+    stampPerItemGeneric: '1 setem setiap item layak',
+    stampFreeItem: 'Percuma {item}', stampFreeItemGeneric: 'Item Percuma',
+    stampRmOff: 'Diskaun RM{v}', stampPctOff: '{v}% Diskaun', stampBonusPoints: '+{v} Mata Bonus',
+    stampsToUnlock: '{n} lagi setem untuk buka ganjaran', stampsToUnlockPlural: '{n} lagi setem untuk buka ganjaran',
+    stampCollected: 'Dikumpul', stampEmpty: 'Kosong',
+    stampCompleted: 'Selesai {n}�',
+    // Customer Auth
+    login: 'Log Masuk Ahli', register: 'Daftar', fullName: 'Nama Penuh',
+    memberDeactivatedMsg: 'Akaun anda telah dinyahaktifkan. Sila hubungi peniaga.',
+    // Dashboard
+    memberLabel: 'Ahli', totalPoints: 'Jumlah Mata', memberId: 'ID Ahli',
+    tierProgress: 'Kemajuan Tahap',
+    tierBronze: 'Gangsa\n0', tierSilver: 'Perak\n200', tierGold: 'Emas\n500', tierPlatinum: 'Platinum\n1000',
+    redeemRewards: 'Tukar Hadiah', viewAllStampCards: 'Lihat Semua Kad Setem',
+    myOrders: 'Pesanan Saya', viewAllOrders: 'Lihat Semua Pesanan',
+    referralCommissions: 'Komisen Rujukan', myReferralProgram: 'Program Rujukan Saya',
+    transactionHistory: 'Sejarah Transaksi', logout: 'Log Keluar', submitComplaint: 'Hantar Aduan',
+    // My Orders page
+    loginRequired: 'Log Masuk Ahli Diperlukan', loginToViewOrders: 'Sila log masuk untuk melihat sejarah pesanan.',
+    goToLogin: 'Pergi ke Log Masuk Ahli',
+    filterAll: 'Semua', filterPending: 'Belum Siap', filterPreparing: 'Sedang Disediakan', filterDone: 'Siap',
+    // Top Up page
+    topUpWallet: 'Tambah Nilai Dompet', myWallet: 'Dompet Saya', bonusIncluded: 'bonus termasuk',
+    topUpBonusTitle: 'Bonus Tambah Nilai!', topUpBonusDesc: 'Tambah nilai RM100 dan dapatkan kredit RM120 (PERCUMA RM20!)',
+    selectTopUpAmount: 'Pilih Amaun Tambah Nilai', topUpGet: 'Dapatkan', noBonus: 'Tiada bonus',
+    bestDeal: 'TERBAIK', free: 'PERCUMA',
+    orCustomAmount: 'Atau masukkan amaun tersuai (RM)',
+    topUpCustomHint: 'Min RM10. Bonus untuk RM100 ke atas.',
+    youPay: 'Anda Bayar', youGet: 'Anda Dapat', bonusLabel: 'Bonus',
+    confirmTopUp: 'Sahkan Tambah Nilai', walletHistory: 'Sejarah Dompet',
+    // Wallet dashboard
+    availableBalance: 'Baki Tersedia', totalToppedUp: 'Jumlah Ditambah', totalBonusEarned: 'Jumlah Bonus Diperoleh',
+    // Tier hint
+    sinceLabel: 'Sejak',
+    pointsToReach: '{n} lagi mata untuk capai {tier}!',
+    highestTier: '?? Anda telah mencapai tahap tertinggi!',
+    tierNameSilver: 'Perak', tierNameGold: 'Emas', tierNamePlatinum: 'Platinum',
+    // Upload
+    screenshotUploaded: 'Tangkapan skrin dimuat naik. Menunggu pengesahan peniaga.',
+    screenshotUploaded2: 'Tangkapan skrin dimuat naik', tapToChange: 'Ketik untuk tukar',
+    topupSubmitted: '? Permintaan tambah nilai dihantar! Menunggu kelulusan peniaga.',
+    selectTableFirst: 'Sila pilih meja dahulu!',
+    photoUnder5MB: 'Foto mesti kurang dari 5MB',
+    noPromos: 'Tiada promosi buat masa ini',
+    noComplaintsYet: 'Tiada aduan dihantar lagi',
+    mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...',
+    mPhComplaintOrderId: 'cth. ORD123456',    mPromoEngineTitle: 'Enjin Promo Off-Peak', mPromoEngineDesc: 'Auto-tunjuk harga promo bila kedai sepi. Berhenti bila order banyak.',
+    mEnablePromo: 'Aktifkan Promo', mStartTime: 'Masa Mula', mEndTime: 'Masa Tamat',
+    mActiveDays: 'Hari Aktif', mBusyThreshold: 'Ambang Sibuk (order dalam progress)', mPromoHideHint: 'Promo sorok bila active order sampai numero ini',
+    mDaySun: 'Aha', mDayMon: 'Isn', mDayTue: 'Sel', mDayWed: 'Rab', mDayThu: 'Kha', mDayFri: 'Jum', mDaySat: 'Sab',
+    enterValidRate: 'Masukkan kadar yang sah (1�100)',
+    T: 'T',
+    div: 'div',
+    input: 'input',
+    m: 'm',
+    mDeactivateBtn: 'Nyahaktifkan',
+    mDeactivateMember: 'Nyahaktifkan Ahli',
+    mEnterValidBill: 'Masukkan bil sah',
+    mFreeCoffee: 'Kopi Percuma',
+    mMemberInactive: 'Ahli Tidak Aktif',
+    mNoMembersYet: 'Belum ada ahli',
+    mOrderPickup: 'Ambil Pesanan',
+    mOrderPrepare: 'Sedia Pesanan',
+    mOrderTakeaway: 'Pesanan Bawa Pulang',
+    mPoints: 'Mata',
+    mQRPrint: 'Cetak QR',
+    mQRTable: 'Kod QR Meja',
+    backHome: 'Kembali ke Laman Utama',
+    bankAccountDisplay: 'Akaun Bank',
+    commission_rate: 'Kadar Komisen',
+    credited_to_referrer_s_wallet_after_first_order: 'Dikreditkan ke dompet penjujuk selepas pesanan pertama',
+    customer_complaints: 'Aduan Pelanggan',
+    enter_your_referrer_s_phone_number_to_link_commissions: 'Masukkan nombor telefon penjujuk untuk menghubungkan komisen',
+    friends_referred: 'Kawan Dirujuk',
+    generate_qr_codes: 'Jana Kod QR',
+    generate_table_qr_codes: 'Jana Kod QR Meja',
+    in_progress: 'Sedang Dalam Proses',
+    kitchen_display: 'Paparan Dapur',
+    member_stamp_progress: 'Kemajuan Setem',
+    member_wallet_balances: 'Baki Dompet',
+    merchantNameDisplay: 'Nama Peniaga',
+    new: 'Baharu',
+    no_friends_referred_yet: 'Belum ada kawan dirujuk',
+    no_pending_payment_proofs: 'Tiada bukti pembayaran tertangguh',
+    no_pending_requests: 'Tiada permintaan tertangguh',
+    number_of_tables: 'Bilangan Meja',
+    pending_payment_proofs: 'Bukti Pembayaran Tertangguh',
+    pending_top_up_requests: 'Permintaan Isi Semula Tertangguh',
+    refresh: 'Muat Semula',
+    resolved: 'Diselesaikan',
+    search_for_a_member: 'Cari ahli',
+    takeaway: 'Bawa Pulang',
+    tierGold: 'Emas',
+    tierPlatinum: 'Platinum',
+    tierSilver: 'Perak',
+    top_up_bonus_settings: 'Tetapan Bonus Isi Semula',
+    top_up_history: 'Sejarah Isi Semula',
+    total_earned: 'Jumlah Diperolehi',
+    will_earn: 'Akan perolehi',
+    selectMenuItem: 'Sila pilih item menu',
+    enterPhoneNumber: 'Sila masukkan nombor telefon anda',
+    memberNotFound: 'Ahli tidak dijumpai. Sila daftar dahulu.',
+    noUnclaimedRewards: 'Tiada ganjaran yang boleh dituntut',
+    enterCardName: 'Sila masukkan nama kad',
+    enterRewardValue: 'Sila masukkan nilai ganjaran',
+    minimumTopup: 'Tambah nilai minimum ialah RM10',
+    selectTopupAmount: 'Sila pilih amaun tambah nilai',
+    sessionExpired: 'Sesi tamat, sila masukkan semula nombor telefon',
+    memberNotFoundShort: 'Ahli tidak dijumpai',
+    pleaseLoginFirst: 'Sila log masuk ahli dahulu',
+    pleaseDescribeIssue: 'Sila huraikan masalah anda',
+    enterPhoneToLogin: 'Sila masukkan nombor telefon',
+    memberNotFoundRegister: 'Ahli tidak dijumpai. Sila daftar.',
+    fillNamePhone: 'Sila isi nama dan nombor telefon',
+    phoneRegistered: 'Nombor telefon sudah didaftarkan!',
+    email_optional: 'E-mel (pilihan)',
+    referral_code_label: 'Kod Rujukan (Telefon Penjujuk, pilihan)',
+    registeringAsMember: 'Anda sedang mendaftar sebagai ahli peniaga ini',
+    referrerNotFound: 'Perujuk tidak dijumpai. Sila semak nombor telefon.',
+    notEnoughPoints: 'Mata tidak mencukupi!',
+    invalidCredentials: 'Kelayakan tidak sah!',
+    enterPhoneSearch: 'Masukkan nombor telefon',
+    memberNotFoundExcl: 'Ahli tidak dijumpai!',
+    enterValidBill: 'Masukkan amaun bil yang sah',
+    fillNamePrice: 'Isi nama dan harga',
+    qrNotReady: 'QR belum sedia',
+    complaintSubmitted: '? Aduan dihantar! Kami akan menghubungi anda segera.',
+    stampCollectedMsg: 'Setem dikumpul!',
+    stampCollectedDetail: 'Lihat kad anda untuk tuntut ganjaran',
+    walletTopupPending: 'Menunggu pengesahan peniaga',
+    myOrdersEmpty: 'Tiada pesanan dijumpai',
+    myOrdersNoOrdersYet: 'Belum ada pesanan',
+    walletTxnsEmpty: 'Tiada transaksi dompet lagi',
+    txnNoTransactions: 'Belum ada transaksi',
+    topupHistoryEmpty: 'Tiada sejarah tambah nilai lagi',
+    complaintsEmpty: 'Tiada aduan dijumpai',
+    // Complaint form
+    submitComplaint: 'Hantar Aduan',
+    submitComplaintBtn: 'Hantar Aduan',
+    newComplaint: 'Aduan Baru',
+    complaintCategory: 'Kategori Aduan',
+    food_quality: 'Kualiti Makanan',
+    other: 'Lain-lain',
+    pricing_issue: 'Isu Harga',
+    waiting_time: 'Masa Menunggu',
+    wrong_order: 'Pesanan Salah',
+    food_quality: 'Kualiti Makanan',
+    service: 'Perkhidmatan',
+    cleanliness: 'Kebersihan',
+    waiting_time: 'Masa Menunggu',
+    wrong_order: 'Pesanan Salah',
+    pricing_issue: 'Isu Harga',
+    other: 'Lain-lain',
+    description: 'Penerangan',
+    uploadPhotoOptional: 'Muat Naik Foto (pilihan)',
+    tap_to_upload_photo: 'Ketik untuk muat naik foto',
+    photo_upload_hint: 'JPG, PNG sehingga 5MB',
+    order_id_optional: 'ID Pesanan (pilihan)',
+    myComplaints: 'Aduan Saya',
+    orderDetailTitle: 'Butiran Pesanan',
+    orderDetailOrderId: 'ID Pesanan',
+    orderDetailStatus: 'Status',
+    orderDetailType: 'Jenis',
+    orderDetailDate: 'Tarikh',
+    orderDetailItems: 'Item Dipesan',
+    orderDetailSubtotal: 'Subtotal',
+    orderDetailTax: 'SST',
+    walletTopupLabel: 'Tambah Nilai',
+    paymentCash: 'Tunai',
+    paymentTng: 'Touch & Go',
+    paymentBank: 'Pemindahan Bank',
+    statusPending: 'Belum Siap',
+    statusPreparing: 'Sedang Disediakan',
+    statusDone: 'Siap',
+    stampRedeemTitle: 'Tahniah!',
+    stampRedeemMsg: 'Anda telah mengumpul semua setem!',
+    stampRedeemClaim: 'Tuntut Ganjaran',
+    stampRedeemLater: 'Nanti',
+    newItemsTitle: 'Apa yang Baru di LoyalBrew!',
+    newItemsMsg: 'Pelancaran segar khas untuk anda ??',
+    newItemsOrderNow: 'Pesan Sekarang',
+    newItemsClose: 'Tutup',
+    referralReferral: 'Program Rujukan',
+    referralInviteFriends: 'Jemput Kawan, Jana Komisen!',
+    referralShareCode: 'Kongsi nombor telefon anda sebagai kod rujukan. Apabila kawan anda membuat pesanan pertama, anda akan dapat komisen dalam dompet anda!',
+    referralCopyCode: 'Salin',
+    referralFriendsReferred: 'Kawan Dirujuk',
+    referralTotalEarned: 'Jumlah Diperolehi',
+    referralCommissionRate: 'Kadar Komisen',
+    referralCommissionHistory: 'Sejarah Komisen',
+    referralFriendsYouReferred: 'Kawan Yang Anda Rujuk',
+    referralNoCommissions: 'Tiada komisen lagi. Mulakan merujuk!',
+    referralNoFriends: 'Belum ada kawan dirujuk.',
+    complaintSubmitComplaint: 'Hantar Aduan',
+    complaintCategory: 'Kategori Aduan',
+    complaintDescription: 'Penerangan',
+    complaintUploadPhoto: 'Muat Naik Foto (pilihan)',
+    complaintTapUpload: 'Ketik untuk muat naik foto',
+    complaintOrderIdOpt: 'ID Pesanan (pilihan)',
+    complaintSubmit: 'Hantar Aduan',
+    complaintMyComplaints: 'Aduan Saya',
+    complaintComplaintDetail: 'Butiran Aduan',
+    complaintResponse: 'Jawapan / Tindakan Diambil',
+    complaintResolve: 'Tandakan Selesai',
+    complaintClose: 'Tutup',
+    complaintNoPhoto: 'Foto dilampirkan',
+    complaintResolveDone: 'Aduan ditandakan sebagai selesai ?',
+    complaintDetailTitle: 'Butiran Aduan',
+    complaintEnterResponse: 'Masukkan jawapan anda...',
+    newItemsBanner: 'BAHARU',
+    newItemsSpecial: 'Istimewa:',
+    newItemsWas: 'asal',
+    newItemsUntil: 'Hingga:',
+    newItemsNoEnd: 'Tiada tarikh tamat',
+    complaintPhotoAlt: 'Foto',
+    awaitingMerchantApproval: 'Menunggu pengesahan peniaga',
+    newItemsNewTag: 'BAHARU',
+    stampComplete: 'SIAP!',
+    complaintTab: 'Aduan',
+    referralTab: 'Rujukan',
+    orderDetailTotal: 'Jumlah',
+    orderDetailPointsEarned: 'Mata Diperolehi',
+    orderDetailWalletPaid: 'Dompet',
+    orderDetailWalletDeductLabel: 'Potongan Dompet',
+    active_new_launches: 'Pelancaran Baru Aktif',
+    active_stamp_cards: 'Kad Cap Aktif',
+    add_bonus_rule: 'Tambah Peraturan Bonus',
+    add_new_item: 'Tambah Item Baru',
+    add_points: 'Tambah Mata',
+    add_points_manually: 'Tambah Mata Manual',
+    add_rule: 'Tambah Peraturan',
+    add_to_menu: 'Tambah ke Menu',
+    admin: 'Pentadbir',
+    all: 'Semua',
+    all_members: 'Semua Ahli',
+    all_orders: 'Semua Pesanan',
+    announcement_placeholder: 'Masukkan teks pengumuman...',
+    announcement_text: 'Teks Pengumuman',
+    bank_transfer: 'Pemindahan Bank',
+    bonus_points: 'Mata Bonus',
+    cancel: 'Batal',
+    card_color_theme: 'Tema Warna Kad',
+    card_name: 'Nama Kad',
+    card_name_placeholder: 'Contoh: Kumpul 10 cap untuk percuma',
+    cash: 'Tunai',
+    category: 'Kategori',
+    cleanliness: 'Kebersihan',
+    click_to_upload_photo: 'Klik untuk Muat Naik',
+    close: 'Tutup',
+    cold_drinks: 'Minuman Sejuk',
+    commission_history: 'Sejarah Komisen',
+    commission_records: 'Rekod Komisen',
+    commission_settings: 'Tetapan Komisen',
+    commissions: 'Komisen',
+    complaint_category: 'Kategori Aduan',
+    complaint_detail: 'Butiran Aduan',
+    complaints: 'Pengadu',
+    confirm_deactivate: 'Sahkan Nyahaktif',
+    create_account: 'Daftar Akaun',
+    create_stamp_card: 'Buat Kad Cap',
+    deactivate_member: 'Nyahaktifkan Ahli',
+    description: 'Penerangan',
+    desserts: 'Pudding',
+    done: 'Selesai',
+    emoji_icon: 'Ikon Emoji',
+    end_date: 'Tarikh Tamat',
+    enter_your_referrer_s_phone_number_to_link_commissions: 'Masukkan no telefon pengujuk',
+    expiry_date: 'Tarikh Luput',
+    food: 'Makanan',
+    free_item: 'Item Percuma',
+    free_menu_item: 'Item Menu Percuma',
+    hot_drinks: 'Minuman Panas',
+    item_name: 'Nama Item',
+    item_photo: 'Foto Item',
+    kitchen: 'Dapur',
+    launch_date: 'Tarikh Lancar',
+    launch_new_item: 'Lancarkan Item Baru',
+    login_to_dashboard: 'Log Masuk ke Papan',
+    members: 'Ahli',
+    menu_items: 'Item Menu',
+    merchant: 'Peniaga',
+    merchant_login: 'Log Masuk Peniaga',
+    new_complaint: 'Aduan Baru',
+    no_active_new_items: 'Tiada item baru aktif',
+    no_past_launches: 'Tiada pelancaran lama',
+    no_pickup_time_set: 'Masa pick-up tidak ditetapkan',
+    no_stamp_cards_yet: 'Belum ada kad cap',
+    optional: 'Opsional',
+    orders: 'Pesanan',
+    orders_today: 'Pesanan Hari Ini',
+    other: 'Lain-lain',
+    overview: 'Gambaran',
+    password: 'Kata Laluan',
+    past_launches: 'Pelancaran Lama',
+    pending: 'Menunggu',
+    phone_number: 'Nombor Telefon',
+    points: 'Mata',
+    points_issued: 'Mata Dikeluarkan',
+    preparing: 'Bersedia',
+    qr_codes: 'Kod QR',
+    recent_transactions: 'Transaksi Terbaru',
+    referral_commission_rate: 'Kadar Komisen Rujukan',
+    remove_photo: 'Buang Foto',
+    revenue_today: 'Hasil Hari Ini',
+    reward_type: 'Jenis Reward',
+    save_password: 'Simpan Kata Laluan',
+    select_menu_item: 'Pilih Item Menu',
+    settings: 'Tetapan',
+    snacks: 'Snack',
+    stamp_cards: 'Kad Cap',
+    stamp_rule: 'Peraturan Cap',
+    stamp_rule_placeholder: 'Contoh: RM1 = 1 mata',
+    stamps_required_to_complete: 'Cap Diperlukan',
+    submit_complaint: 'Hantar Aduan',
+    top_up: 'Tambah Nilai',
+    username: 'Nama Pengguna',
+    wrong_order: 'Pesanan Salah',
+    referralCommissionEarned: 'Komisen Diterima',
+    referralCurrentRate: 'Kadar Semasa',
+    referralSharePrompt: 'Kongsi telefon {phone} sebagai kod rujukan untuk dapat {rate}% dari pesanan pertama rakan!',
+    new_items: 'Item Baharu',
+    // Ads
+    ads: 'Iklan',
+    create_ad: 'Cipta Iklan Baharu',
+    ad_title: 'Tajuk Iklan',
+    ad_link: 'URL Pautan (pilihan)',
+    start_date: 'Tarikh Mula',
+    end_date: 'Tarikh Tamat',
+    ad_image: 'Imej Iklan',
+    click_to_upload_ad_image: 'Klik untuk muat naik imej iklan',
+    ad_position: 'Kedudukan Paparan',
+    ad_priority: 'Keutamaan',
+    higher_shows_first: 'Nombor lebih tinggi = dipaparkan dahulu',
+    active_ads: 'Iklan Aktif',
+    no_active_ads: 'Tiada iklan aktif',
+    all_ads: 'Semua Iklan',
+    no_ads_yet: 'Belum ada iklan',
+    ad_statistics: 'Statistik Iklan',
+    landing_page_top: 'Bahagian Atas Halaman Utama',
+    promosAndDeals: 'Promosi & Tawaran',
+    viewAllPromos: 'Lihat Semua Promosi',
+    allPromos: 'Semua Promosi',
+    noPromosNow: 'Tiada promosi buat masa ini. Sila datang kemudian!',
+ 
+    welcomeBack: 'Selamat Kembali',
+    drinkToday: 'Minum apa hari ini?',
+    firebaseNote: 'Butang utama akan sambung ke Firebase: semak kredit peniaga, potong 1 secara auto.',
+    enter: 'Masuk',
+    get: 'Dapat',
+    view: 'Lihat',
+    back: 'Kembali',
+    superAdmin: 'Super Admin',
+    quickActions: 'Tindakan Pantas',
+    viewOrders2: 'Lihat Pesanan',
+    menuMgmt2: 'Urusan Menu',
+    shopSettings2: 'Tetapan Kedai',
+    kitchenDisplay2: 'Paparan Dapur',
+    confirmPoints: 'Sahkan Mata',
+    topUpGateway: 'Top Up (Gateway Pembayaran)',
+    shopInfo: 'Info Kedai',
+    shopName: 'Nama Kedai',
+    announcement: 'Pengumuman',
+    bannerUrl: 'URL Imej Sepanduk',
+    saveShop: 'Simpan Info Kedai',
+    pointsSettings: 'Tetapan Mata',
+    pointsPerRM: 'Mata per RM',
+    savePoints2: 'Simpan Tetapan Mata', 
+    welcomeBack: 'Selamat Kembali',
+    drinkToday: 'Minum apa hari ini?',
+    firebaseNote: 'Butang utama akan sambung ke Firebase: semak kredit peniaga, potong 1 secara auto.',
+    enter: 'Masuk',
+    getBtn: 'Dapat',
+    view: 'Lihat',
+    back: 'Kembali',
+    superAdmin: 'Super Admin',
+    quickActions: 'Tindakan Pantas',
+    viewOrders2: 'Lihat Pesanan',
+    menuMgmt2: 'Urusan Menu',
+    shopSettings2: 'Tetapan Kedai',
+    kitchenDisplay2: 'Paparan Dapur',
+    confirmPoints: 'Sahkan Mata',
+    topUpGateway: 'Top Up (Gateway Pembayaran)',
+    shopInfo: 'Info Kedai',
+    shopName: 'Nama Kedai',
+    announcement: 'Pengumuman',
+    bannerUrl: 'URL Imej Sepanduk',
+    saveShop: 'Simpan Info Kedai',
+    pointsSettings: 'Tetapan Mata',
+    pointsPerRM: 'Mata per RM',
+    savePoints2: 'Simpan Tetapan Mata',
+    // ===== MISSING KEYS (Merchant Dashboard + Others) =====
+    mLoginBtn: 'Log Masuk', mVerify: 'Sahkan', mRefreshed: 'Dikemaskini',
+    mInvalidCredentials: 'Kelayakan tidak sah',
+    mMemberActive: 'Aktif', mMemberInactive: 'Tidak Aktif',
+    mActivateMember: 'Aktifkan Ahli', mDeactivateMember: 'Nyahaktifkan Ahli',
+    mActivateBtn: 'Aktif', mDeactivateBtn: 'Nyahaktif',
+    mConfirmActivate: 'Sahkan aktifkan ahli ini?',
+    mConfirmDeactivate: 'Sakah nyahaktifkan ahli ini?',
+    mOrderDone: 'Selesai', mOrderPrepare: 'Menyediakan',
+    mOrderCompleted: 'Selesai', mOrderPickup: 'Sedia Diambil',
+    mOrderTable: 'Meja', mOrderTakeaway: 'Bawa Balik',
+    mOrderMovedPreparing: 'Dipindahkan ke Menyediakan',
+    mFirstOrderDone: 'Pesanan pertama selesai!', mNotOrderedYet: 'Belum memesan',
+    mNoOrdersFound: 'Tiada pesanan dijumpai.', mNoOrdersCategory: 'Tiada pesanan dalam kategori ini.',
+    mKitchenStartCooking: 'Mula Memasak', mKitchenCookingStarted: 'Memasak Dimulakan',
+    mKitchenMarkDone: 'Tandakan Selesai', mKitchenCompleted: 'Selesai',
+    mKitchenGuest: 'Tetamu', mKitchenTable: 'Meja', mKitchenTakeaway: 'Bawa Balik', mKitchenPickup: 'Ambil',
+    mEnterPhone: 'Masukkan nombor telefon', mEnterCardName: 'Masukkan nama kad',
+    mFillNamePrice: 'Isi nama dan harga',
+    mNoMembersFound: 'Tiada ahli dijumpai.', mNoMembersYet: 'Belum ada ahli.',
+    mStampActivate: 'Aktif', mStampActive: 'Aktif',
+    mStampPause: 'Jeda', mStampPaused: 'Dijeda',
+    mStampDelete: 'Padam', mStampMembers: 'Ahli',
+    mStampPerItem: 'Setiap Item', mStampPerPurchase: 'Setiap Pembelian', mStampPerRM: 'Setiap RM',
+    mStampsLabel: 'Setem', mNoStampCardsYet: 'Belum ada kad setem.',
+    mNiLaunch: 'Lancar', mNiWas: 'harga asal', mSpecial: 'Istimewa:',
+    mNiEnds: 'Tamat:', mNiNoEndDate: 'Tiada tarikh tamat',
+    mNiDeactivate: 'Nyahaktif', mNiDelete: 'Padam',
+    mNoActiveItems: 'Tiada item aktif.', mNoPastLaunches: 'Tiada lancaran lalu.',
+    mTopupSubmitted: 'Permohonan tambah nilai dihantar!', mTopupApproved: 'Diluluskan', mTopupRejected: 'Ditolak',
+    mNoPendingRequests: 'Tiada permohonan tertunda.', mNoTopupHistory: 'Tiada sejarah tambah nilai.',
+    mMinTopupAmount: 'Jumlah minimum tambah nilai ialah RM10',
+    mBalance: 'Baki', mPoints: 'Mata',
+    mNoTransactions: 'Tiada transaksi.',
+    mAddRule: 'Tambah Peraturan', mDeleteRule: 'Padam Peraturan',
+    mBonusPercent: 'Peratus Bonus', mBonusPct: '%', mBonusPtsLabel: 'Mata Bonus',
+    mBonusExpiry: 'Tamat Tempoh', mNoExpiry: 'Tiada tamat tempoh',
+    mMinAmt: 'Jumlah Minimum (RM)', mEnterValidBill: 'Masukkan jumlah sah',
+    mEnterValidRate: 'Masukkan kadar sah (1-100)',
+    mRewardFreeItem: 'Item Percuma', mRewardFlatDiscount: 'Diskaun Tetap (RM)',
+    mRewardPctDiscount: 'Diskaun Peratus (%)', mRewardBonusPoints: 'Mata Bonus',
+    mPurchase: 'Pembelian', mRmOff: 'Diskaun RM', mPctOff: '% Diskaun',
+    mFreePrefix: 'PERCUMA', mFreeItem: 'Item Percuma', mFreeCoffee: 'Kopi Percuma',
+    mComplaintOpen: 'Terbuka', mComplaintInProgress: 'Dalam Proses',
+    mComplaintResolved: 'Selesai', mComplaintNoPhoto: 'Tiada gambar',
+    mApprove: 'Luluskan', mReject: 'Tolak',
+    mNoComplaintsFound: 'Tiada aduan dijumpai.',
+    mNoCommissions: 'Tiada komisen dijumpai.',
+    mPaymentVerified: 'Disahkan', mPaymentRejected: 'Ditolak',
+    mNoPaymentProofs: 'Tiada bukti pembayaran.',
+    mPhotoUnder5MB: 'Gambar mesti bawah 5MB',
+    mQRNotReady: 'QR belum sedia', mQRPrint: 'Cetak QR', mQRTable: 'QR Meja',
+    mSelectMenuItem: 'Pilih item menu', mChooseAnItem: 'Pilih item',
+    mExpired: 'Tamat Tempoh',
+    mDetailStatus: 'Status', mDetailDate: 'Tarikh', mDetailCustomer: 'Pelanggan',
+    mDetailOrder: 'Pesanan', mDetailCategory: 'Kategori',
+    mDetailPrevResponse: 'Jawapan Sebelumnya',
+    points: 'Mata', noStampCards: 'Tiada kad setem',
+    'Item removed': 'Item dipadam',
+    'Points settings saved! / ???????': 'Tetapan mata disimpan!',
+    'Shop info saved! / ???????': 'Maklumat kedai disimpan!',
+    loyalbrew_lang: 'ms',
+    loyalbrew_merchant_lang: 'ms',
+    loyalbrew_merchant_phone: '',
+    loyalbrew_topup_bonus_rules: '',
+    '????': 'Mata berjaya ditambah!',
+    '?? Stamp collected! Check your stamp card!': '?? Setem dikumpul! Semak kad setem anda!',
+    '?? New item launched!': '?? Item baharu dilancarkan!',
+    mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...',
+    mPhComplaintOrderId: 'cth: ORD123456',
+  },
+  ta: {
+    mCatHotDrinks: '????? ????????', mCatColdDrinks: '?????? ????????', mCatFood: '????', mCatDesserts: '??????????', mCatSnacks: '??????????', mCatPromotions: '????????????',
+    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? � off-peak ???????',
+loyalbrew_brand: 'LoyalBrew',
+    merchant_name_default: 'LoyalBrew Cafe Sdn Bhd',
+    demo_label: '????:',
+    email_optional: '?????????? (????????????)',
+    referral_code_label: '????????? ???????? (??????????????? ????????, ????????????)',
+    admin_label: 'admin',
+    menu: '????',
+    new_items: '????? ?????????',
+    bill_amount: '???? ???? (RM)',
+    all: '?????????',
+    pending: '??????????????',
+    preparing: '???????????????????????',
+    done: '?????????',
+    price_label: '???? (RM)',
+    hot_drinks: '????? ????????',
+    cold_drinks: '?????? ????????',
+    food: '????',
+    desserts: '??????????',
+    snacks: '??????????',
+    card_emoji_icon: '?????? ?????/?????',
+    flat_discount: '??????? ???????? (RM)',
+    min_amount: '??????????? ???? (RM)',
+    qr_description: '??????? ?????????? ??????????? QR ???????? ??????. ???????????????? ?????? ?????? ???????? ?????? ?????????.',
+    congratulations: '?????????????!',
+    stamps_collected: '??????? ??????? ??????????????? ????????????????????!',
+    whats_new_title: 'LoyalBrew ??? ???????!',
+    invite_friends_title: '????????? ??????? ?????? ??????????????!',
+    no_commissions_yet: '??????? ?????? ?????. ????????????? ????????????!',
+    upload_photo_optional: '???????????? ????????? (????????????)',
+    order_id_optional: '?????? ??? (????????????)',
+    response_action_taken: '????? / ??????????????? ?????????',
+    // Landing
+    tagline: '?????? � ????????? ??????? � ????? ????',
+    loginLabel: '?????????? ?????????', myAccount: '??? ??????', orderNow: '??????? ??????', myStampCard: '???????? ??????',
+    topUp: '???? ???', merchant: '??????',
+    feat1Title: '?????? & ??????', feat1Desc: 'QR ?????? ?????? ???? ??????',
+    feat2Title: '????????? ???????', feat2Desc: 'RM1 = 1 ??????',
+    feat3Title: '???? ????????', feat3Desc: '????????? ?????? ?????????',
+    // Menu
+    menu: '????', dineIn: '????? ???????', takeaway: '?????? ??????',
+    table: '????', change: '??????',
+    selectTable: '?????? ?????? ?????????????????', enterTable: '?????? ????? ???? ??? ??????????',
+    confirmTable: '?????? ??????????????', invalidTable: '?????? ???? ????? ??????????',
+    // Menu categories
+    catAll: '?????????', catNewItems: '? ????? ?????????',
+    catHotDrinks: '????? ????????', catColdDrinks: '?????? ????????',
+    catFood: '????', catDesserts: '??????????', catSnacks: '??????????',
+    // Float cart
+    floatViewCart: '?????? ??????? ?',
+    floatItem: '??????', floatItems: '?????????',
+    // Takeaway info bar
+    takeawayOrder: '??????? ??????', noPickupTime: '????? ????????????????', pickup: '?????????',
+    // Cart
+    yourOrder: '??? ??????', orderType: '?????? ???',
+    phoneNumber: '???????? ???', pickupTime: '????????? ?????',
+    pickupHint: '???? ????????? ?????? ?????? ?????? ?????????.',
+    loyaltyPoints: '????????? & ????????',
+    earnHint: '????????? & ???????? ??? ???????? ??? ????????? ?? ??????????',
+    phoneLoyalty: '???????? ??? (????????? & ???????? ???)',
+    payWallet: '????????? ???? ????????', useWallet: '????? ????????? ???????????',
+    paymentMethod: '???? ?????????? ????',
+    cartEmpty: '?????? ??????? ??????', browseMenu: '???? ???????',
+    eachUnit: '???????????', removeItem: '??????',
+    orderSummary: '?????? ?????????', subtotal: '???? ???????', sst: 'SST (6%)',
+    walletDeduction: '????? ?????', totalLabel: '???????',
+    pointsEarnLabel: '??????? ?????? ?????????',
+    specialRequest: '??????? ????????', specialRequestPlaceholder: '?.??: ??????? ????????, ??? ????????...',
+    placeOrder: '?????? ????',
+    // Order type display in cart
+    cartDineIn: '????? ???????', cartTakeaway: '?????? ??????', cartChange: '??????',
+    // Confirm details
+    confirmType: '???', confirmTable2: '????', confirmPhone: '????????',
+    confirmPickup: '????????? ?????', confirmItems: '?????????',
+    confirmWalletPaid: '????? ????', confirmTotalPaid: '????? ????',
+    confirmPayment: '???? ?????????', confirmPointsEarned: '????????? ???????????',
+    confirmNote: '????????', pendingVerification: '??????????? ??????????',
+    confirmTypeDineIn: '?? ????? ???????', confirmTypeTakeaway: '??? ?????? ??????',
+    // Cash pay confirm
+    cashPayCounter: '?????????? ???? ???????????, ????? ???? ???? ???????? ??????????.',
+    cashPaidBtn: '???? ???????????? � ????????? ?????????????',
+    cashPaidDone: '???? ?????????????????????! ??????? ?????? ?????? ????????????.',
+    confirmReceivedBtn: '??????? ????????? / ?????? ???????????',
+    orderCompletedMsg: '?? ?????? ?????????! ?????? ?????????? ?????.',
+    orderCompletedTitle: '?????? ?????????',
+    // Toast
+    toastTakeaway: '??? ??????? ?????? ??????!', toastDineIn: '?? ?????? ??????????? ??????????????!',
+    toastNoPhone: '??????????? ???????? ??? ??????????',
+    toastNoTime: '????????? ??????? ??????????',
+    toastNoProof: '??????? ???? ????????? ?????????????? ????????????.',
+    // Payment section
+    tngScanTitle: 'Touch & Go ????? ???? ??????? ?????? ?????????',
+    tngAmountLabel: '????', tngUploadHint: '???? ????????? ?????, ???? ???????????? ????????????.',
+    uploadScreenshot: '???? ????????? ???????????? ?????????', uploadReceipt: '???????? ????? ?????????',
+    uploadSizeHint: 'JPG / PNG 5MB ???',
+    bankTitle: '????? ???????? ?????????',
+    // Stamp
+    enterPhone: '?????? ???????? ????? ??????????',
+    notMember: '?????????? ????????', registerHere: '????? ????? ???????????',
+    // Order Confirm
+    orderPlaced: '?????? ??????!', thankYou: '?????!',
+    orderSent: '?????? ?????? ??????????? ??????????????.',
+    orderMore: '?????? ??????', viewStamp: '???????? ?????? ???????', backHome: '??????????? ????????',
+    // Takeaway modal
+    takeawayModalTitle: '??????? ??????', takeawayModalSubtitle: '?????? ??????? ????????? ??????????',
+    confirmTakeaway: '??????? ??????????????', cancelBtn: '????? ????',
+    pickupReadyHint: '???? ????????? ?????? ?????? ?????? ?????????.',
+    // Stamp card
+    stampReward: '?????', stampClaimBtn: '????? ????',
+    stampPerPurchase: '??????? ??????????????? 1 ????????',
+    stampPerAmount: 'RM{v} ??????????? 1 ????????',
+    stampPerItem: '??????? {item} ???????????? 1 ????????',
+    stampPerItemGeneric: '???????? ?????? ???????????? 1 ????????',
+    stampFreeItem: '???? {item}', stampFreeItemGeneric: '???? ??????',
+    stampRmOff: 'RM{v} ????????', stampPctOff: '{v}% ????????', stampBonusPoints: '+{v} ????? ?????????',
+    stampsToUnlock: '????? ??? {n} ???????? ????', stampsToUnlockPlural: '????? ??? {n} ??????????? ????',
+    stampCollected: '????????????????', stampEmpty: '????',
+    stampCompleted: '{n}� ?????????',
+    // Customer Auth
+    login: '?????????? ?????????', register: '????? ????', fullName: '???? ?????',
+    memberDeactivatedMsg: '?????? ?????? ?????????????????. ?????? ????????????????.',
+    // Dashboard
+    memberLabel: '??????????', totalPoints: '????? ?????????', memberId: '?????????? ID',
+    tierProgress: '???? ???????????',
+    tierBronze: '????????\n0', tierSilver: '??????\n200', tierGold: '??????\n500', tierPlatinum: '???????????\n1000',
+    redeemRewards: '????? ????????', viewAllStampCards: '??????? ???????? ????????????? ????',
+    myOrders: '??? ?????????', viewAllOrders: '??????? ????????????? ????',
+    referralCommissions: '????????? ??????', myReferralProgram: '??? ????????? ???????',
+    transactionHistory: '??????????? ??????', logout: '????????', submitComplaint: '?????? ??????',
+    // My Orders page
+    loginRequired: '?????????? ????????? ????', loginToViewOrders: '?????? ?????? ??????? ????????????.',
+    goToLogin: '?????????? ????????????? ????',
+    filterAll: '?????????', filterPending: '??????????', filterPreparing: '?????????????', filterDone: '?????????',
+    // Top Up page
+    topUpWallet: '????? ???????', myWallet: '??? ?????', bonusIncluded: '????? ???????????????',
+    topUpBonusTitle: '??????? ?????!', topUpBonusDesc: 'RM100 ??????? RM120 ???????? ????????? (???? RM20!)',
+    selectTopUpAmount: '??????? ?????? ?????????????????', topUpGet: '?????????', noBonus: '????? ?????',
+    bestDeal: '?????? ????', free: '??????',
+    orCustomAmount: '?????? ????????? ???? ?????????? (RM)',
+    topUpCustomHint: '????????????? RM10. RM100 ??????? ?????? ???? ????? ???????.',
+    youPay: '??????? ???????????', youGet: '??????? ???????', bonusLabel: '?????',
+    confirmTopUp: '?????????? ??????????????', walletHistory: '????? ??????',
+    walletBalance: '???????',
+    // Wallet dashboard
+    availableBalance: '?????????? ???????', totalToppedUp: '????? ???????? ????', totalBonusEarned: '????? ?????',
+    // Tier hint
+    sinceLabel: '???????',
+    pointsToReach: '{tier} ???? {n} ????????? ????!',
+    highestTier: '?? ??????? ??????? ?????? ????????????!',
+    tierNameSilver: '??????', tierNameGold: '??????', tierNamePlatinum: '???????????',
+    // Upload
+    screenshotUploaded: '???????????? ????????????????. ?????? ???????????????? ???????????????.',
+    screenshotUploaded2: '???????????? ????????????????', tapToChange: '????? ???????',
+    topupSubmitted: '? ????-??? ???????? ???????????????????! ?????? ????????????? ???????????????.',
+    selectTableFirst: '??????? ?????? ?????????????????!',
+    photoUnder5MB: '?????????? 5MB ???? ??????? ?????? ????????',
+    noPromos: '??????? ??????????? ?????',
+    noComplaintsYet: '??????? ????????? ?????????????????????',
+    mPhComplaintDesc: '?????? ?????????? ??????? ????????????...',
+    mPhComplaintOrderId: '?.??. ORD123456',
+    enterValidRate: '?????? ??????? ?????????? (1�100)',
+    T: 'T',
+    div: 'div',
+    input: 'input',
+    m: 'm',
+    mDeactivateBtn: '???????',
+    mDeactivateMember: '??????????? ???????',
+    mEnterValidBill: '?????? ???? ??????????',
+    mFreeCoffee: '???? ????',
+    mMemberInactive: '??????????? ???????',
+    mNoMembersYet: '??????? ????????????? ?????',
+    mOrderPickup: '?????? ???????',
+    mOrderPrepare: '?????? ??????????',
+    mOrderTakeaway: '?????? ???????',
+    mPoints: '?????????',
+    mQRPrint: 'QR ??????????',
+    mQRTable: '???? QR ????????',
+    backHome: '????????????? ????????',
+    bankAccountDisplay: '??????? ??????',
+    commission_rate: '???? ???????',
+    credited_to_referrer_s_wallet_after_first_order: '????? ????????? ????? ??????????????? ?????????? ????',
+    customer_complaints: '????????????? ?????????',
+    enter_your_referrer_s_phone_number_to_link_commissions: '???? ?????? ?????? ??????????????? ???????? ????? ??????????',
+    friends_referred: '????????? ?????????????????????',
+    generate_qr_codes: 'QR ??????????? ????????????',
+    generate_table_qr_codes: '???? QR ??????????? ????????????',
+    in_progress: '????????????? ??????',
+    kitchen_display: '??????? ??????',
+    member_stamp_progress: '???????? ???????????',
+    member_wallet_balances: '?????????? ????',
+    merchantNameDisplay: '????????? ?????',
+    new: '?????',
+    no_friends_referred_yet: '??????? ????????? ??????????????????????',
+    no_pending_payment_proofs: '?????????? ???? ?????????? ????????? ?????',
+    no_pending_requests: '?????????? ??????????? ?????',
+    number_of_tables: '????????? ?????????',
+    pending_payment_proofs: '?????????? ???? ?????????? ?????????',
+    pending_top_up_requests: '?????????? ????-??? ???????????',
+    refresh: '????????',
+    resolved: '???????????????',
+    search_for_a_member: '???????????? ???????',
+    takeaway: '?????? ????????? ????',
+    tierGold: '????',
+    tierPlatinum: '???????????',
+    tierSilver: '??????',
+    top_up_bonus_settings: '????-??? ????? ??????????',
+    top_up_history: '????-??? ??????',
+    total_earned: '??????? ???????',
+    will_earn: '??????',
+    selectMenuItem: '???? ???? ?????????????????',
+    enterPhoneNumber: '?????? ???????? ????? ??????????',
+    memberNotFound: '?????????? ?????. ??????? ????? ?????????.',
+    noUnclaimedRewards: '????????? ?????????? ?????',
+    enterCardName: '?????? ????? ??????????',
+    enterRewardValue: '??????? ??????? ??????????',
+    minimumTopup: '??????????? ????-??? RM10',
+    selectTopupAmount: '????-??? ?????? ?????????????????',
+    sessionExpired: '?????? ?????????, ???????? ???????? ??? ??????????',
+    memberNotFoundShort: '?????????? ?????',
+    pleaseLoginFirst: '??????? ?????????? ????????? ?????????',
+    pleaseDescribeIssue: '?????? ?????????? ????????????',
+    enterPhoneToLogin: '???????? ??? ??????????',
+    memberNotFoundRegister: '?????????? ?????. ????? ?????????.',
+    fillNamePhone: '????? ??????? ???????? ??? ??????????',
+    phoneRegistered: '???????? ??? ??????? ??????????????!',
+    registeringAsMember: '??????? ???? ???????? ??????????? ????? ?????????????',
+    referrerNotFound: '??????????????? ?????. ???????? ????? ??????????????.',
+    notEnoughPoints: '??????? ????????? ?????!',
+    invalidCredentials: '????? ????????!',
+    enterPhoneSearch: '???????? ??? ??????????',
+    memberNotFoundExcl: '?????????? ?????!',
+    enterValidBill: '?????? ???? ???? ??????????',
+    fillNamePrice: '????? ??????? ???? ??????????',
+    qrNotReady: 'QR ??????? ????????????',
+    complaintSubmitted: '? ?????? ???????????????????! ??????? ???????? ???????????????.',
+    // Complaint form
+    submitComplaint: '?????? ??????',
+    submitComplaintBtn: '?????? ????????',
+    newComplaint: '????? ??????',
+    complaintCategory: '?????? ???',
+    food_quality: '???? ????',
+    other: '??????',
+    pricing_issue: '???? ????????',
+    waiting_time: '?????????????? ?????',
+    wrong_order: '????? ??????',
+    food_quality: '???? ????',
+    service: '????',
+    cleanliness: '??????',
+    waiting_time: '?????????????? ?????',
+    wrong_order: '????? ??????',
+    pricing_issue: '???? ????????',
+    other: '??????',
+    description: '????????',
+    uploadPhotoOptional: '?????????? ????????? (?????????)',
+    tap_to_upload_photo: '?????????? ???????? ????????',
+    photo_upload_hint: 'JPG, PNG 5MB ???',
+    order_id_optional: '?????? ID (?????????)',
+    myComplaints: '??? ?????????',
+    // Dynamic render strings
+    stampCollectedMsg: '???????? ????????????????!',
+    stampCollectedDetail: '??????? ??? ?????? ???????? ???????????',
+    walletTopupPending: '?????? ????????????? ???????????????',
+    myOrdersEmpty: '????????? ?????????????',
+    myOrdersNoOrdersYet: '??????? ????????? ?????',
+    walletTxnsEmpty: '????? ?????????????? ?????',
+    txnNoTransactions: '??????? ?????????????? ?????',
+    topupHistoryEmpty: '????-??? ?????? ?????',
+    complaintsEmpty: '????????? ?????????????',
+    photoUploadHint: 'JPG, PNG, ?????????? 5MB',
+    orderDetailTitle: '?????? ?????????',
+    orderDetailOrderId: '?????? ???',
+    orderDetailStatus: '????',
+    orderDetailType: '???',
+    orderDetailDate: '????',
+    orderDetailItems: '?????? ?????????',
+    orderDetailSubtotal: '???? ???????',
+    orderDetailTax: 'SST',
+    walletTopupLabel: '????-???',
+    paymentCash: '???????',
+    paymentTng: 'Touch & Go',
+    paymentBank: '????? ???????',
+    statusPending: '??????????',
+    statusPreparing: '?????????????',
+    statusDone: '?????????',
+    stampRedeemTitle: '?????????????!',
+    stampRedeemMsg: '??????? ??????? ??????????????? ??????????????!',
+    stampRedeemClaim: '????? ????',
+    stampRedeemLater: '?????',
+    newItemsTitle: 'LoyalBrew ??? ??????!',
+    newItemsMsg: '???????????? ????? ??????????? ??',
+    newItemsOrderNow: '??????? ??????',
+    newItemsClose: '????',
+    referralReferral: '????????? ??????????',
+    referralInviteFriends: '????????? ??????????, ?????? ??????????????!',
+    referralShareCode: '?????? ???????? ????? ????????? ??????????? ??????????. ?????? ?????? ????? ?????? ????????????, ?????? ????????? ?????? ??????????!',
+    referralCopyCode: '????',
+    referralFriendsReferred: '???????????? ?????????',
+    referralTotalEarned: '??????? ????????????',
+    referralCommissionRate: '?????? ?????',
+    referralCommissionHistory: '?????? ??????',
+    referralFriendsYouReferred: '??????? ???????????? ?????????',
+    referralNoCommissions: '??????? ????????? ?????. ?????????????? ????????????!',
+    referralNoFriends: '??????? ????????? ??????????????????????.',
+    complaintSubmitComplaint: '?????? ????????',
+    complaintCategory: '?????? ???',
+    complaintDescription: '????????',
+    complaintUploadPhoto: '?????????? ????????? (????????????)',
+    complaintTapUpload: '?????????? ???????? ??????',
+    complaintOrderIdOpt: '?????? ??? (????????????)',
+    complaintSubmit: '?????? ????????',
+    complaintMyComplaints: '??? ?????????',
+    complaintComplaintDetail: '?????? ??????',
+    complaintResponse: '????? / ???????????? ?????????',
+    complaintResolve: '???????????????? ????',
+    complaintClose: '????',
+    complaintNoPhoto: '?????????? ??????????????',
+    complaintResolveDone: '?????? ???????????????? ??????????????? ?',
+    complaintDetailTitle: '?????? ??????',
+    complaintEnterResponse: '?????? ????? ??????????...',
+    newItemsBanner: '?????',
+    newItemsSpecial: '???????:',
+    newItemsWas: '????????',
+    newItemsUntil: '??????:',
+    newItemsNoEnd: '?????? ???? ?????',
+    complaintPhotoAlt: '??????????',
+    awaitingMerchantApproval: '?????? ????????????? ???????????????',
+    newItemsNewTag: '?????',
+    stampComplete: '?????????!',
+    complaintTab: '??????',
+    referralTab: '?????????',
+    orderDetailTotal: '???????',
+    orderDetailPointsEarned: '????????? ??????????',
+    orderDetailWalletPaid: '?????',
+    orderDetailWalletDeductLabel: '????? ????????',
+    active_new_launches: '??????? ???? ????? ???????????',
+    active_stamp_cards: '??????? ???? ???????? ?????????',
+    add_bonus_rule: '????? ???????? ????',
+    add_new_item: '????? ???????? ????',
+    add_points: '??????????? ????',
+    add_points_manually: '????????? ??????????? ????',
+    add_rule: '???????? ????',
+    add_to_menu: '???????? ????',
+    admin: '????????',
+    all: '?????????',
+    all_members: '??????? ?????????????',
+    all_orders: '??????? ?????????',
+    announcement_placeholder: '????????? ????? ??????????...',
+    announcement_text: '????????? ???',
+    bank_transfer: '????? ??????',
+    bonus_points: '????? ?????????',
+    cancel: '?????',
+    card_color_theme: '?????? ??? ????',
+    card_name: '?????? ?????',
+    card_name_placeholder: '???????: 10 ??????????? ????????????',
+    cash: '???????',
+    category: '???',
+    cleanliness: '??????',
+    click_to_upload_photo: '???????????? ???????? ?????? ?????????',
+    close: '????',
+    cold_drinks: '?????? ????????',
+    commission_history: '?????? ??????',
+    commission_records: '?????? ????????',
+    commission_settings: '?????? ??????????',
+    commissions: '?????????',
+    complaint_category: '?????? ???',
+    complaint_detail: '?????? ?????????',
+    complaints: '?????????',
+    confirm_deactivate: '?????????? ??????????????',
+    create_account: '?????? ???????',
+    create_stamp_card: '???????? ?????? ?????????',
+    deactivate_member: '?????????? ???????',
+    description: '????????',
+    desserts: '??????????',
+    done: '?????????',
+    emoji_icon: '????? ?????',
+    end_date: '?????? ????',
+    enter_your_referrer_s_phone_number_to_link_commissions: '????????? ?????? ??????????????? ???????? ????? ??????????',
+    expiry_date: '??????? ????',
+    food: '????',
+    free_item: '???? ??????',
+    free_menu_item: '???? ???? ??????',
+    hot_drinks: '????? ????????',
+    item_name: '???????? ?????',
+    item_photo: '?????? ??????????',
+    kitchen: '?????? ???',
+    launch_date: '?????????? ????',
+    launch_new_item: '????? ?????? ????????',
+    login_to_dashboard: '?????????????? ????????',
+    members: '?????????????',
+    menu_items: '???? ?????????',
+    merchant: '??????',
+    merchant_login: '?????? ????????',
+    new_complaint: '????? ??????',
+    no_active_new_items: '??????? ???? ????? ????????? ?????',
+    no_past_launches: '??????? ??????????? ?????',
+    no_pickup_time_set: '??????? ????? ????????????????',
+    no_stamp_cards_yet: '??????? ???????? ????????? ?????',
+    optional: '??????????',
+    orders: '?????????',
+    orders_today: '?????? ?????????',
+    other: '??????',
+    overview: '?????????',
+    password: '??????????',
+    past_launches: '??????? ???????????',
+    pending: '??????????????',
+    phone_number: '???????? ???',
+    points: '?????????',
+    points_issued: '??????????? ?????????',
+    preparing: '???????????????????????',
+    qr_codes: 'QR ???????????',
+    recent_transactions: '????????? ??????????????',
+    referral_commission_rate: '????????? ?????? ???????',
+    remove_photo: '???????????? ??????',
+    revenue_today: '?????? ???????',
+    reward_type: '??????? ???',
+    save_password: '?????????? ????',
+    select_menu_item: '???? ???????? ??????????',
+    settings: '??????????',
+    snacks: '??????????',
+    stamp_cards: '???????? ?????????',
+    stamp_rule: '???????? ????',
+    stamp_rule_placeholder: '???????: RM10 ????? = 1 ????????',
+    stamps_required_to_complete: '??????? ??????? ???????????',
+    submit_complaint: '???????? ????????',
+    top_up: '???? ???',
+    username: '????????????',
+    wrong_order: '????? ??????',
+    referralCommissionEarned: '?????????? ??????',
+    referralCurrentRate: '???????? ???????',
+    referralSharePrompt: '?????? ???????? {phone} ? ????????? ????????? ?????????, ??????????? ????? ?????????????? {rate}% ??????????????!',
+    // Ads
+    ads: '????????????',
+    create_ad: '????? ????????? ?????????',
+    ad_title: '??????? ???????',
+    ad_link: '??????? URL (?????????)',
+    start_date: '?????? ????',
+    end_date: '?????? ????',
+    ad_image: '??????? ????',
+    click_to_upload_ad_image: '??????? ?????? ???????? ?????? ?????????',
+    ad_position: '?????? ????',
+    ad_priority: '??????????',
+    higher_shows_first: '???? ??? = ??????? ??????',
+    active_ads: '??????? ???? ????????????',
+    no_active_ads: '??????? ???????????? ?????',
+    all_ads: '??????? ????????????',
+    no_ads_yet: '??????? ???????????? ?????',
+    ad_statistics: '??????? ????????????',
+    landing_page_top: '??????? ?????? ????',
+    promosAndDeals: '???????? & ????? ???????',
+    viewAllPromos: '??????? ???????????? ????',
+    allPromos: '??????? ????????',
+    noPromosNow: '??????? ???????? ?????. ???????? ?????????!',
+ 
+    welcomeBack: '???????? ????????????',
+    drinkToday: '????? ???? ????????????????',
+    firebaseNote: '??????? ???????? Firebase-? ?????????: ????????? ????????? ??????????????, ???????????? ???? 1? ??????? ?????????.',
+    enter: '????',
+    get: '????',
+    view: '????',
+    back: '???????',
+    superAdmin: '??????? ????????',
+    quickActions: '?????? ????????',
+    viewOrders2: '??????????? ????',
+    menuMgmt2: '???????? ????????',
+    shopSettings2: '??? ??????????',
+    kitchenDisplay2: '??????? ??????',
+    confirmPoints: '????????? ??????????????',
+    topUpGateway: '???????? ??????? (????? ??????)',
+    shopInfo: '??? ?????',
+    shopName: '??? ?????',
+    announcement: '?????????',
+    bannerUrl: '????? ?? URL',
+    saveShop: '????? ??????? ????',
+    pointsSettings: '????????? ??????????',
+    pointsPerRM: 'RM ??????????????? ?????????',
+    savePoints2: '????????? ???????????? ????', 
+    welcomeBack: '???????? ????????????',
+    drinkToday: '????? ???? ????????????????',
+    firebaseNote: '??????? ???????? Firebase-? ?????????: ????????? ????????? ??????????????, ???????????? ???? 1? ??????? ?????????.',
+    enter: '????',
+    getBtn: '????',
+    view: '????',
+    back: '???????',
+    superAdmin: '??????? ????????',
+    quickActions: '?????? ????????',
+    viewOrders2: '??????????? ????',
+    menuMgmt2: '???????? ????????',
+    shopSettings2: '??? ??????????',
+    kitchenDisplay2: '??????? ??????',
+    confirmPoints: '????????? ??????????????',
+    topUpGateway: '???????? ??????? (????? ??????)',
+    shopInfo: '??? ?????',
+    shopName: '??? ?????',
+    announcement: '?????????',
+    bannerUrl: '????? ?? URL',
+    saveShop: '????? ??????? ????',
+    pointsSettings: '????????? ??????????',
+    pointsPerRM: 'RM ??????????????? ?????????',
+    savePoints2: '????????? ???????????? ????',},
+};
+
+let currentLang = safeLS.get('loyalbrew_lang') || 'en';
+
+function t(key) {
+  return (LANGS[currentLang] && LANGS[currentLang][key]) ? LANGS[currentLang][key] : (LANGS['en'][key] || key);
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  safeLS.set('loyalbrew_lang', lang);
+  document.documentElement.lang = lang;
+  // Update active button
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === { en:'EN', zh:'??', ms:'BM', ta:'?????' }[lang]);
+  });
+  // Apply static data-i18n translations � only on active page for perf
+  const activePage = document.querySelector('.page.active');
+  const root = activePage || document;
+  root.querySelectorAll('[data-i18n]').forEach(el => {
+    if (el.hasAttribute('data-mi18n')) return;
+    const key = el.getAttribute('data-i18n');
+    if (LANGS[lang] && LANGS[lang][key]) el.textContent = LANGS[lang][key];
+  });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (LANGS[lang] && LANGS[lang][key]) el.placeholder = LANGS[lang][key];
+  });
+  // Refresh dynamic content only if visible
+  const activeId = activePage ? activePage.id : null;
+  if (activeId === 'page-menu') renderMenu();
+  if (activeId === 'page-cart') renderCart();
+  updateFloatCart();
+  // Update cash pay confirm box if visible
+  const cashSmall = document.querySelector('#cash-pay-confirm-box small');
+  if (cashSmall) cashSmall.textContent = t('cashPayCounter');
+  const cashBtn = document.getElementById('cash-paid-btn');
+  if (cashBtn) cashBtn.innerHTML = `<i class="fas fa-check-circle"></i> ${t('cashPaidBtn')}`;
+  const cashDone = document.getElementById('cash-paid-done');
+  if (cashDone && !cashDone.classList.contains('hidden')) cashDone.innerHTML = `<i class="fas fa-check-circle"></i> ${t('cashPaidDone')}`;
+  const floatBtn = document.getElementById('float-cart');
+  if (floatBtn) {
+    const spans = floatBtn.querySelectorAll('span');
+    if (spans.length >= 2) spans[1].textContent = t('floatViewCart');
+  }
+  // Refresh customer dashboard only if it's the active page
+  if (activeId === 'page-customer' && currentCustomer) {
+    renderCustomerWallet(currentCustomer);
+    renderCustomerOrdersPreview(currentCustomer);
+    renderCustomerCommissionSummary(currentCustomer);
+    renderCustomerTxns(currentCustomer.id);
+    renderCustomerStampPreview(currentCustomer);
+  }
+}
+
+// ===== DEFAULT MENU DATA =====
+// ===== ANG SUCCESS ENTERPRISE MENU =====
+const DEFAULT_MENU = [
+  // ??? Pan Cake
+  { id: 'as_pan_cake_pandan',   name: '??? (??) Pan Cake Pandan',     emoji: '??', price: 1.60, category: 'Traditional Cakes', desc: '????????,??', image: 'menu_photos/pancake.jpg' },
+  { id: 'as_pan_cake_brownsugar',name: '??? (??) Pan Cake Brown Sugar',emoji: '??', price: 1.60, category: 'Traditional Cakes', desc: '??????,??', image: 'menu_photos/pancake.jpg' },
+  { id: 'as_pan_cake_box',      name: '??? ?? (11?) Big Plate',       emoji: '??', price: 16.00,category: 'Traditional Cakes', desc: '?????,11??', image: 'menu_photos/pancake.jpg' },
+  // ???? Peanut Mochi
+  { id: 'as_peanut_mochi',      name: '???? Peanut Mochi (??)',       emoji: '??', price: 5.50, category: 'Mochi', desc: '??????,????', image: 'menu_photos/peanut-mochi.jpg' },
+  // ??? Snow Mochi - RM4.50
+  { id: 'as_snow_mochi_mango',      name: '??? (??) Snow Mochi',          emoji: '??', price: 4.50, category: 'Mochi', desc: '????????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_oreo',       name: '??? (???) Snow Mochi',       emoji: '??', price: 4.50, category: 'Mochi', desc: '???????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_banana_choco',name:'??? (?????) Snow Mochi',  emoji: '??', price: 4.50, category: 'Mochi', desc: '?????????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_brown_sugar', name:'??? (????) Snow Mochi',     emoji: '??', price: 4.50, category: 'Mochi', desc: '????????', image: 'menu_photos/snow-mochi.jpg' },
+  // ??? Snow Mochi - RM5.00
+  { id: 'as_snow_mochi_icecream',   name: '??? (???) Snow Mochi',       emoji: '??', price: 5.00, category: 'Mochi', desc: '???????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_longan',     name: '??? (??) Snow Mochi',         emoji: '???', price: 5.00, category: 'Mochi', desc: '??????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_strawberry',  name: '??? (??) Snow Mochi',         emoji: '??', price: 5.00, category: 'Mochi', desc: '????????', image: 'menu_photos/snow-mochi.jpg' },
+  { id: 'as_snow_mochi_chocolate',   name: '??? (???) Snow Mochi',       emoji: '??', price: 5.00, category: 'Mochi', desc: '?????????', image: 'menu_photos/snow-mochi.jpg' },
+  // ???? Portuguese Egg Tarts
+  { id: 'as_egg_tart',           name: '???? Portuguese Egg Tart',      emoji: '??', price: 3.50, category: 'Pastries', desc: '??????,??', image: 'menu_photos/egg-tart.jpg' },
+];
+
+// ===== REWARDS =====
+const REWARDS = [
+  { id: 'r1', name: 'Free Coffee',    icon: '?', points: 100, color: '#8B4513' },
+  { id: 'r2', name: 'Free Muffin',    icon: '??', points: 80,  color: '#e91e63' },
+  { id: 'r3', name: 'Free Tea',       icon: '??', points: 60,  color: '#4caf50' },
+  { id: 'r4', name: '10% Discount',   icon: '???', points: 150, color: '#ff9800' },
+  { id: 'r5', name: 'Free Sandwich',  icon: '??', points: 200, color: '#9c27b0' },
+  { id: 'r6', name: 'Birthday Cake',  icon: '??', points: 300, color: '#f44336' },
+];
+
+// ===== TIER LOGIC =====
+function getTier(points) {
+  if (points >= 1000) return 'Platinum';
+  if (points >= 500)  return 'Gold';
+  if (points >= 200)  return 'Silver';
+  return 'Bronze';
+}
+function getTierClass(tier) { return 'tier-' + tier.toLowerCase(); }
+
+// ===== PROMO ENGINE � Non-Busy-Hour Special Pricing =====
+// Shape: { enabled, promoStartTime, promoEndTime, promoDays, busyThreshold }
+// Stored in localStorage key: loyalbrew_merchant_promo_settings
+
+function getMerchantPromoSettings() {
+  try { return safeLS.json('loyalbrew_merchant_promo_settings', null); } catch { return null; }
+}
+function saveMerchantPromoSettings(s) {
+  safeLS.setJSON('loyalbrew_merchant_promo_settings', s);
+}
+
+function getActiveOrderCount() {
+  return DB.getOrders().filter(o => o.status === 'pending' || o.status === 'preparing').length;
+}
+
+function isPromoActive() {
+  const s = getMerchantPromoSettings();
+  if (!s || !s.enabled) return false;
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  if (!s.promoDays || !s.promoDays.includes(dayOfWeek)) return false;
+  const hm = ("0" + now.getHours()).slice(-2) + ":" + ("0" + now.getMinutes()).slice(-2);
+  if (hm < (s.promoStartTime || '00:00') || hm > (s.promoEndTime || '23:59')) return false;
+  if (getActiveOrderCount() >= (parseInt(s.busyThreshold) || 10)) return false;
+  return true;
+}
+
+function getEffectivePrice(item) {
+  if (isPromoActive() && item.promoPrice && item.promoPrice > 0 && item.promoPrice < item.price) {
+    return { price: item.promoPrice, isPromo: true };
+  }
+  return { price: item.price, isPromo: false };
+}
+
+function getPromoStatus() {
+  if (!getMerchantPromoSettings()?.enabled) return { active: false, reason: 'disabled' };
+  const count = getActiveOrderCount();
+  const threshold = parseInt(getMerchantPromoSettings().busyThreshold) || 10;
+  if (count >= threshold) return { active: false, reason: 'busy', count, threshold };
+  const now = new Date();
+  const hm = ("0" + now.getHours()).slice(-2) + ":" + ("0" + now.getMinutes()).slice(-2);
+  const dayOfWeek = now.getDay();
+  if (!getMerchantPromoSettings().promoDays?.includes(dayOfWeek)) return { active: false, reason: 'wrong_day', dayOfWeek };
+  if (hm < (getMerchantPromoSettings().promoStartTime || '00:00') || hm > (getMerchantPromoSettings().promoEndTime || '23:59')) return { active: false, reason: 'outside_hours', hm };
+  return { active: true, count, threshold };
+}
+
+// Load promo settings into the Settings tab UI
+function loadPromoSettings() {
+  const s = getMerchantPromoSettings() || { enabled: false, promoStartTime: '09:00', promoEndTime: '17:00', promoDays: [1,2,3,4,5], busyThreshold: 10 };
+  const el = document.getElementById('promo-enabled');
+  if (el) el.checked = !!s.enabled;
+  const stEl = document.getElementById('promo-start-time');
+  if (stEl) stEl.value = s.promoStartTime || '09:00';
+  const etEl = document.getElementById('promo-end-time');
+  if (etEl) etEl.value = s.promoEndTime || '17:00';
+  const thEl = document.getElementById('promo-busy-threshold');
+  if (thEl) thEl.value = s.busyThreshold || 10;
+  document.querySelectorAll('.promo-day').forEach(cb => {
+    cb.checked = !!(s.promoDays && s.promoDays.includes(parseInt(cb.value)));
+  });
+  refreshPromoStatusUI();
+}
+
+function savePromoSettings() {
+  const enabled = !!document.getElementById('promo-enabled')?.checked;
+  const promoStartTime = document.getElementById('promo-start-time')?.value || '09:00';
+  const promoEndTime   = document.getElementById('promo-end-time')?.value || '17:00';
+  const busyThreshold  = parseInt(document.getElementById('promo-busy-threshold')?.value) || 10;
+  const promoDays = Array.from(document.querySelectorAll('.promo-day:checked')).map(cb => parseInt(cb.value));
+  saveMerchantPromoSettings({ enabled, promoStartTime, promoEndTime, promoDays, busyThreshold });
+  refreshPromoStatusUI();
+  renderMenu(); // re-render customer menu with new price
+  showToast(enabled ? '?? Promo engine enabled!' : 'Promo engine disabled');
+  // Sync to Firestore so super admin can see it
+  const fb = window.__lbFirebase;
+  const merchantPhone = safeLS.get('loyalbrew_merchant_phone');
+  if (fb?.db && fb?.doc && fb?.updateDoc && merchantPhone) {
+    fb.updateDoc(fb.doc(fb.db, 'merchants', merchantPhone), {
+      promoEnabled: enabled,
+      promoStartTime,
+      promoEndTime,
+      promoDays,
+      busyThreshold,
+    }).catch(() => {} /* removed console.error */);
+  }
+}
+
+function refreshPromoStatusUI() {
+  const badge = document.getElementById('promo-status-badge');
+  const live  = document.getElementById('promo-live-status');
+  const status = getPromoStatus();
+  if (!badge || !live) return;
+  if (!getMerchantPromoSettings()?.enabled) {
+    badge.textContent = '';
+    badge.style.color = '';
+    live.innerHTML = '<b style="color:#888">Promo engine is OFF</b>';
+    return;
+  }
+  if (status.active) {
+    badge.textContent = '?? ACTIVE � Quiet mode'; badge.style.color = '#2e7d32';
+    live.innerHTML = `<b style="color:#2e7d32">?? Promo active!</b> � ${getActiveOrderCount()} in-progress orders (<b>${status.threshold}</b> limit)`;
+  } else {
+    badge.textContent = '?? INACTIVE � ' + (status.reason === 'busy' ? 'Shop is busy' : status.reason === 'wrong_day' ? 'Wrong day' : status.reason === 'outside_hours' ? 'Outside hours' : 'Unknown');
+    badge.style.color = '#c62828';
+    live.innerHTML = status.reason === 'busy'
+      ? `<b style="color:#c62828">Shop is busy</b> � ${status.count} in-progress orders (threshold: ${status.threshold})`
+      : `<b style="color:#888">Promo not active right now</b>`;
+  }
+}
+
+// ===== SHOP SETTINGS =====
+const SHOP_SETTINGS_KEY = 'loyalbrew_shop_settings';
+
+function getShopSettings() {
+  return safeLS.json(_getMerchantStorageKey(SHOP_SETTINGS_KEY), {});
+}
+
+function saveShopSettings() {
+  const name = document.getElementById('m-shop-name')?.value?.trim() || '';
+  const announce = document.getElementById('m-shop-announce')?.value?.trim() || '';
+  const banner = document.getElementById('m-shop-banner')?.value?.trim() || '';
+  const welcomeText = document.getElementById('m-shop-welcome')?.value?.trim() || '';
+  const landingTitle = document.getElementById('m-shop-title')?.value?.trim() || '';
+  const settings = { name, announce, banner, welcomeText, landingTitle, updatedAt: new Date().toISOString() };
+  safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), settings);
+  // Update display name if changed
+  if (name && window._currentMerchantName !== name) {
+    window._currentMerchantName = name;
+    const headerEl = document.getElementById('merchant-header-name');
+    if (headerEl) headerEl.textContent = name;
+  }
+  // Update landing page text in real-time
+  applyLandingText(settings);
+  showToast('Shop info saved! / ???????');
+  // Sync to Firestore
+  const fb = window.__lbFirebase;
+  const merchantId = window._currentMerchantId;
+  if (fb?.db && fb?.doc && fb?.updateDoc && merchantId) {
+    fb.updateDoc(fb.doc(fb.db, 'merchants', merchantId), {
+      name: name || window._currentMerchantName,
+      announce,
+      banner,
+      welcomeText,
+      landingTitle,
+      updatedAt: new Date().toISOString()
+    }).catch(() => {} /* removed console.error */);
+  }
+}
+
+function loadShopSettings() {
+  const settings = getShopSettings();
+  const nameEl = document.getElementById('m-shop-name');
+  const announceEl = document.getElementById('m-shop-announce');
+  const bannerEl = document.getElementById('m-shop-banner');
+  const welcomeEl = document.getElementById('m-shop-welcome');
+  const titleEl = document.getElementById('m-shop-title');
+  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || '';
+  if (announceEl) announceEl.value = settings.announce || '';
+  if (bannerEl) bannerEl.value = settings.banner || '';
+  if (welcomeEl) welcomeEl.value = settings.welcomeText || '';
+  if (titleEl) titleEl.value = settings.landingTitle || '';
+  // Apply to landing page
+  applyLandingText(settings);
+}
+
+// Apply custom welcome text & title to the landing page hero section
+function applyLandingText(settings) {
+  if (!settings) settings = getShopSettings();
+  const welcomeEl = document.getElementById('landing-welcome');
+  const titleEl = document.getElementById('landing-title');
+  // Use merchant custom text, fallback to i18n default
+  if (welcomeEl) {
+    if (settings.welcomeText) {
+      welcomeEl.textContent = settings.welcomeText; // XSS safe: textContent
+    } else {
+      // Restore i18n default
+      welcomeEl.innerHTML = '<span data-i18n="welcomeBack">Welcome Back</span>';
+    }
+  }
+  if (titleEl) {
+    if (settings.landingTitle) {
+      titleEl.textContent = settings.landingTitle; // XSS safe: textContent
+    } else {
+      titleEl.innerHTML = '<span data-i18n="drinkToday">What\'s your drink today?</span>';
+    }
+  }
+}
+
+// ===== POINTS SETTINGS =====
+const POINTS_SETTINGS_KEY = 'loyalbrew_points_settings';
+
+function getPointsSettings() {
+  const s = safeLS.json(_getMerchantStorageKey(POINTS_SETTINGS_KEY));
+  // SECURITY FIX: guard against null/undefined � prevent "Cannot read properties of null (reading 'rate')"
+  return (s && typeof s === 'object') ? s : { rate: 1 };
+}
+
+function savePointsSettings() {
+  const rateEl = document.getElementById('m-points-rate');
+  const raw = parseFloat(rateEl?.value);
+  // Validate: must be a positive number
+  if (!rateEl || !raw || isNaN(raw) || raw <= 0) {
+    showToast('Please enter a valid points rate > 0 / ??????????(??0)', 'error');
+    if (rateEl) rateEl.focus();
+    return;
+  }
+  const rate = raw; // allow any positive number: 0.01, 1, 10, 100, etc.
+  const settings = { rate, updatedAt: new Date().toISOString() };
+  safeLS.setJSON(_getMerchantStorageKey(POINTS_SETTINGS_KEY), settings);
+  showToast('Points settings saved! RM1 = ' + rate + ' point(s) / ???????!', 'success');
+  // Sync to Firestore
+  const fb = window.__lbFirebase;
+  const merchantId = window._currentMerchantId;
+  if (fb?.db && fb?.doc && fb?.updateDoc && merchantId) {
+    fb.updateDoc(fb.doc(fb.db, 'merchants', merchantId), {
+      pointsRate: rate,
+      updatedAt: new Date().toISOString()
+    }).catch(() => {} /* removed console.error */);
+  }
+}
+
+function loadPointsSettings() {
+  const settings = getPointsSettings();
+  const rateEl = document.getElementById('m-points-rate');
+  const previewEl = document.getElementById('points-rate-preview');
+  if (rateEl) rateEl.value = settings.rate || 1;
+  if (previewEl) previewEl.textContent = settings.rate || 1;
+  // Update preview on input change
+  if (rateEl && !rateEl._hasListener) {
+    rateEl.addEventListener('input', () => {
+      if (previewEl) previewEl.textContent = rateEl.value || 1;
+    });
+    rateEl._hasListener = true;
+  }
+}
+
+// ===== ADVERTISING SYSTEM =====
+const AD_KEY = 'loyalbrew_ads';
+const AD_STATS_KEY = 'loyalbrew_ad_stats';
+let adCarouselTimer = null;
+let adCurrentSlide = 0;
+// Timer used by the customer promos carousel (referenced by showPage)
+let promosCarouselTimer = null;
+
+function getAds() { return safeLS.json(AD_KEY, []); }
+function saveAds(ads) { safeLS.setJSON(AD_KEY, ads); }
+function getAdStats() { return safeLS.json(AD_STATS_KEY, {}); }
+function saveAdStats(s) { safeLS.setJSON(AD_STATS_KEY, s); }
+
+function getActiveAds() {
+  const now = new Date();
+  return getAds().filter(a => {
+    if (!a.active) return false;
+    const start = new Date(a.startDate);
+    if (now < start) return false;
+    if (a.endDate) { const end = new Date(a.endDate); if (now > end) return false; }
+    return true;
+  }).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+}
+
+function trackAdImpression(adId) {
+  const stats = getAdStats();
+  if (!stats[adId]) stats[adId] = { impressions: 0, clicks: 0 };
+  stats[adId].impressions++;
+  saveAdStats(stats);
+}
+
+function trackAdClick(adId) {
+  const stats = getAdStats();
+  if (!stats[adId]) stats[adId] = { impressions: 0, clicks: 0 };
+  stats[adId].clicks++;
+  saveAdStats(stats);
+}
+
+function renderAdCarousel() {
+  const carousel = document.getElementById('ad-banner-carousel');
+  const wrapper = document.getElementById('ad-slides-wrapper');
+  const dotsEl = document.getElementById('ad-dots');
+  if (!carousel || !wrapper) return;
+
+  const ads = getActiveAds();
+  if (ads.length === 0) {
+    carousel.classList.add('hidden');
+    if (adCarouselTimer) { clearInterval(adCarouselTimer); adCarouselTimer = null; }
+    return;
+  }
+
+  carousel.classList.remove('hidden');
+  adCurrentSlide = 0;
+
+  wrapper.innerHTML = ads.map(ad => {
+    trackAdImpression(ad.id);
+    const ctaHtml = ad.link ? '<span class="ad-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : '';
+    const sponsorHtml = '<span class="ad-slide-sponsor"><i class="fas fa-bullhorn"></i> Ad</span>';
+    return `<div class="ad-slide" data-ad-id="${ad.id}" onclick="onAdSlideClick('${ad.id}')">
+      <img src="${ad.image}" alt="${ad.title}" />
+      <div class="ad-slide-overlay">
+        <div class="ad-slide-title">${ad.title}</div>
+        ${ctaHtml}
+      </div>
+      ${sponsorHtml}
+    </div>`;
+  }).join('');
+
+  dotsEl.innerHTML = ads.map((_, i) =>
+    `<button class="ad-dot${i === 0 ? ' active' : ''}" onclick="goToAdSlide(${i})"></button>`
+  ).join('');
+
+  if (adCarouselTimer) clearInterval(adCarouselTimer);
+  if (ads.length > 1) {
+    adCarouselTimer = setInterval(() => {
+      adCurrentSlide = (adCurrentSlide + 1) % ads.length;
+      slideToAd(adCurrentSlide);
+    }, 4000);
+  }
+}
+
+function slideToAd(index) {
+  const wrapper = document.getElementById('ad-slides-wrapper');
+  const dots = document.querySelectorAll('.ad-dot');
+  if (!wrapper) return;
+  wrapper.style.transform = `translateX(-${index * 100}%)`;
+  dots.forEach((d, i) => d.classList.toggle('active', i === index));
+}
+
+function goToAdSlide(index) {
+  adCurrentSlide = index;
+  slideToAd(index);
+  if (adCarouselTimer) { clearInterval(adCarouselTimer); adCarouselTimer = null; }
+  const ads = getActiveAds();
+  if (ads.length > 1) {
+    adCarouselTimer = setInterval(() => {
+      adCurrentSlide = (adCurrentSlide + 1) % ads.length;
+      slideToAd(adCurrentSlide);
+    }, 4000);
+  }
+}
+
+function onAdSlideClick(adId) {
+  trackAdClick(adId);
+  const ads = getAds();
+  const ad = ads.find(a => a.id === adId);
+  if (ad && ad.link) { window.open(ad.link, '_blank'); }
+}
+
+function previewAdImage(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('ad-image-preview');
+    const placeholder = document.getElementById('ad-image-placeholder');
+    const clearBtn = document.getElementById('ad-image-clear-btn');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    clearBtn.style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function clearAdImage() {
+  const preview = document.getElementById('ad-image-preview');
+  const placeholder = document.getElementById('ad-image-placeholder');
+  const clearBtn = document.getElementById('ad-image-clear-btn');
+  const fileInput = document.getElementById('ad-image-input');
+  preview.src = '';
+  preview.style.display = 'none';
+  placeholder.style.display = 'flex';
+  clearBtn.style.display = 'none';
+  fileInput.value = '';
+}
+
+function createAd() {
+  const title = document.getElementById('ad-title').value.trim();
+  const link = document.getElementById('ad-link').value.trim();
+  const startDate = document.getElementById('ad-start-date').value;
+  const endDate = document.getElementById('ad-end-date').value;
+  const image = document.getElementById('ad-image-preview').src;
+  const position = document.getElementById('ad-position').value;
+  const priority = parseInt(document.getElementById('ad-priority').value) || 0;
+
+  if (!title) { showToast('Please enter ad title', 'error'); return; }
+  if (!startDate) { showToast('Please select start date', 'error'); return; }
+  if (!image || image === window.location.href) { showToast('Please upload an image', 'error'); return; }
+
+  const ads = getAds();
+  const newAd = {
+    id: 'ad_' + Date.now(),
+    title, link, startDate, endDate: endDate || null,
+    image, position, priority,
+    active: true,
+    createdAt: new Date().toISOString()
+  };
+  ads.push(newAd);
+  saveAds(ads);
+
+  // Reset form
+  document.getElementById('ad-title').value = '';
+  document.getElementById('ad-link').value = '';
+  document.getElementById('ad-start-date').value = '';
+  document.getElementById('ad-end-date').value = '';
+  document.getElementById('ad-priority').value = '0';
+  clearAdImage();
+
+  renderMerchantAds();
+  renderAdCarousel();
+  showToast('Ad created successfully!', 'success');
+}
+
+function toggleAd(adId) {
+  const ads = getAds();
+  const ad = ads.find(a => a.id === adId);
+  if (ad) { ad.active = !ad.active; saveAds(ads); renderMerchantAds(); renderAdCarousel(); }
+}
+
+function deleteAd(adId) {
+  if (!confirm('Delete this ad?')) return;
+  let ads = getAds();
+  ads = ads.filter(a => a.id !== adId);
+  saveAds(ads);
+  const stats = getAdStats();
+  delete stats[adId];
+  saveAdStats(stats);
+  renderMerchantAds();
+  renderAdCarousel();
+}
+
+function renderMerchantAds() {
+  const ads = getAds();
+  const stats = getAdStats();
+  const now = new Date();
+
+  // Active Ads
+  const activeList = document.getElementById('active-ads-list');
+  const activeAds = ads.filter(a => {
+    if (!a.active) return false;
+    if (a.endDate && now > new Date(a.endDate)) return false;
+    return now >= new Date(a.startDate);
+  });
+
+  if (activeList) {
+    if (activeAds.length === 0) {
+      activeList.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">No active ads</p>';
+    } else {
+      activeList.innerHTML = activeAds.map(ad => renderAdCard(ad, stats[ad.id], true)).join('');
+    }
+  }
+
+  // All Ads
+  const allList = document.getElementById('all-ads-list');
+  if (allList) {
+    if (ads.length === 0) {
+      allList.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">No ads yet</p>';
+    } else {
+      allList.innerHTML = ads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(ad => renderAdCard(ad, stats[ad.id], false)).join('');
+    }
+  }
+
+  // Stats summary
+  const statsEl = document.getElementById('ad-stats-summary');
+  if (statsEl) {
+    let totalImp = 0, totalClicks = 0, totalAds = ads.length;
+    ads.forEach(ad => {
+      const s = stats[ad.id] || { impressions: 0, clicks: 0 };
+      totalImp += s.impressions;
+      totalClicks += s.clicks;
+    });
+    const ctr = totalImp > 0 ? (totalClicks / totalImp * 100).toFixed(1) : '0.0';
+    statsEl.innerHTML = `
+      <div class="ad-stat-box"><i class="fas fa-bullhorn"></i><strong>${totalAds}</strong><small>Total Ads</small></div>
+      <div class="ad-stat-box"><i class="fas fa-eye"></i><strong>${totalImp}</strong><small>Impressions</small></div>
+      <div class="ad-stat-box"><i class="fas fa-mouse-pointer"></i><strong>${totalClicks}</strong><small>Clicks (${ctr}%)</small></div>
+    `;
+  }
+}
+
+function renderAdCard(ad, stat, isActive) {
+  const s = stat || { impressions: 0, clicks: 0 };
+  const now = new Date();
+  const isExpired = ad.endDate && now > new Date(ad.endDate);
+  const isScheduled = now < new Date(ad.startDate);
+  const statusClass = !ad.active ? 'inactive' : isExpired ? 'expired' : '';
+
+  let statusBadge = '';
+  if (!ad.active) statusBadge = '<span class="nimb grey">Inactive</span>';
+  else if (isExpired) statusBadge = '<span class="nimb red">Expired</span>';
+  else if (isScheduled) statusBadge = '<span class="nimb orange">Scheduled</span>';
+  else statusBadge = '<span class="nimb green">Active</span>';
+
+  const dateRange = ad.endDate ? `${ad.startDate} ~ ${ad.endDate}` : `From ${ad.startDate}`;
+  const toggleLabel = ad.active ? 'Pause' : 'Activate';
+
+  return `<div class="ad-mgmt-card ${statusClass}">
+    <div class="ad-mgmt-header">
+      <img class="ad-mgmt-img" src="${ad.image}" alt="${ad.title}" />
+      <div class="ad-mgmt-info">
+        <strong>${ad.title}</strong>
+        <small>${dateRange}${ad.link ? ' � <i class="fas fa-link"></i>' : ''}</small>
+      </div>
+    </div>
+    <div class="ad-mgmt-badges">${statusBadge}<span class="nimb blue">Priority: ${ad.priority || 0}</span></div>
+    <div class="ad-mgmt-stats">
+      <div class="ad-mgmt-stat"><i class="fas fa-eye"></i> <strong>${s.impressions}</strong> impressions</div>
+      <div class="ad-mgmt-stat"><i class="fas fa-mouse-pointer"></i> <strong>${s.clicks}</strong> clicks</div>
+    </div>
+    <div class="ad-mgmt-actions">
+      <button class="ad-mgmt-btn toggle" onclick="toggleAd('${ad.id}')"><i class="fas fa-${ad.active ? 'pause' : 'play'}"></i> ${toggleLabel}</button>
+      <button class="ad-mgmt-btn delete" onclick="deleteAd('${ad.id}')"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+  </div>`;
+}
+
+// ===== SEED DATA =====
+function seedData() {
+  const mid = MERCHANT_DOC_PATH.id;
+  if (DB.getMembers().length === 0) {
+    const now = new Date().toISOString();
+    DB.saveMembers([
+      { id: mid + '_MB001', name: 'Ahmad Razif', phone: '0123456789', email: 'ahmad@email.com', points: 850,  joinDate: '2024-01-15', merchantId: mid, visitCount: 5, createdAt: '2024-01-15T00:00:00.000Z', updatedAt: now },
+      { id: mid + '_MB002', name: 'Siti Nurul',  phone: '0112345678', email: 'siti@email.com',  points: 320,  joinDate: '2024-02-20', merchantId: mid, visitCount: 2, createdAt: '2024-02-20T00:00:00.000Z', updatedAt: now },
+      { id: mid + '_MB003', name: 'Raj Kumar',   phone: '0134567890', email: 'raj@email.com',   points: 1250, joinDate: '2023-11-10', merchantId: mid, visitCount: 8, createdAt: '2023-11-10T00:00:00.000Z', updatedAt: now },
+      { id: mid + '_MB004', name: 'Mei Ling',    phone: '0167891234', email: '',                points: 75,   joinDate: '2024-04-01', merchantId: mid, visitCount: 1, createdAt: '2024-04-01T00:00:00.000Z', updatedAt: now },
+    ]);
+    DB.saveTxns([
+      { id: 't1', memberId: mid + '_MB001', memberName: 'Ahmad Razif', type: 'earn',   points: 50,   note: 'RM50 purchase',  date: '2024-04-10', createdAt: '2024-04-10T00:00:00.000Z' },
+      { id: 't2', memberId: mid + '_MB001', memberName: 'Ahmad Razif', type: 'redeem', points: -100, note: 'Free Coffee',    date: '2024-04-08', createdAt: '2024-04-08T00:00:00.000Z' },
+      { id: 't3', memberId: mid + '_MB001', memberName: 'Ahmad Razif', type: 'earn',   points: 25,   note: 'RM25 purchase',  date: '2024-04-05', createdAt: '2024-04-05T00:00:00.000Z' },
+      { id: 't4', memberId: mid + '_MB002', memberName: 'Siti Nurul',  type: 'earn',   points: 120,  note: 'RM120 purchase', date: '2024-04-09', createdAt: '2024-04-09T00:00:00.000Z' },
+      { id: 't5', memberId: mid + '_MB003', memberName: 'Raj Kumar',   type: 'earn',   points: 200,  note: 'RM200 purchase', date: '2024-04-07', createdAt: '2024-04-07T00:00:00.000Z' },
+    ]);
+  }
+  if (!DB.getMenu()) DB.saveMenu(DEFAULT_MENU);
+  // Seed demo stamp card
+  if (DB.getStampCards().length === 0) {
+    DB.saveStampCards([
+      {
+        id: 'sc_demo1',
+        name: 'Coffee Lover Card',
+        emoji: '?',
+        totalStamps: 8,
+        rule: 'per_order',
+        ruleValue: null,
+        ruleItemId: null,
+        rewardType: 'free_item',
+        rewardValue: 'm1',
+        color: '#8B4513',
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'sc_demo2',
+        name: 'Big Spender Card',
+        emoji: '??',
+        totalStamps: 5,
+        rule: 'per_amount',
+        ruleValue: 20,
+        ruleItemId: null,
+        rewardType: 'discount_flat',
+        rewardValue: 5,
+        color: '#1b5e20',
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  }
+}
+
+// ===== PAGE NAVIGATION =====
+function showPage(id) {
+  // Performance: only hide the currently active page instead of scanning all
+  const cur = document.querySelector('.page.active');
+  if (cur) cur.classList.remove('active');
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  // Translate new page content
+  setLang(currentLang);
+  // Performance: stop timers when leaving their pages
+  if (id !== 'page-kitchen' && _kitchenTimer) stopKitchenAutoRefresh();
+  if (id !== 'page-landing' && adCarouselTimer) { clearInterval(adCarouselTimer); adCarouselTimer = null; }
+  if (id !== 'page-promos' && promosCarouselTimer) { clearInterval(promosCarouselTimer); promosCarouselTimer = null; }
+  if (id === 'page-menu')    { renderMenu(); maybeShowNewItemsAnnouncement(); }
+  if (id === 'page-landing') { renderAdCarousel(); applyLandingText(); }
+  if (id === 'page-promos')  { renderPromosPage(); }
+  if (id === 'page-cart')    renderCart();
+  if (id === 'page-kitchen') loadKitchenOrders();
+  if (id === 'page-customer') {
+    // If already logged in and coming from a protected page redirect, skip dashboard
+    if (currentCustomer && _pendingRedirect) {
+      const target = _pendingRedirect;
+      _pendingRedirect = null;
+      showPage(target);
+      return;
+    }
+    // If already logged in, show dashboard directly
+    if (currentCustomer) {
+      document.getElementById('customer-auth').classList.add('hidden');
+      document.getElementById('customer-dashboard').classList.remove('hidden');
+      showCustomerDashboard(currentCustomer);
+    } else {
+      document.getElementById('customer-auth').classList.remove('hidden');
+      document.getElementById('customer-dashboard').classList.add('hidden');
+    }
+  }
+  if (id === 'page-merchant') { loadMerchantDashboard(); applyMerchantLang(); initSuperAdminMode(); }
+  if (id === 'page-merchant-login') { applyMerchantLang(); initMerchantSavedPassword(); }
+  if (id === 'page-topup') {
+    if (currentCustomer) {
+      _topupPhone = currentCustomer.phone;
+      loadTopupContent(currentCustomer);
+    } else {
+      _pendingRedirect = 'page-topup';
+      showPage('page-customer');
+      return;
+    }
+  }
+  if (id === 'page-complaint') {
+    if (currentCustomer) {
+      renderMyComplaints(currentCustomer.id);
+    } else {
+      _pendingRedirect = 'page-complaint';
+      showPage('page-customer');
+      return;
+    }
+    // Force fix complaint placeholders to use customer LANGS (not MERCHANT_LANGS)
+    const cd = document.getElementById('complaint-desc');
+    const oi = document.getElementById('complaint-order-id');
+    if (cd && LANGS[currentLang] && LANGS[currentLang].mPhComplaintDesc) cd.placeholder = LANGS[currentLang].mPhComplaintDesc;
+    if (oi && LANGS[currentLang] && LANGS[currentLang].mPhComplaintOrderId) oi.placeholder = LANGS[currentLang].mPhComplaintOrderId;
+  }
+  if (id === 'page-my-orders') {
+    if (currentCustomer) {
+      renderMyOrders(currentCustomer);
+    } else {
+      _pendingRedirect = 'page-my-orders';
+      showPage('page-customer');
+      return;
+    }
+  }
+  if (id === 'page-referral') {
+    if (currentCustomer) loadReferralPage(currentCustomer);
+    else { _pendingRedirect = 'page-referral'; showPage('page-customer'); }
+  }
+  if (id === 'page-stamp') {
+    if (currentCustomer) {
+      _stampPagePhone = currentCustomer.phone;
+      renderStampCardsDisplay(currentCustomer);
+    } else {
+      _pendingRedirect = 'page-stamp';
+      showPage('page-customer');
+      return;
+    }
+  }
+}
+
+// ===========================
+// ===== FIREBASE (MERCHANT CREDITS) =====
+// ===========================
+let MERCHANT_DOC_PATH = { col: 'merchants', id: 'test_shop' };
+let _merchantCredits = null;
+
+function _setMerchantCreditsUI(credits) {
+  const el = document.getElementById('merchant-credits-value');
+  if (el) el.textContent = (credits === null || credits === undefined) ? '--' : String(credits);
+}
+
+async function loadMerchantCredits() {
+  // ????:?? Firebase Auth ?????
+  const fb = window.__lbFirebase;
+  
+  // ?? auth ???(???? 3 ?)
+  let attempts = 0;
+  while (!fb?.auth && attempts < 30) {
+    await new Promise(r => setTimeout(r, 100));
+    attempts++;
+  }
+  if (!fb?.auth) {
+
+    _merchantCredits = null;
+    _setMerchantCreditsUI(_merchantCredits);
+    return;
+  }
+  
+  // ?? currentUser ????
+  // Fix #4: use onAuthStateChanged for reliable auth wait
+  let _saAuthChecked = false;
+  await new Promise(resolve => {
+    const unsub = fb.auth().onAuthStateChanged(user => {
+      if (!_saAuthChecked) { _saAuthChecked = true; unsub(); resolve(); }
+    });
+    setTimeout(() => { if (!_saAuthChecked) { _saAuthChecked = true; resolve(); } }, 3000);
+  });
+  const currentUser = fb?.auth?.currentUser;
+  const userEmail = currentUser?.email || '(???)';
+  const localUser = document.getElementById('m-user')?.value?.trim();
+
+  // ?? Firebase achstar02@gmail.com ??? admin ??????
+  if (userEmail !== 'achstar02@gmail.com' && localUser !== 'admin') {
+
+    _merchantCredits = null;
+    _setMerchantCreditsUI(_merchantCredits);
+    return;
+  }
+  
+  if (!fb?.db) {
+    _merchantCredits = null;
+    _setMerchantCreditsUI(_merchantCredits);
+    return;
+  }
+  // ??? Firebase Rules,???? merchants ??
+  try {
+    let rows = [];
+    if (typeof fb.getDocs === 'function' && typeof fb.collection === 'function') {
+      const snap = await fb.getDocs(fb.collection(fb.db, 'merchants'));
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    } else if (typeof fb.db.collection === 'function') {
+      const snap = await fb.db.collection('merchants').get();
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    }
+    if (rows.length > 0) {
+      const totalCredits = rows.reduce((s, m) => s + (Number(m.credits) || 0), 0);
+      _merchantCredits = totalCredits;
+      _setMerchantCreditsUI(_merchantCredits);
+      return;
+    }
+  } catch (e) {
+
+  }
+  // Fallback: ????????????
+  try {
+    const ref = fb.doc(fb.db, MERCHANT_DOC_PATH.col, MERCHANT_DOC_PATH.id);
+    const snap = await fb.getDoc(ref);
+    const credits = snap.exists() ? (snap.data()?.credits ?? 0) : 0;
+    _merchantCredits = Number.isFinite(credits) ? credits : 0;
+    _setMerchantCreditsUI(_merchantCredits);
+  } catch (e2) {
+
+    _merchantCredits = null;
+    _setMerchantCreditsUI(_merchantCredits);
+  }
+}
+
+async function spendOneMerchantCreditOrThrow() {
+  const fb = window.__lbFirebase;
+  if (!fb?.db) throw new Error('FIREBASE_NOT_READY');
+
+  const ref = fb.doc(fb.db, MERCHANT_DOC_PATH.col, MERCHANT_DOC_PATH.id);
+  const nextCredits = await fb.runTransaction(fb.db, async (tx) => {
+    const snap = await tx.get(ref);
+    const cur = snap.exists() ? (snap.data()?.credits ?? 0) : 0;
+    if (cur <= 0) throw new Error('INSUFFICIENT_CREDITS');
+    tx.update(ref, { credits: cur - 1 });
+    return cur - 1;
+  });
+
+  _merchantCredits = nextCredits;
+  _setMerchantCreditsUI(_merchantCredits);
+  return nextCredits;
+}
+
+async function spendCreditAndAddMemberPointsOrThrow(memberId, pointsToAdd) {
+  const fb = window.__lbFirebase;
+  if (!fb?.db) throw new Error('FIREBASE_NOT_READY');
+  if (!merchantLoggedIn) throw new Error('MERCHANT_NOT_LOGGED_IN');
+  if (!memberId) throw new Error('INVALID_MEMBER_ID');
+  const pts = Number(pointsToAdd) || 0;
+  if (pts <= 0) throw new Error('INVALID_POINTS');
+
+  const merchantRef = fb.doc(fb.db, MERCHANT_DOC_PATH.col, MERCHANT_DOC_PATH.id);
+  // members docId is phone number
+  const memberRef = fb.doc(fb.db, 'members', String(memberId));
+
+  const result = await fb.runTransaction(fb.db, async (tx) => {
+    const merchantSnap = await tx.get(merchantRef);
+    const curCredits = merchantSnap.exists() ? (merchantSnap.data()?.credits ?? 0) : 0;
+    if (curCredits <= 0) throw new Error('INSUFFICIENT_CREDITS');
+
+    const memberSnap = await tx.get(memberRef);
+    const memberExists = memberSnap.exists();
+    const curPoints = memberExists ? (memberSnap.data()?.points ?? 0) : 0;
+
+    // Use a single field name everywhere: `name`, `points`
+    tx.update(merchantRef, { credits: curCredits - 1 });
+    if (!memberExists) {
+      // Auto-create member doc when not found (docId = phone number)
+      tx.set(memberRef, {
+        name: '???',
+        phone: String(memberId),
+        points: 0,
+        merchantId: MERCHANT_DOC_PATH.id,
+        visitCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }, { merge: false });
+    }
+    // Prefer increment() if available; fallback to read+write for compatibility.
+    if (typeof fb.increment === 'function') tx.update(memberRef, { points: fb.increment(pts) });
+    else tx.set(memberRef, { points: curPoints + pts }, { merge: true });
+
+    return { nextCredits: curCredits - 1, nextPoints: curPoints + pts };
+  });
+
+  _merchantCredits = result.nextCredits;
+  _setMerchantCreditsUI(_merchantCredits);
+  return result;
+}
+
+function openTopUpPlaceholder() {
+  showToast('??????:????????(RM15 / RM40 / RM100)', 'success');
+}
+
+// ===== TOAST =====
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+// ===========================
+// ===== MENU & ORDER =====
+// ===========================
+let cart = [];
+let currentTable = null;
+let activeCategory = 'All';
+let orderType = 'dinein';       // 'dinein' | 'takeaway'
+let takeawayPhone = '';
+let takeawayTime  = '';
+
+// --- Order type toggle ---
+function setOrderType(type) {
+  orderType = type;
+  document.getElementById('btn-dinein').className   = 'order-type-btn' + (type === 'dinein'   ? ' active dinein'   : '');
+  document.getElementById('btn-takeaway').className = 'order-type-btn' + (type === 'takeaway' ? ' active takeaway' : '');
+
+  const tableBar    = document.getElementById('table-info-bar');
+  const takeawayBar = document.getElementById('takeaway-info-bar');
+
+  if (type === 'dinein') {
+    tableBar.classList.remove('hidden');
+    takeawayBar.classList.add('hidden');
+    takeawayPhone = '';
+    takeawayTime  = '';
+    if (!currentTable) changeTable();
+  } else {
+    tableBar.classList.add('hidden');
+    takeawayBar.classList.remove('hidden');
+    document.getElementById('takeaway-modal').classList.remove('hidden');
+    // Set default pickup time = now + 15min
+    const d = new Date(); d.setMinutes(d.getMinutes() + 15);
+    document.getElementById('modal-takeaway-time').value = d.toTimeString().slice(0,5);
+  }
+}
+
+function confirmTakeaway() {
+  const phone = document.getElementById('modal-takeaway-phone').value.trim();
+  const time  = document.getElementById('modal-takeaway-time').value;
+  if (!phone) { showToast(t('toastNoPhone'), 'error'); return; }
+  if (!time)  { showToast(t('toastNoTime'), 'error'); return; }
+  takeawayPhone = phone;
+  takeawayTime  = time;
+  document.getElementById('takeaway-modal').classList.add('hidden');
+  document.getElementById('takeaway-time-badge').textContent = t('pickup') + ': ' + time;
+  showToast(t('toastTakeaway'));
+}
+
+function cancelTakeaway() {
+  document.getElementById('takeaway-modal').classList.add('hidden');
+  // revert to dine in � do NOT auto-pop table modal
+  orderType = 'dinein';
+  document.getElementById('btn-dinein').className   = 'order-type-btn active dinein';
+  document.getElementById('btn-takeaway').className = 'order-type-btn';
+  document.getElementById('table-info-bar').classList.remove('hidden');
+  document.getElementById('takeaway-info-bar').classList.add('hidden');
+}
+
+// Map raw category names to i18n keys
+const CAT_I18N = {
+  'All': 'catAll', '? New Items': 'catNewItems',
+  'Hot Drinks': 'catHotDrinks', 'Cold Drinks': 'catColdDrinks',
+  'Food': 'catFood', 'Desserts': 'catDesserts', 'Snacks': 'catSnacks',
+};
+function catLabel(c) { return CAT_I18N[c] ? t(CAT_I18N[c]) : c; }
+
+function renderMenu() {
+  const menu       = DB.getMenu() || DEFAULT_MENU;
+  const newItems   = getActiveNewItems();
+  const newItemIds = new Set(newItems.map(n => n.menuItemId));
+
+  // Categories: inject "New Items" if any active
+  const baseCats = ['All', ...new Set(menu.map(i => i.category))];
+  const categories = newItems.length > 0 ? ['All', '? New Items', ...new Set(menu.map(i => i.category))] : baseCats;
+
+  // Category tabs
+  const tabs = document.getElementById('category-tabs');
+  tabs.innerHTML = categories.map(c =>
+    `<button class="cat-btn ${c === activeCategory ? 'active' : ''}" onclick="filterCategory('${c}')">${catLabel(c)}</button>`
+  ).join('');
+
+  // Filter logic
+  let filtered;
+  if (activeCategory === '? New Items') {
+    filtered = menu.filter(i => newItemIds.has(i.id));
+  } else if (activeCategory === 'All') {
+    filtered = menu;
+  } else {
+    filtered = menu.filter(i => i.category === activeCategory);
+  }
+
+  const grid = document.getElementById('menu-grid');
+  grid.innerHTML = filtered.map(item => {
+    const inCart    = cart.find(c => c.id === item.id);
+    const qty       = inCart ? inCart.qty : 0;
+    const newEntry  = newItems.find(n => n.menuItemId === item.id);
+    const isNew     = !!newEntry;
+
+    // Price priority: New Item specialPrice > promoPrice (if promo active) > normal
+    let priceHtml;
+    if (isNew && newEntry.specialPrice) {
+      priceHtml = `<span class="menu-item-price crossed">RM${item.price.toFixed(2)}</span>
+         <span class="menu-item-price special">RM${newEntry.specialPrice.toFixed(2)}</span>`;
+    } else {
+      const ep = getEffectivePrice(item);
+      if (ep.isPromo) {
+        priceHtml = `<span class="menu-item-price crossed">RM${item.price.toFixed(2)}</span>
+         <span class="menu-item-price special">?? RM${ep.price.toFixed(2)}</span>`;
+      } else {
+        priceHtml = `<span class="menu-item-price">RM${item.price.toFixed(2)}</span>`;
+      }
+    }
+
+    return `
+      <div class="menu-item">
+        ${isNew ? `<div class="new-item-badge">? NEW</div>` : ''}
+        <div class="menu-item-img">${item.image ? `<img src="${item.image}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0" />` : item.emoji}</div>
+        <div class="menu-item-body">
+          <div class="menu-item-name">${item.name}</div>
+          <div class="menu-item-desc">${item.desc}</div>
+          <div class="menu-item-footer">
+            <div style="display:flex;align-items:center;gap:4px">${priceHtml}</div>
+            ${qty === 0
+              ? `<button class="add-btn" onclick="addToCart('${item.id}')"><i class="fas fa-plus"></i></button>`
+              : `<div class="item-qty-control">
+                   <button class="qty-btn" onclick="changeMenuQty('${item.id}',-1)">-</button>
+                   <span class="qty-num">${qty}</span>
+                   <button class="qty-btn" onclick="changeMenuQty('${item.id}',1)">+</button>
+                 </div>`
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateCartBadge();
+  updateFloatCart();
+  renderNewItemsBanner(newItems, menu);
+
+  // Sync order type buttons
+  document.getElementById('btn-dinein').className   = 'order-type-btn' + (orderType === 'dinein'   ? ' active dinein'   : '');
+  document.getElementById('btn-takeaway').className = 'order-type-btn' + (orderType === 'takeaway' ? ' active takeaway' : '');
+  document.getElementById('table-info-bar').classList.toggle('hidden', orderType !== 'dinein');
+  document.getElementById('takeaway-info-bar').classList.toggle('hidden', orderType !== 'takeaway');
+  if (orderType === 'takeaway') {
+    const labelEl = document.getElementById('takeaway-order-label');
+    if (labelEl) labelEl.textContent = t('takeawayOrder');
+    document.getElementById('takeaway-time-badge').textContent = takeawayTime
+      ? t('pickup') + ': ' + takeawayTime
+      : t('noPickupTime');
+  }
+
+  // Table display
+  document.getElementById('menu-table-display').textContent = currentTable || '-';
+}
+
+function filterCategory(cat) {
+  activeCategory = cat;
+  renderMenu();
+}
+
+function addToCart(id) {
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const item = menu.find(i => i.id === id);
+  if (!item) return;
+  // Priority: New Item specialPrice > promoPrice (if active) > normal price
+  const newEntry = getActiveNewItems().find(n => n.menuItemId === id);
+  let usePrice = item.price;
+  if (newEntry && newEntry.specialPrice) usePrice = newEntry.specialPrice;
+  else { const ep = getEffectivePrice(item); if (ep.isPromo) usePrice = ep.price; }
+  const ex = cart.find(c => c.id === id);
+  if (ex) ex.qty++;
+  else cart.push({ id: item.id, name: item.name, emoji: item.emoji, price: usePrice, qty: 1 });
+  renderMenu();
+}
+
+function changeMenuQty(id, delta) {
+  const idx = cart.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  cart[idx].qty += delta;
+  if (cart[idx].qty <= 0) cart.splice(idx, 1);
+  renderMenu();
+}
+
+function updateCartBadge() {
+  const total = cart.reduce((s, c) => s + c.qty, 0);
+  document.getElementById('cart-badge').textContent = total;
+}
+
+function updateFloatCart() {
+  const btn = document.getElementById('float-cart');
+  const total = cart.reduce((s, c) => s + c.qty, 0);
+  const sum   = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  if (total === 0) { btn.classList.add('hidden'); return; }
+  btn.classList.remove('hidden');
+  document.getElementById('float-cart-count').textContent = total + ' ' + t(total === 1 ? 'floatItem' : 'floatItems');
+  document.getElementById('float-cart-total').textContent = 'RM' + sum.toFixed(2);
+  btn.querySelector('span:last-child').textContent = 'RM' + sum.toFixed(2);
+  // update view cart text
+  const spans = btn.querySelectorAll('span');
+  if (spans.length >= 2) spans[1].textContent = t('floatViewCart');
+}
+
+function changeTable() {
+  document.getElementById('table-input').value = currentTable || '';
+  // Update modal text to current language
+  const modal = document.getElementById('table-modal');
+  const h3 = modal.querySelector('[data-i18n="selectTable"]');
+  const p  = modal.querySelector('[data-i18n="enterTable"]');
+  const btn = modal.querySelector('[data-i18n="confirmTable"]');
+  if (h3)  h3.textContent  = t('selectTable');
+  if (p)   p.textContent   = t('enterTable');
+  if (btn) btn.textContent = t('confirmTable');
+  modal.classList.remove('hidden');
+}
+
+function closeTableModal() {
+  document.getElementById('table-modal').classList.add('hidden');
+  // If dine-in was triggered but user closed without selecting table, revert to takeaway button inactive state
+  // (don't force any type change � just close)
+}
+
+function confirmTable() {
+  const val = parseInt(document.getElementById('table-input').value);
+  if (!val || val < 1) { showToast(t('invalidTable'), 'error'); return; }
+  currentTable = val;
+  document.getElementById('table-modal').classList.add('hidden');
+  document.getElementById('menu-table-display').textContent = val;
+}
+
+// ===========================
+// ===== CART / CHECKOUT =====
+// ===========================
+let cartMember = null;
+
+function renderCart() {
+  const listEl = document.getElementById('cart-items-list');
+  if (cart.length === 0) {
+    listEl.innerHTML = `<div class="cart-empty"><i class="fas fa-shopping-cart"></i><p>${t('cartEmpty')}</p><button class="btn-primary" onclick="showPage('page-menu')">${t('browseMenu')}</button></div>`;
+    document.getElementById('sum-subtotal').textContent = 'RM0.00';
+    document.getElementById('sum-tax').textContent = 'RM0.00';
+    document.getElementById('sum-total').textContent = 'RM0.00';
+    document.getElementById('sum-points').textContent = '+0 pts';
+  } else {
+    listEl.innerHTML = cart.map(item => `
+      <div class="cart-item">
+        <span class="cart-item-emoji">${item.emoji}</span>
+        <div class="cart-item-info">
+          <strong>${escHtml(item.name)}</strong>
+          <small>RM${item.price.toFixed(2)} ${t('eachUnit')}</small>
+        </div>
+        <div class="cart-item-right">
+          <span class="cart-item-price">RM${(item.price * item.qty).toFixed(2)}</span>
+          <div class="cart-qty-row">
+            <button class="cqty-btn" onclick="changeCartQty('${escJs(item.id)}',-1)">-</button>
+            <span class="cqty-num">${item.qty}</span>
+            <button class="cqty-btn" onclick="changeCartQty('${escJs(item.id)}',1)">+</button>
+          </div>
+          <button class="remove-btn" onclick="removeCartItem('${escJs(item.id)}')"><i class="fas fa-trash"></i> ${t('removeItem')}</button>
+        </div>
+      </div>
+    `).join('');
+    updateCartSummary();
+  }
+
+  // Order type card
+  const otDisplay = document.getElementById('order-type-display');
+  const takeawayFields = document.getElementById('takeaway-fields');
+  const dineinField    = document.getElementById('dinein-field');
+
+  if (orderType === 'takeaway') {
+    otDisplay.className = 'order-type-display takeaway';
+    otDisplay.innerHTML = `<i class="fas fa-shopping-bag"></i><span>${t('cartTakeaway')}</span><button class="ot-change" onclick="showPage('page-menu');setOrderType('takeaway')">${t('cartChange')}</button>`;
+    takeawayFields.classList.remove('hidden');
+    dineinField.classList.add('hidden');
+    // Pre-fill takeaway fields
+    if (takeawayPhone) document.getElementById('takeaway-phone').value = takeawayPhone;
+    if (takeawayTime)  document.getElementById('takeaway-time').value  = takeawayTime;
+  } else {
+    otDisplay.className = 'order-type-display dinein';
+    otDisplay.innerHTML = `<i class="fas fa-chair"></i><span>${t('cartDineIn')}</span><button class="ot-change" onclick="showPage('page-menu')">${t('cartChange')}</button>`;
+    takeawayFields.classList.add('hidden');
+    dineinField.classList.remove('hidden');
+    document.getElementById('cart-table-display').textContent = currentTable || '-';
+  }
+
+  // Sync loyalty phone with takeaway phone if takeaway
+  if (orderType === 'takeaway' && takeawayPhone && !document.getElementById('cart-phone').value) {
+    document.getElementById('cart-phone').value = takeawayPhone;
+  }
+}
+
+function changeCartQty(id, delta) {
+  const idx = cart.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  cart[idx].qty += delta;
+  if (cart[idx].qty <= 0) cart.splice(idx, 1);
+  renderCart();
+  updateCartBadge();
+  updateFloatCart();
+}
+
+function removeCartItem(id) {
+  cart = cart.filter(c => c.id !== id);
+  renderCart();
+  updateCartBadge();
+  updateFloatCart();
+}
+
+function updateCartSummary() {
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const tax = subtotal * 0.06;
+  let total = subtotal + tax;
+
+  // Wallet deduction
+  const useWallet = document.getElementById('use-wallet-checkbox')?.checked;
+  let walletDeduct = 0;
+  if (useWallet && cartMember) {
+    const wallet = getMemberWallet(cartMember.id);
+    walletDeduct = Math.min(wallet.balance, total);
+    total = Math.max(0, total - walletDeduct);
+  }
+
+  const _psRate = (typeof getPointsSettings === "function" ? getPointsSettings() : null)?.rate || 1;
+    const pts = Math.floor(total * _psRate);
+  document.getElementById('sum-subtotal').textContent = 'RM' + subtotal.toFixed(2);
+  document.getElementById('sum-tax').textContent = 'RM' + tax.toFixed(2);
+  document.getElementById('sum-total').textContent = 'RM' + total.toFixed(2);
+  document.getElementById('sum-points').textContent = '+' + pts + ' pts';
+
+  const deductRow = document.getElementById('wallet-deduct-row');
+  if (walletDeduct > 0) {
+    deductRow.classList.remove('hidden');
+    document.getElementById('sum-wallet-deduct').textContent = '-RM' + walletDeduct.toFixed(2);
+  } else {
+    deductRow.classList.add('hidden');
+  }
+}
+
+function toggleWalletPay() {
+  updateCartSummary();
+}
+
+function lookupCartMember() {
+  const phone = document.getElementById('cart-phone').value.trim();
+  if (!phone) return;
+  const member = DB.getMembers().find(m => m.phone === phone);
+  const infoEl = document.getElementById('cart-member-info');
+  if (!member) {
+    cartMember = null;
+    infoEl.innerHTML = '<span style="color:#c62828">Member not found</span>';
+    infoEl.classList.remove('hidden');
+    document.getElementById('wallet-pay-section').classList.add('hidden');
+    return;
+  }
+  cartMember = member;
+  infoEl.innerHTML = `<i class="fas fa-user-circle"></i> <div><strong>${escHtml(member.name)}</strong><br><small>${getTier(member.points)} � ${member.points} pts</small></div>`;
+  infoEl.classList.remove('hidden');
+  // Show wallet section
+  const wallet = getMemberWallet(member.id);
+  const walletSection = document.getElementById('wallet-pay-section');
+  const walletInfo = document.getElementById('wallet-pay-info');
+  walletSection.classList.remove('hidden');
+  walletInfo.innerHTML = `<div class="wallet-mini-balance"><i class="fas fa-wallet"></i> Balance: <strong>RM${wallet.balance.toFixed(2)}</strong></div>`;
+  document.getElementById('use-wallet-checkbox').checked = false;
+  updateCartSummary();
+}
+
+function placeOrder() {
+  if (cart.length === 0) { showToast(t('cartEmpty'), 'error'); return; }
+
+  let finalPhone = '';
+  let finalPickupTime = '';
+
+  if (orderType === 'dinein') {
+    if (!currentTable) { showToast(t('selectTableFirst'), 'error'); showPage('page-menu'); changeTable(); return; }
+  } else {
+    // Takeaway: read from cart fields
+    const tPhone = document.getElementById('takeaway-phone').value.trim();
+    const tTime  = document.getElementById('takeaway-time').value;
+    if (!tPhone) { showToast(t('toastNoPhone'), 'error'); return; }
+    if (!tTime)  { showToast(t('toastNoTime'), 'error'); return; }
+    finalPhone      = tPhone;
+    finalPickupTime = tTime;
+    takeawayPhone   = tPhone;
+    takeawayTime    = tTime;
+  }
+
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const tax      = subtotal * 0.06;
+  let total      = subtotal + tax;
+  const notes    = document.getElementById('order-notes').value.trim();
+
+  // Payment method
+  const paymentMethod = _selectedPaymentMethod || 'cash';
+  const proofData     = _paymentProofData;
+
+  // Require proof for TNG / bank
+  if ((paymentMethod === 'tng' || paymentMethod === 'bank') && !proofData) {
+    showToast(t('toastNoProof'), 'error'); return;
+  }
+
+  // Wallet deduction
+  const useWallet = document.getElementById('use-wallet-checkbox')?.checked;
+  let walletDeduct = 0;
+  if (useWallet && cartMember) {
+    const wallet = getMemberWallet(cartMember.id);
+    walletDeduct = Math.min(wallet.balance, total);
+    total = Math.max(0, total - walletDeduct);
+  }
+
+  const pts      = Math.floor(total);
+
+  const orderId = 'ORD' + Date.now().toString().slice(-6);
+  const order = {
+    id: orderId,
+    orderType,
+    tableNo:     orderType === 'dinein' ? currentTable : null,
+    takeawayPhone: finalPhone,
+    pickupTime:  finalPickupTime,
+    items: [...cart],
+    subtotal, tax, total,
+    walletDeduct,
+    paymentMethod,
+    notes,
+    memberId:    cartMember ? cartMember.id   : null,
+    memberName:  cartMember ? cartMember.name : null,
+    memberPhone: document.getElementById('cart-phone').value.trim(),
+    pointsEarned: cartMember ? pts : 0,
+    status: 'pending',
+    merchantId: MERCHANT_DOC_PATH.id,
+    createdAt: new Date().toISOString(),
+  };
+
+  const orders = DB.getOrders();
+  orders.unshift(order);
+  DB.saveOrders(orders);
+
+  // Award points
+  if (cartMember) {
+    const members = DB.getMembers();
+    const idx = members.findIndex(m => m.id === cartMember.id);
+    if (idx !== -1) {
+      members[idx].points += pts;
+      DB.saveMembers(members);
+      const txns = DB.getTxns();
+      txns.unshift({
+        id: 't' + Date.now(),
+        memberId: cartMember.id,
+        memberName: cartMember.name,
+        type: 'earn',
+        points: pts,
+        note: `Order ${orderId} � RM${total.toFixed(2)}`,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+      });
+      DB.saveTxns(txns);
+    }
+    // Deduct wallet if used
+    if (walletDeduct > 0) {
+      deductWallet(cartMember.id, walletDeduct, `Order ${orderId}`);
+    }
+    // Award stamps
+    awardStampsForOrder(order);
+    // Referral commission (first order only)
+    triggerReferralCommission(cartMember, order);
+  }
+
+  // Save payment proof if uploaded
+  if (proofData && (paymentMethod === 'tng' || paymentMethod === 'bank')) {
+    const proofs = DB.getPaymentProofs();
+    proofs.unshift({
+      id: 'pp' + Date.now(),
+      orderId,
+      memberId: cartMember ? cartMember.id : null,
+      memberName: cartMember ? cartMember.name : null,
+      paymentMethod,
+      amount: total + walletDeduct,
+      proofImage: proofData,
+      status: 'pending',   // pending | verified | rejected
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    DB.savePaymentProofs(proofs);
+  }
+
+  // Confirmation
+  document.getElementById('confirm-order-id').textContent = orderId;
+  const pmLabels = { cash: '?? Cash', tng: '?? Touch & Go', bank: '?? Bank Transfer' };
+  document.getElementById('confirm-details').innerHTML = `
+    <p><strong>${t('confirmType')}:</strong> ${orderType === 'takeaway' ? t('confirmTypeTakeaway') : t('confirmTypeDineIn')}</p>
+    ${orderType === 'dinein'   ? `<p><strong>${t('confirmTable2')}:</strong> ${currentTable}</p>` : ''}
+    ${orderType === 'takeaway' ? `<p><strong>${t('confirmPhone')}:</strong> ${finalPhone}</p><p><strong>${t('confirmPickup')}:</strong> ${finalPickupTime}</p>` : ''}
+    <p><strong>${t('confirmItems')}:</strong> ${cart.map(c => `${c.qty}� ${c.name}`).join(', ')}</p>
+    ${walletDeduct > 0 ? `<p><strong>${t('confirmWalletPaid')}:</strong> RM${walletDeduct.toFixed(2)} ??</p>` : ''}
+    <p><strong>${t('confirmTotalPaid')}:</strong> RM${total.toFixed(2)}</p>
+    <p><strong>${t('confirmPayment')}:</strong> ${pmLabels[paymentMethod] || paymentMethod}${(paymentMethod === 'tng' || paymentMethod === 'bank') ? ` <span style="background:#fff3e0;color:#e65100;font-size:0.72rem;padding:2px 7px;border-radius:20px;font-weight:700">${t('pendingVerification')}</span>` : ''}</p>
+    ${cartMember ? `<p><strong>${t('confirmPointsEarned')}:</strong> +${pts} pts ??</p>` : ''}
+    ${notes ? `<p><strong>${t('confirmNote')}:</strong> ${notes}</p>` : ''}
+  `;
+
+  // Show cash pay button if payment is cash
+  const cashBox  = document.getElementById('cash-pay-confirm-box');
+  const cashDone = document.getElementById('cash-paid-done');
+  const cashBtn  = document.getElementById('cash-paid-btn');
+  const cashAmt  = document.getElementById('cash-pay-amount-label');
+  if (paymentMethod === 'cash') {
+    cashBox.classList.remove('hidden');
+    cashDone.classList.add('hidden');
+    cashBtn.classList.remove('hidden');
+    cashBtn.disabled = false;
+    if (cashAmt) cashAmt.textContent = `Total: RM${total.toFixed(2)}`;
+    cashBox.dataset.orderId = orderId;
+  } else {
+    cashBox.classList.add('hidden');
+  }
+
+  // Reset cart (keep order type)
+  cart = [];
+  const prevMemberPhone = document.getElementById('cart-phone').value.trim();
+  cartMember = null;
+  document.getElementById('cart-phone').value = '';
+  document.getElementById('cart-member-info').classList.add('hidden');
+  document.getElementById('wallet-pay-section').classList.add('hidden');
+  const walletCb = document.getElementById('use-wallet-checkbox');
+  if (walletCb) walletCb.checked = false;
+  document.getElementById('wallet-deduct-row').classList.add('hidden');
+  document.getElementById('order-notes').value = '';
+  // Reset payment
+  resetPaymentMethod();
+  // Reset stamp earned area
+  const stampEl = document.getElementById('confirm-stamp-earned');
+  if (stampEl) stampEl.classList.add('hidden');
+  // Pre-fill stamp page phone for easy access
+  if (prevMemberPhone) _stampPagePhone = prevMemberPhone;
+  updateCartBadge();
+
+  showPage('page-order-confirm');
+  showToast(orderType === 'takeaway' ? '??? Takeaway order placed!' : '?? Order sent to kitchen!');
+}
+
+// ===========================
+// ===== PAYMENT METHOD =====
+// ===========================
+let _selectedPaymentMethod = 'cash';
+let _paymentProofData = null;
+
+// Customer self-confirms cash payment ? auto move order to "preparing"
+function confirmCashPaid() {
+  const cashBox = document.getElementById('cash-pay-confirm-box');
+  const oid = cashBox && cashBox.dataset.orderId;
+  if (!oid) return;
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === oid);
+  if (idx !== -1 && orders[idx].status === 'pending') {
+    orders[idx].status = 'preparing';
+    orders[idx].cashPaidAt = new Date().toISOString();
+    DB.saveOrders(orders);
+  }
+  // Update UI
+  document.getElementById('cash-paid-btn').classList.add('hidden');
+  document.getElementById('cash-paid-done').classList.remove('hidden');
+  showToast('? ' + t('cashPaidDone'));
+}
+
+// Confirm cash payment from order detail modal (My Orders page)
+function confirmCashPaidFromDetail(orderId) {
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1 && orders[idx].status === 'pending') {
+    orders[idx].status = 'preparing';
+    orders[idx].cashPaidAt = new Date().toISOString();
+    DB.saveOrders(orders);
+  }
+  // Refresh the order detail view
+  openOrderDetail(orderId);
+  showToast('? ' + t('cashPaidDone'));
+}
+
+// Confirm cash payment from My Orders list (inline button)
+function confirmCashPaidFromList(orderId) {
+  event.stopPropagation(); // Prevent opening order detail
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1 && orders[idx].status === 'pending') {
+    orders[idx].status = 'preparing';
+    orders[idx].cashPaidAt = new Date().toISOString();
+    DB.saveOrders(orders);
+  }
+  // Refresh the list
+  if (currentCustomer) renderMyOrders(currentCustomer);
+  showToast('? ' + t('cashPaidDone'));
+}
+
+// Customer confirms order received / complete order
+function confirmOrderReceived(orderId) {
+  event.stopPropagation(); // Prevent opening order detail
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1 && orders[idx].status === 'preparing') {
+    orders[idx].status = 'done';
+    orders[idx].completedAt = new Date().toISOString();
+    DB.saveOrders(orders);
+  }
+  // Refresh the list
+  if (currentCustomer) renderMyOrders(currentCustomer);
+  showToast(t('orderCompletedMsg'));
+}
+
+// Confirm order received from order detail modal
+function confirmOrderReceivedFromDetail(orderId) {
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1 && orders[idx].status === 'preparing') {
+    orders[idx].status = 'done';
+    orders[idx].completedAt = new Date().toISOString();
+    DB.saveOrders(orders);
+  }
+  // Refresh the detail view
+  openOrderDetail(orderId);
+  // Also refresh the list if visible
+  if (currentCustomer) renderMyOrders(currentCustomer);
+  showToast(t('orderCompletedMsg'));
+}
+
+function selectPaymentMethod(method) {
+  _selectedPaymentMethod = method;
+  document.querySelectorAll('.payment-method-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.method === method);
+  });
+  // Show/hide upload sections
+  document.getElementById('payment-tng-section').classList.toggle('hidden', method !== 'tng');
+  document.getElementById('payment-bank-section').classList.toggle('hidden', method !== 'bank');
+
+  // Update amount displays
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const total = (subtotal * 1.06).toFixed(2);
+  const el = document.getElementById(method === 'tng' ? 'tng-amount-display' : 'bank-amount-display');
+  if (el) el.textContent = t('tngAmountLabel') + ': RM' + total;
+}
+
+function handlePaymentProof(type, event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast(t('photoUnder5MB'), 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _paymentProofData = e.target.result;
+    const previewEl = document.getElementById(type + '-proof-preview');
+    previewEl.classList.remove('hidden');
+    previewEl.innerHTML = `
+      <div class="payment-proof-thumb-wrap">
+        <img src="${_paymentProofData}" class="payment-proof-thumb" alt="Payment proof" />
+        <button class="complaint-photo-remove" onclick="removePaymentProof('${type}')"><i class="fas fa-times"></i></button>
+      </div>
+      <p style="font-size:0.78rem;color:#2e7d32;margin-top:6px"><i class="fas fa-check-circle"></i> ${t('screenshotUploaded')}</p>
+    `;
+    // Update upload area text
+    document.querySelector(`#payment-${type}-section .payment-upload-area`).innerHTML = `
+      <i class="fas fa-check-circle" style="color:#2e7d32"></i>
+      <span>${t('screenshotUploaded2')}</span>
+      <small>${t('tapToChange')}</small>
+    `;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePaymentProof(type) {
+  _paymentProofData = null;
+  const previewEl = document.getElementById(type + '-proof-preview');
+  previewEl.classList.add('hidden');
+  previewEl.innerHTML = '';
+  document.getElementById(type + '-proof-input').value = '';
+  document.querySelector(`#payment-${type}-section .payment-upload-area`).innerHTML = `
+    <i class="fas fa-cloud-upload-alt"></i>
+    <span>${t('uploadScreenshot')}</span>
+    <small>${t('uploadSizeHint')}</small>
+  `;
+}
+
+function resetPaymentMethod() {
+  _selectedPaymentMethod = 'cash';
+  _paymentProofData = null;
+  document.querySelectorAll('.payment-method-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.method === 'cash');
+  });
+  ['tng', 'bank'].forEach(type => {
+    const sec = document.getElementById('payment-' + type + '-section');
+    if (sec) sec.classList.add('hidden');
+    const prev = document.getElementById(type + '-proof-preview');
+    if (prev) { prev.classList.add('hidden'); prev.innerHTML = ''; }
+    const inp = document.getElementById(type + '-proof-input');
+    if (inp) inp.value = '';
+  });
+}
+
+// ===========================
+// ===== REFERRAL COMMISSIONS =====
+// ===========================
+const COMMISSION_SETTINGS_KEY = 'loyalbrew_commission_rate';
+
+function getCommissionRate() {
+  return parseFloat(safeLS.get(COMMISSION_SETTINGS_KEY) || '5');
+}
+
+function saveCommissionRate() {
+  const val = parseFloat(document.getElementById('commission-rate-input')?.value || '5');
+  if (isNaN(val) || val < 1 || val > 100) { showToast(mt('mEnterValidRate') || t('enterValidRate'), 'error'); return; }
+  safeLS.set(COMMISSION_SETTINGS_KEY, val.toString());
+  const disp = document.getElementById('commission-rate-display');
+  if (disp) disp.textContent = val + '%';
+  showToast('Commission rate saved: ' + val + '%', 'success');
+}
+
+function triggerReferralCommission(member, order) {
+  if (!member || member.hasFirstOrder) return;
+  const members = DB.getMembers();
+  const idx = members.findIndex(m => m.id === member.id);
+  if (idx === -1) return;
+  members[idx].hasFirstOrder = true;
+  DB.saveMembers(members);
+
+  if (!member.referrerId) return;
+
+  const referrer = members.find(m => m.id === member.referrerId);
+  if (!referrer) return;
+
+  const rate = getCommissionRate();
+  const commissionAmt = parseFloat((order.total * rate / 100).toFixed(2));
+  if (commissionAmt <= 0) return;
+
+  // Credit commission to referrer's wallet
+  topupWallet(referrer.id, 0, commissionAmt);  // payAmount=0, creditAmount=commission
+
+  // Record commission
+  const commissions = DB.getCommissions();
+  commissions.unshift({
+    id: 'cm' + Date.now(),
+    referrerId: referrer.id,
+    referrerName: referrer.name,
+    referrerPhone: referrer.phone,
+    refereeId: member.id,
+    refereeName: member.name,
+    refereePhone: member.phone,
+    orderId: order.id,
+    orderTotal: order.total,
+    rate,
+    commissionAmt,
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  DB.saveCommissions(commissions);
+  showToast(`?? Referral bonus! ${referrer.name} earned RM${commissionAmt.toFixed(2)} commission!`, 'success');
+}
+
+// ---- Merchant: Commission Tab ----
+function initCommissionsTab() {
+  const rate = getCommissionRate();
+  const input = document.getElementById('commission-rate-input');
+  const disp  = document.getElementById('commission-rate-display');
+  if (input) input.value = rate;
+  if (disp)  disp.textContent = rate + '%';
+  renderPaymentProofsPending();
+  filterCommissions();
+}
+
+function renderPaymentProofsPending() {
+  const proofs = DB.getPaymentProofs().filter(p => p.status === 'pending');
+  const el = document.getElementById('payment-proofs-list');
+  const badge = document.getElementById('proof-pending-badge');
+  if (!el) return;
+  if (badge) badge.textContent = proofs.length > 0 ? proofs.length : '';
+  if (proofs.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPaymentProofs')}</p>`; return; }
+  const pmLabels = { tng: 'Touch & Go', bank: 'Bank Transfer' };
+  el.innerHTML = proofs.map(p => {
+    const d = new Date(p.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="member-row" style="flex-wrap:wrap;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <strong>${p.memberName || 'Guest'}</strong>
+          <div style="font-size:0.8rem;color:#555">${pmLabels[p.paymentMethod] || p.paymentMethod} � RM${p.amount.toFixed(2)} � Order #${p.orderId}</div>
+          <div style="font-size:0.78rem;color:#888">${d}</div>
+        </div>
+        <img src="${p.proofImage}" onclick="openProofImage('${p.id}')"
+          style="width:70px;height:70px;object-fit:cover;border-radius:10px;cursor:pointer;border:2px solid #e0e0e0" alt="proof" />
+        <div style="display:flex;gap:6px;flex-direction:column">
+          <button class="btn-sm" style="background:#2e7d32;color:white" onclick="verifyPaymentProof('${p.id}')"><i class="fas fa-check"></i> ${mt('mVerify')}</button>
+          <button class="btn-sm" style="background:#c62828;color:white" onclick="rejectPaymentProof('${p.id}')"><i class="fas fa-times"></i> ${mt('mReject')}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openProofImage(proofId) {
+  const proofs = DB.getPaymentProofs();
+  const p = proofs.find(x => x.id === proofId);
+  if (!p) return;
+  // SECURITY FIX: Validate proofImage is safe data URL before rendering
+  if (!p.proofImage || !p.proofImage.startsWith('data:image/')) {
+    showToast('Invalid payment proof image', 'error');
+    return;
+  }
+  const w = window.open('', '_blank');
+  if (!w) {
+    showToast('Please allow popups to view images', 'error');
+    return;
+  }
+  // Use textContent for safer rendering
+  w.document.body.innerHTML = '';
+  const img = w.document.createElement('img');
+  img.src = p.proofImage;
+  img.style.cssText = 'max-width:100%;max-height:100vh;display:block;margin:auto';
+  w.document.body.appendChild(img);
+}
+
+function verifyPaymentProof(proofId) {
+  const proofs = DB.getPaymentProofs();
+  const idx = proofs.findIndex(p => p.id === proofId);
+  if (idx === -1) return;
+  proofs[idx].status = 'verified';
+  proofs[idx].verifiedAt = new Date().toISOString();
+  DB.savePaymentProofs(proofs);
+  showToast(mt('mPaymentVerified') || 'Payment verified ?', 'success');
+  renderPaymentProofsPending();
+}
+
+function rejectPaymentProof(proofId) {
+  const proofs = DB.getPaymentProofs();
+  const idx = proofs.findIndex(p => p.id === proofId);
+  if (idx === -1) return;
+  proofs[idx].status = 'rejected';
+  proofs[idx].rejectedAt = new Date().toISOString();
+  DB.savePaymentProofs(proofs);
+  showToast(mt('mPaymentRejected'), 'info');
+  renderPaymentProofsPending();
+}
+
+function filterCommissions() {
+  const q = (document.getElementById('commission-search')?.value || '').toLowerCase();
+  const commissions = DB.getCommissions();
+  const filtered = q
+    ? commissions.filter(c => c.referrerName.toLowerCase().includes(q) || c.referrerPhone.includes(q) || c.refereeName.toLowerCase().includes(q))
+    : commissions;
+  const el = document.getElementById('commission-records-list');
+  if (!el) return;
+  if (filtered.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoCommissions')}</p>`; return; }
+  el.innerHTML = filtered.map(c => {
+    const d = new Date(c.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="member-row" style="flex-wrap:wrap">
+        <i class="fas fa-hand-holding-usd" style="font-size:1.8rem;color:#2e7d32;flex-shrink:0"></i>
+        <div class="member-row-info" style="flex:1">
+          <strong>${escHtml(c.referrerName)} <span style="font-size:0.78rem;color:#888">earned commission</span></strong>
+          <span>Referred: ${escHtml(c.refereeName)} (${escHtml(c.refereePhone)}) � Order #${escHtml(c.orderId)}</span>
+          <span style="font-size:0.78rem;color:#888">${d} � ${c.rate}% of RM${c.orderTotal.toFixed(2)}</span>
+        </div>
+        <div style="font-weight:700;color:#2e7d32;font-size:1rem">+RM${c.commissionAmt.toFixed(2)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ---- Customer: Referral Page ----
+function loadReferralPage(member) {
+  if (!member) return;
+  const el = document.getElementById('referral-my-phone');
+  if (el) el.textContent = member.phone;
+
+  const members    = DB.getMembers();
+  const commissions = DB.getCommissions().filter(c => c.referrerId === member.id);
+  const referred   = members.filter(m => m.referrerId === member.id);
+  const totalEarned = commissions.reduce((s, c) => s + c.commissionAmt, 0);
+  const rate = getCommissionRate();
+
+  const rateEl = document.getElementById('referral-commission-rate');
+  const totalEl = document.getElementById('referral-total-earned');
+  const countEl = document.getElementById('referral-total-referred');
+  if (rateEl) rateEl.textContent = rate + '%';
+  if (totalEl) totalEl.textContent = 'RM' + totalEarned.toFixed(2);
+  if (countEl) countEl.textContent = referred.length;
+
+  // Commission history
+  const listEl = document.getElementById('my-commission-list');
+  if (listEl) {
+    if (commissions.length === 0) {
+      listEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">No commissions yet. Start referring!</p>';
+    } else {
+      listEl.innerHTML = commissions.map(c => {
+        const d = new Date(c.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric' });
+        return `
+          <div class="wallet-txn-item">
+            <div class="wallet-txn-icon topup"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="wallet-txn-info">
+              <strong>Commission from ${escHtml(c.refereeName)}</strong>
+              <small>${d} � ${c.rate}% of RM${c.orderTotal.toFixed(2)}</small>
+            </div>
+            <div class="wallet-txn-amt green">+RM${c.commissionAmt.toFixed(2)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Referred friends
+  const refListEl = document.getElementById('my-referred-list');
+  if (refListEl) {
+    if (referred.length === 0) {
+      refListEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">No friends referred yet.</p>';
+    } else {
+      refListEl.innerHTML = referred.map(m => `
+        <div class="member-row">
+          <i class="fas fa-user-circle" style="font-size:1.8rem;color:#3949ab;flex-shrink:0"></i>
+          <div class="member-row-info" style="flex:1">
+            <strong>${escHtml(m.name)}</strong>
+            <span>${m.phone}</span>
+          </div>
+          <div style="font-size:0.8rem;color:${m.hasFirstOrder ? '#2e7d32' : '#e65100'}">
+            ${m.hasFirstOrder ? mt('mFirstOrderDone') : mt('mNotOrderedYet')}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function copyReferralCode() {
+  if (!currentCustomer) return;
+  navigator.clipboard.writeText(currentCustomer.phone).then(() => {
+    showToast('?? Referral code copied!', 'success');
+  }).catch(() => {
+    showToast('Your referral code: ' + currentCustomer.phone, 'info');
+  });
+}
+
+// ---- Customer Dashboard: Commission Summary ----
+function renderCustomerCommissionSummary(member) {
+  const el = document.getElementById('customer-commission-display');
+  if (!el) return;
+  const commissions = DB.getCommissions().filter(c => c.referrerId === member.id);
+  const members = DB.getMembers();
+  const referred = members.filter(m => m.referrerId === member.id);
+  const totalEarned = commissions.reduce((s, c) => s + c.commissionAmt, 0);
+  const rate = getCommissionRate();
+  el.innerHTML = `
+    <div class="commission-summary-card">
+      <div class="commission-summary-row">
+        <div class="commission-summary-stat">
+          <strong>${referred.length}</strong>
+          <small>${t('referralFriendsReferred')}</small>
+        </div>
+        <div class="commission-summary-stat">
+          <strong style="color:#2e7d32">RM${totalEarned.toFixed(2)}</strong>
+          <small>${t('referralCommissionEarned')}</small>
+        </div>
+        <div class="commission-summary-stat">
+          <strong style="color:#1565c0">${rate}%</strong>
+          <small>${t('referralCurrentRate')}</small>
+        </div>
+      </div>
+      <p style="font-size:0.78rem;color:#555;margin-top:8px">${t('referralSharePrompt').replace('{phone}', member.phone).replace('{rate}', rate)}</p>
+    </div>
+  `;
+}
+
+// ===========================
+// ===== NEW ITEMS SYSTEM =====
+// ===========================
+
+function getActiveNewItems() {
+  const today = new Date().toISOString().split('T')[0];
+  return (DB.getNewItems() || []).filter(n => {
+    if (!n.active) return false;
+    if (n.launchDate && n.launchDate > today) return false;
+    if (n.endDate && n.endDate < today) return false;
+    return true;
+  });
+}
+
+function renderNewItemsBanner(newItems, menu) {
+  const banner = document.getElementById('new-items-banner');
+  if (!newItems || newItems.length === 0) { banner.classList.add('hidden'); return; }
+  banner.classList.remove('hidden');
+  const items = newItems.map(n => {
+    const m = menu.find(i => i.id === n.menuItemId);
+    if (!m) return '';
+    const announce = n.announcement || (m.name + ' is now available!');
+    const priceText = n.specialPrice ? `  RM${n.specialPrice.toFixed(2)}` : '';
+    return `<span class="ni-banner-item"><span class="new-tag">NEW</span>${m.emoji} ${announce}${priceText}</span>`;
+  }).join('  �  ');
+  banner.innerHTML = `<div class="new-items-banner-inner" onclick="openNewItemsModal()">${items}&nbsp;&nbsp;&nbsp;&nbsp;${items}</div>`;
+}
+
+function openNewItemsModal() {
+  const newItems = getActiveNewItems();
+  const menu     = DB.getMenu() || DEFAULT_MENU;
+  if (newItems.length === 0) return;
+
+  const listEl = document.getElementById('new-items-modal-list');
+  listEl.innerHTML = newItems.map(n => {
+    const m = menu.find(i => i.id === n.menuItemId);
+    if (!m) return '';
+    const until = n.endDate ? `Until ${n.endDate}` : 'Limited time offer';
+    return `
+      <div class="ni-modal-item">
+        <div class="ni-modal-item-emoji">${m.emoji}</div>
+        <div class="ni-modal-item-info">
+          <strong>${m.name}</strong>
+          <small>${n.announcement || m.desc}</small>
+        </div>
+        <div class="ni-modal-price">
+          ${n.specialPrice ? `<span class="orig-price">RM${m.price.toFixed(2)}</span>` : ''}
+          <span class="new-price">RM${(n.specialPrice || m.price).toFixed(2)}</span>
+          <span class="until-badge">${until}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('new-items-modal').classList.remove('hidden');
+}
+
+function closeNewItemsModal() {
+  document.getElementById('new-items-modal').classList.add('hidden');
+  // Mark as seen today
+  DB.setAnnounceSeen(new Date().toISOString().split('T')[0]);
+}
+
+function maybeShowNewItemsAnnouncement() {
+  const activeItems = getActiveNewItems();
+  if (activeItems.length === 0) return;
+  const today = new Date().toISOString().split('T')[0];
+  if (DB.getAnnounceSeen() === today) return;
+  setTimeout(openNewItemsModal, 600);
+}
+
+// ---- Merchant: New Items Management ----
+function populateNewItemSelect() {
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const sel  = document.getElementById('ni-select-item');
+  sel.innerHTML = `<option value="" data-mi18n-opt="mChooseAnItem">${mt('mChooseAnItem')}</option>` +
+    menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name} (RM${i.price.toFixed(2)})</option>`).join('');
+}
+
+function launchNewItem() {
+  const menuItemId = document.getElementById('ni-select-item').value;
+  const specialPriceVal = document.getElementById('ni-special-price').value;
+  const launchDate = document.getElementById('ni-launch-date').value;
+  const endDate    = document.getElementById('ni-end-date').value;
+  const announce   = document.getElementById('ni-announce').value.trim();
+
+  if (!menuItemId) { showToast(mt('mSelectMenuItem') || t('selectMenuItem'), 'error'); return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const newItems = DB.getNewItems();
+
+  // Deactivate previous launch for same item
+  newItems.forEach(n => { if (n.menuItemId === menuItemId) n.active = false; });
+
+  const entry = {
+    id: 'ni' + Date.now(),
+    menuItemId,
+    specialPrice: specialPriceVal ? parseFloat(specialPriceVal) : null,
+    launchDate:   launchDate || today,
+    endDate:      endDate || null,
+    announcement: announce,
+    active:       true,
+    createdAt:    new Date().toISOString(),
+  };
+  newItems.unshift(entry);
+  DB.saveNewItems(newItems);
+
+  // Clear form
+  document.getElementById('ni-select-item').value    = '';
+  document.getElementById('ni-special-price').value  = '';
+  document.getElementById('ni-launch-date').value    = '';
+  document.getElementById('ni-end-date').value       = '';
+  document.getElementById('ni-announce').value       = '';
+
+  showToast('?? New item launched!');
+  renderNewItemsMgmt();
+  // Reset seen so modal shows again
+  DB.setAnnounceSeen('');
+}
+
+function deactivateNewItem(id) {
+  const newItems = DB.getNewItems();
+  const idx = newItems.findIndex(n => n.id === id);
+  if (idx !== -1) { newItems[idx].active = false; DB.saveNewItems(newItems); }
+  showToast(mt('mNiDeactivate') + ' ?');
+  renderNewItemsMgmt();
+}
+
+function deleteNewItem(id) {
+  DB.saveNewItems(DB.getNewItems().filter(n => n.id !== id));
+  showToast(mt('mNiDelete') + ' ?');
+  renderNewItemsMgmt();
+}
+
+function renderNewItemsMgmt() {
+  const newItems = DB.getNewItems() || [];
+  const menu     = DB.getMenu() || DEFAULT_MENU;
+  const today    = new Date().toISOString().split('T')[0];
+
+  const active = newItems.filter(n => {
+    if (!n.active) return false;
+    if (n.endDate && n.endDate < today) return false;
+    return true;
+  });
+  const past = newItems.filter(n => !active.includes(n));
+
+  function renderCard(n, isPast) {
+    const m = menu.find(i => i.id === n.menuItemId);
+    if (!m) return '';
+    const priceText = n.specialPrice ? `${mt('mNiSpecial')}${n.specialPrice.toFixed(2)} (${mt('mNiWas')}${m.price.toFixed(2)})` : `RM${m.price.toFixed(2)}`;
+    return `
+      <div class="new-item-mgmt-card ${isPast ? 'expired' : ''}">
+        <div class="new-item-mgmt-header">
+          <div class="new-item-mgmt-emoji">${m.emoji}</div>
+          <div class="new-item-mgmt-info">
+            <strong>${m.name}</strong>
+            <small>${n.announcement || m.desc}</small>
+          </div>
+        </div>
+        <div class="new-item-mgmt-badges">
+          <span class="nimb red">? NEW</span>
+          <span class="nimb orange">${priceText}</span>
+          <span class="nimb green">${mt('mNiLaunch')} ${n.launchDate}</span>
+          ${n.endDate ? `<span class="nimb grey">${mt('mNiEnds')} ${n.endDate}</span>` : `<span class="nimb grey">${mt('mNiNoEndDate')}</span>`}
+        </div>
+        <div class="ni-mgmt-actions">
+          ${!isPast ? `<button class="ni-mgmt-btn deactivate" onclick="deactivateNewItem('${n.id}')"><i class="fas fa-times"></i> ${mt('mNiDeactivate')}</button>` : ''}
+          <button class="ni-mgmt-btn delete" onclick="deleteNewItem('${n.id}')"><i class="fas fa-trash"></i> ${mt('mNiDelete')}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const activeEl = document.getElementById('active-new-items-list');
+  activeEl.innerHTML = active.length
+    ? active.map(n => renderCard(n, false)).join('')
+    : `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoActiveItems')}</p>`;
+
+  const pastEl = document.getElementById('past-new-items-list');
+  pastEl.innerHTML = past.length
+    ? past.map(n => renderCard(n, true)).join('')
+    : `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPastLaunches')}</p>`;
+}
+
+// ===========================
+// ===== STAMP CARD SYSTEM =====
+// ===========================
+
+let _pendingStampReward = null; // { cardId, memberId, rewardType, rewardValue, cardName, cardEmoji }
+let _stampPagePhone = '';
+
+// ---- Helpers ----
+function getMemberStampProgress(memberId, cardId) {
+  const all = DB.getMemberStamps();
+  const key = memberId + '_' + cardId;
+  return all[key] || { stamps: 0, completed: 0, claimed: 0 };
+}
+
+function saveMemberStampProgress(memberId, cardId, progress) {
+  const all = DB.getMemberStamps();
+  const key = memberId + '_' + cardId;
+  all[key] = progress;
+  DB.saveMemberStamps(all);
+}
+
+// ---- Award stamps after order ----
+function awardStampsForOrder(order) {
+  if (!order.memberId) return;
+  const cards = DB.getStampCards().filter(c => c.active);
+  if (cards.length === 0) return;
+
+  const menu    = DB.getMenu() || DEFAULT_MENU;
+  const members = DB.getMembers();
+  const member  = members.find(m => m.id === order.memberId);
+  if (!member) return;
+
+  let stampMessages = [];
+
+  cards.forEach(card => {
+    let stampsToAdd = 0;
+
+    if (card.rule === 'per_order') {
+      stampsToAdd = 1;
+    } else if (card.rule === 'per_amount') {
+      const threshold = card.ruleValue || 10;
+      stampsToAdd = Math.floor(order.total / threshold);
+    } else if (card.rule === 'per_item') {
+      // count how many qualifying items
+      const qualItems = order.items.filter(i => i.id === card.ruleItemId);
+      stampsToAdd = qualItems.reduce((s, i) => s + i.qty, 0);
+    }
+
+    if (stampsToAdd <= 0) return;
+
+    const progress = getMemberStampProgress(order.memberId, card.id);
+    const needed   = card.totalStamps - (progress.stamps % card.totalStamps || (progress.stamps > 0 && progress.stamps % card.totalStamps === 0 ? card.totalStamps : 0));
+
+    progress.stamps += stampsToAdd;
+    const newCompleted = Math.floor(progress.stamps / card.totalStamps);
+    const prevCompleted = progress.completed || 0;
+
+    if (newCompleted > prevCompleted) {
+      progress.completed = newCompleted;
+      stampMessages.push({ card, newCompleted, prevCompleted });
+    }
+    saveMemberStampProgress(order.memberId, card.id, progress);
+  });
+
+  if (stampMessages.length > 0) {
+    // Show stamp earned notification on confirm page
+    const el = document.getElementById('confirm-stamp-earned');
+    if (el) {
+      el.classList.remove('hidden');
+      el.innerHTML = stampMessages.map(({ card }) => `
+        <div class="stamp-earned-notice">
+          <span style="font-size:1.4rem">${card.emoji}</span>
+          <div>
+            <strong>Stamp collected!</strong>
+            <small>${card.name} � view your card to claim rewards</small>
+          </div>
+          <span style="font-size:1.2rem">?</span>
+        </div>
+      `).join('');
+    }
+    showToast('?? Stamp collected! Check your stamp card!');
+  }
+}
+
+// ---- Customer: Load Stamp Page ----
+function loadStampPage(phone) {
+  // Auto-use currentCustomer if already logged in
+  const usePhone = phone || (currentCustomer ? currentCustomer.phone : '') || document.getElementById('stamp-phone').value.trim();
+  if (!usePhone) { showToast(t('enterPhoneNumber'), 'error'); return; }
+
+  const member = DB.getMembers().find(m => m.phone === usePhone);
+  if (!member) { showToast(t('memberNotFound'), 'error'); return; }
+
+  _stampPagePhone = usePhone;
+  if (!currentCustomer) {
+    currentCustomer = member;
+    DB.setCurrentMemberPhone(member.phone);
+  }
+  renderStampCardsDisplay(member);
+}
+
+function gotoStampFromDash() {
+  if (currentCustomer) {
+    _stampPagePhone = currentCustomer.phone;
+    renderStampCardsDisplay(currentCustomer);
+  }
+  showPage('page-stamp');
+}
+
+function renderStampCardsDisplay(member) {
+  const cards   = DB.getStampCards().filter(c => c.active);
+  const display = document.getElementById('stamp-cards-display');
+
+  if (cards.length === 0) {
+    display.innerHTML = `
+      <div class="section-card" style="text-align:center;padding:28px">
+        <div style="font-size:3rem;margin-bottom:12px">??</div>
+        <p style="color:#888">${t('noStampCards') || 'No stamp cards available yet.'}</p>
+      </div>`;
+    return;
+  }
+
+  const menu = DB.getMenu() || DEFAULT_MENU;
+
+  display.innerHTML = cards.map(card => {
+    const progress  = getMemberStampProgress(member.id, card.id);
+    const current   = progress.stamps % card.totalStamps || (progress.stamps > 0 && progress.stamps % card.totalStamps === 0 ? card.totalStamps : 0);
+    const filled    = Math.min(current, card.totalStamps);
+    const completed = progress.completed || 0;
+    const claimed   = progress.claimed   || 0;
+    const unclaimed = completed - claimed;
+
+    // Reward description
+    let rewardDesc = '';
+    if (card.rewardType === 'free_item') {
+      const m = menu.find(i => i.id === card.rewardValue);
+      rewardDesc = m ? t('stampFreeItem').replace('{item}', `${m.emoji} ${m.name}`) : t('stampFreeItemGeneric');
+    } else if (card.rewardType === 'discount_flat') {
+      rewardDesc = t('stampRmOff').replace('{v}', card.rewardValue);
+    } else if (card.rewardType === 'discount_pct') {
+      rewardDesc = t('stampPctOff').replace('{v}', card.rewardValue);
+    } else if (card.rewardType === 'points') {
+      rewardDesc = t('stampBonusPoints').replace('{v}', card.rewardValue);
+    }
+
+    // Rule description
+    let ruleDesc = '';
+    if (card.rule === 'per_order')  ruleDesc = t('stampPerPurchase');
+    else if (card.rule === 'per_amount') ruleDesc = t('stampPerAmount').replace('{v}', card.ruleValue);
+    else if (card.rule === 'per_item') {
+      const m = menu.find(i => i.id === card.ruleItemId);
+      ruleDesc = m ? t('stampPerItem').replace('{item}', `${m.emoji} ${m.name}`) : t('stampPerItemGeneric');
+    }
+
+    // Stamp grid
+    const dots = Array.from({ length: card.totalStamps }, (_, i) => {
+      const isFilled = i < filled;
+      return `<div class="stamp-dot ${isFilled ? 'filled' : ''}" title="${isFilled ? t('stampCollected') : t('stampEmpty')}">
+        ${isFilled ? card.emoji : ''}
+      </div>`;
+    }).join('');
+
+    const rem = card.totalStamps - filled;
+    const unlockTxt = rem === 1 ? t('stampsToUnlock').replace('{n}', rem) : t('stampsToUnlockPlural').replace('{n}', rem);
+
+    return `
+      <div class="stamp-card-display" style="--card-color:${card.color}">
+        <div class="stamp-card-header">
+          <div class="stamp-card-icon">${card.emoji}</div>
+          <div class="stamp-card-title">
+            <h3>${card.name}</h3>
+            <small>${ruleDesc}</small>
+          </div>
+          <div class="stamp-card-count">${filled}/${card.totalStamps}</div>
+        </div>
+        <div class="stamp-grid">${dots}</div>
+        <div class="stamp-card-reward">
+          <i class="fas fa-gift"></i>
+          <span>${t('stampReward')}: <strong>${rewardDesc}</strong></span>
+        </div>
+        ${unclaimed > 0 ? `
+          <button class="btn-claim-stamp" onclick="openStampRedeemModal('${card.id}','${member.id}')">
+            <i class="fas fa-gift"></i> ${t('stampClaimBtn')} (�${unclaimed})
+          </button>
+        ` : `
+          <div class="stamp-progress-bar">
+            <div class="stamp-progress-fill" style="width:${(filled/card.totalStamps)*100}%"></div>
+          </div>
+          <p class="stamp-card-hint">${unlockTxt}</p>
+        `}
+        ${completed > 0 ? `<div class="stamp-completed-badge">? ${t('stampCompleted').replace('{n}', completed)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ---- Redeem Stamp Reward ----
+function openStampRedeemModal(cardId, memberId) {
+  const card   = DB.getStampCards().find(c => c.id === cardId);
+  const menu   = DB.getMenu() || DEFAULT_MENU;
+  if (!card) return;
+
+  let rewardHtml = '';
+  if (card.rewardType === 'free_item') {
+    const m = menu.find(i => i.id === card.rewardValue);
+    rewardHtml = `<div style="font-size:3rem;margin:12px 0">${m ? m.emoji : '??'}</div>
+      <p style="font-weight:700;font-size:1rem;color:#333">Free ${m ? m.name : 'Item'}!</p>
+      <p style="font-size:0.82rem;color:#888;margin-top:6px">Show this to the cashier to claim your free ${m ? m.name : 'item'}.</p>`;
+  } else if (card.rewardType === 'discount_flat') {
+    rewardHtml = `<div style="font-size:2.8rem;margin:12px 0">???</div>
+      <p style="font-weight:700;font-size:1.1rem;color:#e53935">RM${card.rewardValue} Off!</p>
+      <p style="font-size:0.82rem;color:#888;margin-top:6px">Show this to the cashier when placing your next order.</p>`;
+  } else if (card.rewardType === 'discount_pct') {
+    rewardHtml = `<div style="font-size:2.8rem;margin:12px 0">???</div>
+      <p style="font-weight:700;font-size:1.1rem;color:#e53935">${card.rewardValue}% Off!</p>
+      <p style="font-size:0.82rem;color:#888;margin-top:6px">Show this to the cashier when placing your next order.</p>`;
+  } else if (card.rewardType === 'points') {
+    rewardHtml = `<div style="font-size:2.8rem;margin:12px 0">?</div>
+      <p style="font-weight:700;font-size:1.1rem;color:#f57f17">+${card.rewardValue} Bonus Points!</p>
+      <p style="font-size:0.82rem;color:#888;margin-top:6px">Points will be added to your account immediately.</p>`;
+  }
+
+  document.getElementById('stamp-redeem-content').innerHTML = `
+    <p style="font-size:0.84rem;color:#666;margin-bottom:8px">You've collected all <strong>${card.totalStamps}</strong> stamps on <strong>${card.name}</strong>!</p>
+    ${rewardHtml}
+  `;
+
+  _pendingStampReward = { cardId, memberId, rewardType: card.rewardType, rewardValue: card.rewardValue, cardName: card.name, cardEmoji: card.emoji };
+  document.getElementById('stamp-redeem-modal').classList.remove('hidden');
+}
+
+function closeStampRedeemModal() {
+  document.getElementById('stamp-redeem-modal').classList.add('hidden');
+  _pendingStampReward = null;
+}
+
+function claimStampReward() {
+  if (!_pendingStampReward) return;
+  const { cardId, memberId, rewardType, rewardValue, cardName, cardEmoji } = _pendingStampReward;
+
+  const progress = getMemberStampProgress(memberId, cardId);
+  if ((progress.completed || 0) <= (progress.claimed || 0)) {
+    showToast(t('noUnclaimedRewards'), 'error'); return;
+  }
+  progress.claimed = (progress.claimed || 0) + 1;
+  saveMemberStampProgress(memberId, cardId, progress);
+
+  // Award points if reward type is points
+  if (rewardType === 'points') {
+    const members = DB.getMembers();
+    const idx = members.findIndex(m => m.id === memberId);
+    if (idx !== -1) {
+      members[idx].points += parseInt(rewardValue);
+      DB.saveMembers(members);
+      const txns = DB.getTxns();
+      txns.unshift({
+        id: 't' + Date.now(),
+        memberId,
+        memberName: members[idx].name,
+        type: 'earn',
+        points: parseInt(rewardValue),
+        note: `${cardEmoji} ${cardName} Stamp Reward`,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+      });
+      DB.saveTxns(txns);
+    }
+  }
+
+  closeStampRedeemModal();
+  showToast(`${cardEmoji} Reward claimed! Enjoy!`);
+
+  // Refresh display
+  const member = DB.getMembers().find(m => m.id === memberId);
+  if (member) renderStampCardsDisplay(member);
+}
+
+// ---- Merchant: Stamp Card Management ----
+let _selectedStampColor = '#8B4513';
+
+function initStampMgmtTab() {
+  // Color picker
+  document.querySelectorAll('.sc-color-opt').forEach(opt => {
+    opt.addEventListener('click', function() {
+      document.querySelectorAll('.sc-color-opt').forEach(o => o.classList.remove('selected'));
+      this.classList.add('selected');
+      _selectedStampColor = this.dataset.color;
+    });
+  });
+
+  // Rule change
+  document.getElementById('sc-rule').addEventListener('change', onRuleChange);
+  onRuleChange();
+
+  // Populate reward item select
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const sel  = document.getElementById('sc-reward-item');
+  sel.innerHTML = menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name}</option>`).join('');
+
+  onRewardTypeChange();
+  renderMerchantStampCards();
+  renderStampMemberList(DB.getMembers());
+}
+
+function onRuleChange() {
+  const rule  = document.getElementById('sc-rule').value;
+  const extra = document.getElementById('sc-rule-extra');
+  const menu  = DB.getMenu() || DEFAULT_MENU;
+
+  if (rule === 'per_amount') {
+    extra.classList.remove('hidden');
+    extra.innerHTML = `<label>Spend Amount Per Stamp (RM)</label>
+      <input type="number" id="sc-rule-value" placeholder="e.g. 10" min="1" value="10" />`;
+  } else if (rule === 'per_item') {
+    extra.classList.remove('hidden');
+    extra.innerHTML = `<label>Qualifying Menu Item</label>
+      <select id="sc-rule-item">${menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name}</option>`).join('')}</select>`;
+  } else {
+    extra.classList.add('hidden');
+    extra.innerHTML = '';
+  }
+}
+
+function onRewardTypeChange() {
+  const type   = document.getElementById('sc-reward-type').value;
+  const detail = document.getElementById('sc-reward-detail');
+  const label  = document.getElementById('sc-reward-detail-label');
+  const itemSel = document.getElementById('sc-reward-item');
+
+  if (type === 'free_item') {
+    label.textContent = mt('mRewardFreeItem');
+    itemSel.style.display = '';
+    detail.classList.remove('hidden');
+    // Remove any extra input
+    const old = document.getElementById('sc-reward-val-input');
+    if (old) old.remove();
+  } else if (type === 'discount_flat') {
+    label.textContent = mt('mRewardFlatDiscount');
+    itemSel.style.display = 'none';
+    let inp = document.getElementById('sc-reward-val-input');
+    if (!inp) { inp = document.createElement('input'); inp.type='number'; inp.id='sc-reward-val-input'; inp.min='1'; inp.placeholder='e.g. 5'; inp.style.cssText='width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.88rem;font-family:Poppins,sans-serif;outline:none'; detail.appendChild(inp); }
+    detail.classList.remove('hidden');
+  } else if (type === 'discount_pct') {
+    label.textContent = mt('mRewardPctDiscount');
+    itemSel.style.display = 'none';
+    let inp = document.getElementById('sc-reward-val-input');
+    if (!inp) { inp = document.createElement('input'); inp.type='number'; inp.id='sc-reward-val-input'; inp.min='1'; inp.max='100'; inp.placeholder='e.g. 10'; inp.style.cssText='width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.88rem;font-family:Poppins,sans-serif;outline:none'; detail.appendChild(inp); }
+    detail.classList.remove('hidden');
+  } else if (type === 'points') {
+    label.textContent = mt('mRewardBonusPoints');
+    itemSel.style.display = 'none';
+    let inp = document.getElementById('sc-reward-val-input');
+    if (!inp) { inp = document.createElement('input'); inp.type='number'; inp.id='sc-reward-val-input'; inp.min='1'; inp.placeholder='e.g. 50'; inp.style.cssText='width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.88rem;font-family:Poppins,sans-serif;outline:none'; detail.appendChild(inp); }
+    detail.classList.remove('hidden');
+  }
+}
+
+function createStampCard() {
+  const name       = document.getElementById('sc-name').value.trim();
+  const emoji      = document.getElementById('sc-emoji').value.trim() || '?';
+  const totalStamps= parseInt(document.getElementById('sc-total').value) || 10;
+  const rule       = document.getElementById('sc-rule').value;
+  const rewardType = document.getElementById('sc-reward-type').value;
+
+  if (!name) { showToast(mt('mEnterCardName') || t('enterCardName'), 'error'); return; }
+
+  let ruleValue  = null;
+  let ruleItemId = null;
+  if (rule === 'per_amount') {
+    ruleValue = parseFloat(document.getElementById('sc-rule-value')?.value) || 10;
+  } else if (rule === 'per_item') {
+    ruleItemId = document.getElementById('sc-rule-item')?.value;
+  }
+
+  let rewardValue = null;
+  if (rewardType === 'free_item') {
+    rewardValue = document.getElementById('sc-reward-item').value;
+  } else {
+    rewardValue = parseFloat(document.getElementById('sc-reward-val-input')?.value);
+    if (!rewardValue) { showToast(mt('mEnterRewardValue') || t('enterRewardValue'), 'error'); return; }
+  }
+
+  const card = {
+    id: 'sc' + Date.now(),
+    name, emoji, totalStamps, rule, ruleValue, ruleItemId,
+    rewardType, rewardValue,
+    color: _selectedStampColor,
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  const cards = DB.getStampCards();
+  cards.unshift(card);
+  DB.saveStampCards(cards);
+
+  // Reset form
+  document.getElementById('sc-name').value  = '';
+  document.getElementById('sc-emoji').value = '';
+  document.getElementById('sc-total').value = '10';
+
+  showToast(`${emoji} ${name} stamp card created!`);
+  renderMerchantStampCards();
+}
+
+function renderMerchantStampCards() {
+  const cards = DB.getStampCards();
+  const menu  = DB.getMenu() || DEFAULT_MENU;
+  const el    = document.getElementById('merchant-stamp-cards-list');
+
+  if (cards.length === 0) {
+    el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoStampCardsYet')}</p>`;
+    return;
+  }
+
+  el.innerHTML = cards.map(card => {
+    let rewardDesc = '';
+    if (card.rewardType === 'free_item') {
+      const m = menu.find(i => i.id === card.rewardValue);
+      rewardDesc = m ? `${mt('mFreePrefix')} ${m.emoji} ${m.name}` : mt('mFreeItem');
+    } else if (card.rewardType === 'discount_flat') rewardDesc = `RM${card.rewardValue} ${mt('mRmOff')}`;
+    else if (card.rewardType === 'discount_pct')    rewardDesc = `${card.rewardValue}% ${mt('mPctOff')}`;
+    else if (card.rewardType === 'points')          rewardDesc = `+${card.rewardValue} ${mt('mBonusPtsLabel')}`;
+
+    let ruleDesc = '';
+    if (card.rule === 'per_order') ruleDesc = mt('mStampPerPurchase');
+    else if (card.rule === 'per_amount') ruleDesc = `${mt('mStampPerRM')}${card.ruleValue}`;
+    else if (card.rule === 'per_item') {
+      const m = menu.find(i => i.id === card.ruleItemId);
+      ruleDesc = m ? `1 stamp / ${m.name}` : mt('mStampPerItem');
+    }
+
+    // Count how many members have this card
+    const allStamps = DB.getMemberStamps();
+    const participantCount = Object.keys(allStamps).filter(k => k.endsWith('_' + card.id)).length;
+
+    return `
+      <div class="sc-mgmt-card" style="border-left-color:${card.color}">
+        <div class="sc-mgmt-header">
+          <div class="sc-mgmt-icon" style="background:${card.color}">${card.emoji}</div>
+          <div class="sc-mgmt-info">
+            <strong>${card.name}</strong>
+            <small>${ruleDesc} � ${card.totalStamps} ${mt('mStampsLabel')}</small>
+          </div>
+          <span class="sc-status-badge ${card.active ? 'active' : 'inactive'}">${card.active ? mt('mStampActive') : mt('mStampPaused')}</span>
+        </div>
+        <div class="sc-mgmt-details">
+          <span class="nimb green"><i class="fas fa-gift"></i> ${rewardDesc}</span>
+          <span class="nimb blue"><i class="fas fa-users"></i> ${participantCount} ${mt('mStampMembers')}</span>
+        </div>
+        <div class="ni-mgmt-actions">
+          <button class="ni-mgmt-btn deactivate" onclick="toggleStampCard('${card.id}')">
+            <i class="fas ${card.active ? 'fa-pause' : 'fa-play'}"></i> ${card.active ? mt('mStampPause') : mt('mStampActivate')}
+          </button>
+          <button class="ni-mgmt-btn delete" onclick="deleteStampCard('${card.id}')">
+            <i class="fas fa-trash"></i> ${mt('mStampDelete')}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleStampCard(id) {
+  const cards = DB.getStampCards();
+  const idx = cards.findIndex(c => c.id === id);
+  if (idx !== -1) { cards[idx].active = !cards[idx].active; DB.saveStampCards(cards); }
+  showToast(cards[idx]?.active ? mt('mStampActivate') + ' ?' : mt('mStampPause') + ' ?');
+  renderMerchantStampCards();
+}
+
+function deleteStampCard(id) {
+  DB.saveStampCards(DB.getStampCards().filter(c => c.id !== id));
+  showToast(mt('mStampDelete') + ' ?');
+  renderMerchantStampCards();
+}
+
+function filterStampMembers() {
+  const q = document.getElementById('stamp-member-search').value.toLowerCase();
+  const members = q
+    ? DB.getMembers().filter(m => m.name.toLowerCase().includes(q) || m.phone.includes(q))
+    : DB.getMembers();
+  renderStampMemberList(members);
+}
+
+function renderStampMemberList(members) {
+  const cards = DB.getStampCards();
+  const el    = document.getElementById('stamp-member-list');
+  if (members.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoMembersFound')}</p>`; return; }
+
+  el.innerHTML = members.map(m => {
+    const cardRows = cards.map(card => {
+      const p = getMemberStampProgress(m.id, card.id);
+      const current = p.stamps % card.totalStamps || (p.stamps > 0 && p.stamps % card.totalStamps === 0 ? card.totalStamps : 0);
+      const pct = Math.round((current / card.totalStamps) * 100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:0.76rem">
+        <span>${card.emoji} ${card.name}</span>
+        <div style="flex:1;background:#f0f0f0;border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${pct}%;background:${card.color};height:100%;border-radius:4px"></div>
+        </div>
+        <span style="color:#888;min-width:40px;text-align:right">${current}/${card.totalStamps}</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="stamp-member-row">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <i class="fas fa-user-circle" style="font-size:1.6rem;color:#3949ab"></i>
+          <div><strong style="font-size:0.88rem">${m.name}</strong><br><small style="color:#888">${m.phone}</small></div>
+        </div>
+        ${cards.length > 0 ? cardRows : '<small style="color:#aaa">No stamp cards available</small>'}
+      </div>
+    `;
+  }).join('');
+}
+
+// ---- Customer dash stamp preview ----
+function renderCustomerStampPreview(member) {
+  const el    = document.getElementById('customer-stamp-preview');
+  if (!el) return;
+  const cards = DB.getStampCards().filter(c => c.active);
+  if (cards.length === 0) {
+    el.innerHTML = '<p style="color:#aaa;font-size:0.82rem;text-align:center;padding:8px">No stamp cards available</p>';
+    return;
+  }
+  el.innerHTML = cards.map(card => {
+    const p       = getMemberStampProgress(member.id, card.id);
+    const current = p.stamps % card.totalStamps || (p.stamps > 0 && p.stamps % card.totalStamps === 0 ? card.totalStamps : 0);
+    const pct     = Math.round((current / card.totalStamps) * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5">
+      <div style="font-size:1.6rem">${card.emoji}</div>
+      <div style="flex:1">
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">${card.name}</div>
+        <div style="background:#f0f0f0;border-radius:4px;height:7px;overflow:hidden">
+          <div style="width:${pct}%;background:${card.color};height:100%;border-radius:4px;transition:width 0.5s"></div>
+        </div>
+      </div>
+      <span style="font-size:0.78rem;color:#888;font-weight:600">${current}/${card.totalStamps}</span>
+    </div>`;
+  }).join('');
+}
+
+// ===========================
+// ===== WALLET / TOP-UP SYSTEM =====
+// ===========================
+
+// Bonus rules stored in localStorage for merchant editable config
+function getTopupBonusRules() {
+  const saved = safeLS.get('loyalbrew_topup_bonus_rules');
+  if (saved) return JSON.parse(saved);
+  // Default rules
+  return [
+    { id: 'rule_default1', minAmount: 100, bonusPercent: 20, expiry: '' },
+    { id: 'rule_default2', minAmount: 200, bonusPercent: 25, expiry: '' },
+    { id: 'rule_default3', minAmount: 500, bonusPercent: 30, expiry: '' },
+  ];
+}
+function saveTopupBonusRules(rules) {
+  safeLS.setJSON('loyalbrew_topup_bonus_rules', rules);
+}
+
+function isRuleActive(rule) {
+  if (!rule.expiry) return true;
+  return new Date(rule.expiry) >= new Date(new Date().toDateString());
+}
+
+function getTopupBonus(amount) {
+  const rules = getTopupBonusRules().filter(r => isRuleActive(r));
+  // Sort by minAmount desc to apply highest tier first
+  rules.sort((a, b) => b.minAmount - a.minAmount);
+  for (const rule of rules) {
+    if (amount >= rule.minAmount) return Math.round(amount * rule.bonusPercent / 100);
+  }
+  return 0;
+}
+
+function renderTopupBonusRules() {
+  const el = document.getElementById('topup-bonus-rules-list');
+  if (!el) return;
+  const rules = getTopupBonusRules();
+  if (rules.length === 0) {
+    el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPendingRequests')}</p>`;
+    return;
+  }
+  const today = new Date().toDateString();
+  el.innerHTML = rules.map((rule, idx) => {
+    const active = isRuleActive(rule);
+    const expiryLabel = rule.expiry
+      ? `<span style="color:${active ? '#e65100' : '#aaa'};font-size:0.75rem">${active ? '?' : '?'} ${rule.expiry}</span>`
+      : `<span style="color:#888;font-size:0.75rem">${mt('mNoExpiry')}</span>`;
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${active ? '#f3f4fd' : '#fafafa'};border-radius:10px;margin-bottom:8px;border:1.5px solid ${active ? '#c5cae9' : '#eee'}">
+        <div style="background:${active ? '#3949ab' : '#bbb'};color:#fff;border-radius:8px;padding:4px 10px;font-weight:700;font-size:0.82rem;flex-shrink:0">${mt('mMinAmt')}${rule.minAmount}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:0.85rem">${mt('mBonusPct')}: +${rule.bonusPercent}%</div>
+          ${expiryLabel}
+          ${!active ? `<span style="background:#f44336;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:8px;margin-left:4px">${mt('mExpired')}</span>` : ''}
+        </div>
+        <button onclick="deleteTopupBonusRule('${rule.id}')" style="background:none;border:none;color:#e53935;cursor:pointer;font-size:0.9rem;padding:4px" title="${mt('mDeleteRule')}"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+  }).join('');
+}
+
+function addTopupBonusRule() {
+  const min = parseFloat(document.getElementById('bonus-rule-min').value);
+  const pct = parseFloat(document.getElementById('bonus-rule-pct').value);
+  const expiry = document.getElementById('bonus-rule-expiry').value;
+  if (!min || min < 1 || !pct || pct < 1 || pct > 100) {
+    showToast(mt('mMinTopupAmount') + ' & ' + mt('mBonusPercent') + ' required', 'error');
+    return;
+  }
+  const rules = getTopupBonusRules();
+  rules.push({ id: 'rule_' + Date.now(), minAmount: min, bonusPercent: pct, expiry: expiry || '' });
+  rules.sort((a, b) => a.minAmount - b.minAmount);
+  saveTopupBonusRules(rules);
+  document.getElementById('bonus-rule-min').value = '';
+  document.getElementById('bonus-rule-pct').value = '';
+  document.getElementById('bonus-rule-expiry').value = '';
+  renderTopupBonusRules();
+  renderTopupAmountCards();
+  showToast(mt('mAddRule') + ' ?');
+}
+
+function deleteTopupBonusRule(ruleId) {
+  const rules = getTopupBonusRules().filter(r => r.id !== ruleId);
+  saveTopupBonusRules(rules);
+  renderTopupBonusRules();
+  renderTopupAmountCards();
+  showToast(mt('mDeleteRule') + ' ?');
+}
+
+function getMemberWallet(memberId) {
+  const wallets = DB.getWallets();
+  // Support both array and object formats
+  if (Array.isArray(wallets)) {
+    const w = wallets.find(w => w && w.id === memberId);
+    return w || { id: memberId, balance: 0, totalTopup: 0, totalBonus: 0, memberPhone: '', createdAt: new Date().toISOString() };
+  }
+  return wallets[memberId] || { id: memberId, balance: 0, totalTopup: 0, totalBonus: 0, memberPhone: '', createdAt: new Date().toISOString() };
+}
+
+function saveMemberWallet(memberId, wallet) {
+  let wallets = DB.getWallets();
+  wallet.id = memberId;
+  // Ensure createdAt exists for Firestore rules compliance
+  if (!wallet.createdAt) wallet.createdAt = new Date().toISOString();
+  if (!wallet.memberPhone && wallet.memberPhone !== '') wallet.memberPhone = '';
+  wallet.updatedAt = new Date().toISOString();
+  if (Array.isArray(wallets)) {
+    const idx = wallets.findIndex(w => w && w.id === memberId);
+    if (idx !== -1) { wallets[idx] = wallet; } else { wallets.push(wallet); }
+  } else {
+    wallets[memberId] = wallet;
+  }
+  DB.saveWallets(wallets);
+}
+
+function topupWallet(memberId, payAmount, creditAmount) {
+  const wallet = getMemberWallet(memberId);
+  const bonus = creditAmount - payAmount;
+  wallet.balance += creditAmount;
+  wallet.totalTopup += payAmount;
+  wallet.totalBonus += bonus;
+  saveMemberWallet(memberId, wallet);
+
+  const txns = DB.getWalletTxns();
+  txns.unshift({
+    id: 'wt' + Date.now(),
+    memberId,
+    type: 'topup',
+    payAmount,
+    creditAmount,
+    bonus,
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  DB.saveWalletTxns(txns);
+}
+
+function deductWallet(memberId, amount, note) {
+  const wallet = getMemberWallet(memberId);
+  wallet.balance = Math.max(0, wallet.balance - amount);
+  saveMemberWallet(memberId, wallet);
+
+  const txns = DB.getWalletTxns();
+  txns.unshift({
+    id: 'wt' + Date.now(),
+    memberId,
+    type: 'payment',
+    payAmount: amount,
+    creditAmount: -amount,
+    bonus: 0,
+    note,
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  DB.saveWalletTxns(txns);
+}
+
+// ---- Top Up Page ----
+let _topupPhone = '';
+let _selectedTopupPay = 0;
+let _selectedTopupCredit = 0;
+
+function loadTopupPage() {
+  // Auto-use currentCustomer if already logged in
+  if (currentCustomer) {
+    _topupPhone = currentCustomer.phone;
+    loadTopupContent(currentCustomer);
+    return;
+  }
+  const phone = document.getElementById('topup-phone').value.trim();
+  if (!phone) { showToast(t('enterPhoneToLogin'), 'error'); return; }
+  const member = DB.getMembers().find(m => m.phone === phone);
+  if (!member) { showToast(t('memberNotFound'), 'error'); return; }
+  currentCustomer = member;
+  DB.setCurrentMemberPhone(member.phone);
+  _topupPhone = phone;
+  loadTopupContent(member);
+}
+
+function loadTopupContent(member) {
+  const wallet = getMemberWallet(member.id);
+  document.getElementById('topup-wallet-balance').textContent = wallet.balance.toFixed(2);
+  document.getElementById('topup-wallet-bonus').textContent = 'RM' + wallet.totalBonus.toFixed(2);
+  document.getElementById('topup-member-name-display').textContent = member.name + ' � ' + member.phone;
+  renderWalletTxns(member.id);
+  renderTopupAmountCards();
+  _selectedTopupPay = 0;
+  _selectedTopupCredit = 0;
+  document.getElementById('topup-confirm-btn').style.display = 'none';
+  document.getElementById('topup-selected-preview').classList.add('hidden');
+}
+
+function renderTopupAmountCards() {
+  const grid = document.getElementById('topup-amounts-grid');
+  if (!grid) return;
+  // Fixed preset amounts; bonus is calculated from active rules
+  const presets = [30, 50, 100, 200, 500];
+  const rules = getTopupBonusRules().filter(r => isRuleActive(r));
+  rules.sort((a, b) => b.minAmount - a.minAmount);
+  let bestPreset = null;
+  presets.forEach(amt => {
+    const b = getTopupBonus(amt);
+    if (b > 0 && (!bestPreset || b / amt > getTopupBonus(bestPreset) / bestPreset)) bestPreset = amt;
+  });
+  grid.innerHTML = presets.map(amt => {
+    const bonus = getTopupBonus(amt);
+    const credit = amt + bonus;
+    const isBest = amt === bestPreset && bonus > 0;
+    return `
+      <div class="topup-amount-card${isBest ? ' promo' : ''}" onclick="selectTopupAmount(${amt}, ${credit})" data-amount="${amt}">
+        ${isBest ? `<div class="topup-best-deal">${t('bestDeal')}</div>` : ''}
+        <div class="topup-amount-val">RM${amt}</div>
+        <div class="topup-amount-get">${t('topUpGet')} RM${credit}</div>
+        ${bonus > 0
+          ? `<div class="topup-amount-bonus">+RM${bonus.toFixed(2)} ${t('free')}!</div>`
+          : `<div class="topup-amount-bonus" style="color:#aaa">${t('noBonus')}</div>`}
+      </div>`;
+  }).join('');
+
+  // Render promo banner
+  const banner = document.getElementById('topup-promo-banner-area');
+  if (banner) {
+    const activeRules = rules.filter(r => isRuleActive(r));
+    if (activeRules.length > 0) {
+      const best = activeRules.sort((a, b) => b.bonusPercent - a.bonusPercent)[0];
+      const expiryText = best.expiry ? ` � ${t('mBonusExpiry')}: ${best.expiry}` : '';
+      banner.innerHTML = `
+        <div class="topup-promo-banner">
+          <div class="topup-promo-icon">??</div>
+          <div class="topup-promo-text">
+            <strong>${t('topUpBonusTitle')}</strong>
+            <span>${t('topUpGet')} up to +${best.bonusPercent}% ${t('bonusLabel')}${expiryText}</span>
+          </div>
+        </div>`;
+    } else {
+      banner.innerHTML = '';
+    }
+  }
+}
+
+function selectTopupAmount(payAmt, creditAmt) {
+  _selectedTopupPay = payAmt;
+  _selectedTopupCredit = creditAmt;
+  document.querySelectorAll('.topup-amount-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.topup-amount-card[data-amount="${payAmt}"]`)?.classList.add('selected');
+  showTopupPreview(payAmt, creditAmt);
+}
+
+function applyCustomTopup() {
+  const val = parseFloat(document.getElementById('topup-custom-amount').value);
+  if (!val || val < 10) { showToast(t('minimumTopup'), 'error'); return; }
+  const bonus = getTopupBonus(val);
+  const credit = val + bonus;
+  _selectedTopupPay = val;
+  _selectedTopupCredit = credit;
+  document.querySelectorAll('.topup-amount-card').forEach(c => c.classList.remove('selected'));
+  showTopupPreview(val, credit);
+}
+
+function showTopupPreview(payAmt, creditAmt) {
+  const bonus = creditAmt - payAmt;
+  const preview = document.getElementById('topup-selected-preview');
+  preview.classList.remove('hidden');
+  document.getElementById('topup-pay-amount').textContent = 'RM' + payAmt.toFixed(2);
+  document.getElementById('topup-get-amount').textContent = 'RM' + creditAmt.toFixed(2);
+  document.getElementById('topup-bonus-amount').textContent = '+RM' + bonus.toFixed(2);
+  document.getElementById('topup-confirm-btn').style.display = '';
+}
+
+function confirmTopup() {
+  if (_selectedTopupPay <= 0) { showToast(t('selectTopupAmount'), 'error'); return; }
+  const phone = _topupPhone || (currentCustomer && currentCustomer.phone);
+  if (!phone) { showToast(t('sessionExpired'), 'error'); return; }
+  const member = DB.getMembers().find(m => m.phone === phone);
+  if (!member) { showToast(t('memberNotFoundShort'), 'error'); return; }
+
+  // Submit pending request � merchant must approve before balance is credited
+  const requests = DB.getTopupRequests();
+  requests.unshift({
+    id: 'tr' + Date.now(),
+    memberId: member.id,
+    memberName: member.name,
+    memberPhone: member.phone,
+    payAmount: _selectedTopupPay,
+    creditAmount: _selectedTopupCredit,
+    bonus: _selectedTopupCredit - _selectedTopupPay,
+    status: 'pending',   // pending | approved | rejected
+    merchantId: MERCHANT_DOC_PATH.id,
+    date: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  DB.saveTopupRequests(requests);
+
+  showToast(t('topupSubmitted') || mt('mTopupSubmitted'), 'success');
+
+  // Refresh page
+  loadTopupContent(member);
+  _selectedTopupPay = 0;
+  _selectedTopupCredit = 0;
+  document.getElementById('topup-confirm-btn').style.display = 'none';
+  document.getElementById('topup-selected-preview').classList.add('hidden');
+  document.querySelectorAll('.topup-amount-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('topup-custom-amount').value = '';
+}
+
+function renderWalletTxns(memberId) {
+  const txns = DB.getWalletTxns().filter(t => t.memberId === memberId).slice(0, 20);
+  const pending = DB.getTopupRequests().filter(r => r.memberId === memberId && r.status === 'pending');
+  const rejected = DB.getTopupRequests().filter(r => r.memberId === memberId && r.status === 'rejected');
+  const el = document.getElementById('wallet-txn-list');
+  if (!el) return;
+
+  let html = '';
+
+  // Show pending requests first
+  pending.forEach(r => {
+    const d = new Date(r.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    html += `
+      <div class="wallet-txn-item" style="opacity:0.8">
+        <div class="wallet-txn-icon" style="background:#fff3e0;color:#e65100"><i class="fas fa-clock"></i></div>
+        <div class="wallet-txn-info">
+          <strong>Top Up <span style="background:#fff3e0;color:#e65100;font-size:0.7rem;padding:2px 7px;border-radius:20px;font-weight:700">PENDING</span></strong>
+          <small>${d} � Awaiting merchant approval</small>
+        </div>
+        <div class="wallet-txn-amt" style="color:#e65100">+RM${r.creditAmount.toFixed(2)}</div>
+      </div>`;
+  });
+
+  // Show rejected requests
+  rejected.slice(0, 3).forEach(r => {
+    const d = new Date(r.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    html += `
+      <div class="wallet-txn-item" style="opacity:0.6">
+        <div class="wallet-txn-icon" style="background:#fce4ec;color:#c62828"><i class="fas fa-times"></i></div>
+        <div class="wallet-txn-info">
+          <strong>Top Up <span style="background:#fce4ec;color:#c62828;font-size:0.7rem;padding:2px 7px;border-radius:20px;font-weight:700">REJECTED</span></strong>
+          <small>${d}</small>
+        </div>
+        <div class="wallet-txn-amt" style="color:#c62828">RM${r.payAmount.toFixed(2)}</div>
+      </div>`;
+  });
+
+  if (txns.length === 0 && pending.length === 0 && rejected.length === 0) {
+    el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${t('walletTxnsEmpty')}</p>`;
+    return;
+  }
+
+  // Show approved/completed transactions
+  html += txns.map(t => {
+    const d = new Date(t.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const isTopup = t.type === 'topup';
+    return `
+      <div class="wallet-txn-item">
+        <div class="wallet-txn-icon ${isTopup ? 'topup' : 'payment'}">
+          <i class="fas ${isTopup ? 'fa-plus' : 'fa-minus'}"></i>
+        </div>
+        <div class="wallet-txn-info">
+          <strong>${isTopup ? 'Top Up' : (t.note || 'Payment')}</strong>
+          <small>${d}${isTopup && t.bonus > 0 ? ` � +RM${t.bonus.toFixed(2)} bonus` : ''}</small>
+        </div>
+        <div class="wallet-txn-amt ${isTopup ? 'green' : 'red'}">
+          ${isTopup ? '+' : '-'}RM${Math.abs(t.creditAmount).toFixed(2)}
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = html;
+}
+
+function renderCustomerWallet(member) {
+  const el = document.getElementById('customer-wallet-display');
+  if (!el) return;
+  const wallet = getMemberWallet(member.id);
+  el.innerHTML = `
+    <div class="wallet-dash-card">
+      <div class="wallet-dash-balance">
+        <span class="wallet-dash-label">${t('availableBalance')}</span>
+        <span class="wallet-dash-amount">RM ${wallet.balance.toFixed(2)}</span>
+      </div>
+      <div class="wallet-dash-stats">
+        <div><small>${t('totalToppedUp')}</small><strong>RM${wallet.totalTopup.toFixed(2)}</strong></div>
+        <div><small>${t('totalBonusEarned')}</small><strong style="color:#2e7d32">RM${wallet.totalBonus.toFixed(2)}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Merchant Top-Up Management ----
+function renderTopupPendingRequests() {
+  const requests = DB.getTopupRequests().filter(r => r.status === 'pending');
+  const el = document.getElementById('topup-pending-list');
+  const badge = document.getElementById('topup-pending-badge');
+  if (!el) return;
+  if (badge) badge.textContent = requests.length > 0 ? requests.length : '';
+  if (requests.length === 0) {
+    el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPendingRequests')}</p>`;
+    return;
+  }
+  el.innerHTML = requests.map(r => {
+    const d = new Date(r.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="member-row" style="flex-wrap:wrap;gap:8px">
+        <i class="fas fa-user-circle" style="font-size:2rem;color:#e65100;flex-shrink:0"></i>
+        <div class="member-row-info" style="flex:1">
+          <strong>${escHtml(r.memberName)}</strong>
+          <span>${r.memberPhone} � ${d}</span>
+          <span style="color:#1b5e20;font-weight:600">Pay RM${r.payAmount.toFixed(2)} ? Get RM${r.creditAmount.toFixed(2)}${r.bonus > 0 ? ` (+RM${r.bonus.toFixed(2)} bonus)` : ''}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm" style="background:#2e7d32;color:white" onclick="approveTopup('${escJs(r.id)}')"><i class="fas fa-check"></i> ${mt('mApprove')}</button>
+          <button class="btn-sm" style="background:#c62828;color:white" onclick="rejectTopup('${escJs(r.id)}')"><i class="fas fa-times"></i> ${mt('mReject')}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function approveTopup(requestId) {
+  const requests = DB.getTopupRequests();
+  const req = requests.find(r => r.id === requestId);
+  if (!req || req.status !== 'pending') return;
+  req.status = 'approved';
+  req.approvedDate = new Date().toISOString();
+  DB.saveTopupRequests(requests);
+  // Credit the wallet
+  topupWallet(req.memberId, req.payAmount, req.creditAmount);
+  showToast(`? ${mt('mTopupApproved')} RM${req.creditAmount.toFixed(2)} � ${req.memberName}`, 'success');
+  initTopupMgmtTab();
+}
+
+function rejectTopup(requestId) {
+  const requests = DB.getTopupRequests();
+  const req = requests.find(r => r.id === requestId);
+  if (!req || req.status !== 'pending') return;
+  req.status = 'rejected';
+  req.rejectedDate = new Date().toISOString();
+  DB.saveTopupRequests(requests);
+  showToast(`${mt('mTopupRejected')} � ${req.memberName}`, 'info');
+  initTopupMgmtTab();
+}
+
+function initTopupMgmtTab() {
+  renderTopupPendingRequests();
+  filterTopupMembers();
+  renderTopupHistory();
+  renderTopupBonusRules();
+}
+
+function filterTopupMembers() {
+  const q = (document.getElementById('topup-member-search')?.value || '').toLowerCase();
+  const members = q
+    ? DB.getMembers().filter(m => m.name.toLowerCase().includes(q) || m.phone.includes(q))
+    : DB.getMembers();
+  const el = document.getElementById('topup-member-list');
+  if (!el) return;
+  if (members.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoMembersFound')}</p>`; return; }
+  el.innerHTML = members.map(m => {
+    const w = getMemberWallet(m.id);
+    return `
+      <div class="member-row">
+        <i class="fas fa-user-circle" style="font-size:2rem;color:#3949ab;flex-shrink:0"></i>
+        <div class="member-row-info"><strong>${m.name}</strong><span>${m.phone}</span></div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:#1b5e20;font-size:0.9rem">RM${w.balance.toFixed(2)}</div>
+          <small style="color:#888">${mt('mBalance')}</small>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTopupHistory() {
+  const txns = DB.getWalletTxns().filter(t => t.type === 'topup').slice(0, 30);
+  const members = DB.getMembers();
+  const el = document.getElementById('topup-history-list');
+  if (!el) return;
+  if (txns.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoTopupHistory')}</p>`; return; }
+  el.innerHTML = txns.map(t => {
+    const m = members.find(mb => mb.id === t.memberId);
+    const d = new Date(t.date).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="txn-item">
+        <div class="txn-icon earn"><i class="fas fa-wallet"></i></div>
+        <div class="txn-details">
+          <strong>${m ? m.name : 'Unknown'} � Top Up RM${t.payAmount.toFixed(2)}</strong>
+          <span>${d}${t.bonus > 0 ? ` � Bonus: +RM${t.bonus.toFixed(2)}` : ''}</span>
+        </div>
+        <div class="txn-pts earn">+RM${t.creditAmount.toFixed(2)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===========================
+// ===== COMPLAINT SYSTEM =====
+// ===========================
+
+const COMPLAINT_CATEGORIES = {
+  food_quality: '??? Food Quality',
+  service: '?? Service',
+  cleanliness: '?? Cleanliness',
+  waiting_time: '?? Waiting Time',
+  wrong_order: '? Wrong Order',
+  pricing: '?? Pricing Issue',
+  other: '?? Other',
+};
+
+let _complaintPhotoData = null;
+let _activeComplaintFilter = 'all';
+let _currentComplaintId = null;
+let _myOrdersFilter = 'all';
+
+function loadComplaintPage() {
+  // Auto-use currentCustomer if already logged in
+  if (currentCustomer) {
+    renderMyComplaints(currentCustomer.id);
+    return;
+  }
+  const phone = document.getElementById('complaint-phone').value.trim();
+  if (!phone) { showToast(t('enterPhoneToLogin'), 'error'); return; }
+  const member = DB.getMembers().find(m => m.phone === phone);
+  if (!member) { showToast(t('memberNotFoundShort'), 'error'); return; }
+  currentCustomer = member;
+  DB.setCurrentMemberPhone(member.phone);
+  renderMyComplaints(member.id);
+}
+
+function goBackFromComplaint() {
+  if (currentCustomer) showPage('page-customer');
+  else showPage('page-landing');
+}
+
+function handleComplaintPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast(t('photoUnder5MB'), 'error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _complaintPhotoData = e.target.result;
+    const preview = document.getElementById('complaint-photo-preview');
+    preview.classList.remove('hidden');
+    preview.innerHTML = `
+      <div class="complaint-photo-thumb-wrap">
+        <img src="${_complaintPhotoData}" class="complaint-photo-thumb" alt="Complaint photo" />
+        <button class="complaint-photo-remove" onclick="removeComplaintPhoto()"><i class="fas fa-times"></i></button>
+      </div>
+    `;
+    document.getElementById('complaint-photo-drop').innerHTML = `<i class="fas fa-check-circle" style="color:#2e7d32"></i><span>Photo uploaded</span><small>Tap to change</small>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeComplaintPhoto() {
+  _complaintPhotoData = null;
+  document.getElementById('complaint-photo-preview').classList.add('hidden');
+  document.getElementById('complaint-photo-preview').innerHTML = '';
+  document.getElementById('complaint-photo-input').value = '';
+  document.getElementById('complaint-photo-drop').innerHTML = `<i class="fas fa-cloud-upload-alt"></i><span>Tap to upload photo</span><small>JPG, PNG up to 5MB</small>`;
+}
+
+async function submitComplaint() {
+  if (!currentCustomer) { showToast(t('pleaseLoginFirst'), 'error'); return; }
+  const category = document.getElementById('complaint-category').value;
+  const desc = document.getElementById('complaint-desc').value.trim();
+  const orderId = document.getElementById('complaint-order-id').value.trim();
+  if (!desc) { showToast(t('pleaseDescribeIssue'), 'error'); return; }
+
+  const complaintId = 'CPL' + Date.now().toString().slice(-6);
+  const merchantId = MERCHANT_DOC_PATH.id;
+  const complaint = {
+    id: complaintId,
+    merchantId: merchantId,
+    memberId: currentCustomer.id,
+    memberName: currentCustomer.name,
+    memberPhone: currentCustomer.phone,
+    category,
+    description: desc,
+    photoData: _complaintPhotoData || null,
+    orderId: orderId || null,
+    status: 'open',
+    response: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Save to Firestore (cloud) for merchant to see
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      await fb.setDoc(fb.doc(fb.db, 'complaints', complaintId), complaint);
+      console.log('[submitComplaint] ? Saved to Firestore:', complaintId);
+    } catch(e) {
+      console.error('[submitComplaint] Firestore save failed:', e);
+      // Fallback: save to localStorage
+      const complaints = DB.getComplaints();
+      complaints.unshift(complaint);
+      DB.saveComplaints(complaints);
+      console.log('[submitComplaint] Fallback: saved to localStorage');
+    }
+  } else {
+    // No Firebase: save to localStorage
+    const complaints = DB.getComplaints();
+    complaints.unshift(complaint);
+    DB.saveComplaints(complaints);
+    console.log('[submitComplaint] No Firebase: saved to localStorage');
+  }
+
+  // Reset form
+  document.getElementById('complaint-desc').value = '';
+  document.getElementById('complaint-order-id').value = '';
+  removeComplaintPhoto();
+  showToast(t('complaintSubmitted') || '? Complaint submitted! We\'ll get back to you soon.');
+  renderMyComplaints(currentCustomer.id);
+}
+
+async function renderMyComplaints(memberId) {
+  let complaints = [];
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      // Query all complaints and filter by memberId (client-side filter)
+      const snap = await fb.getDocs(fb.collection(fb.db, 'complaints'));
+      complaints = snap.docs.map(d => d.data()).filter(c => c.memberId === memberId);
+      complaints.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch(e) {
+      console.error('[renderMyComplaints] Firestore read failed:', e);
+      complaints = DB.getComplaints().filter(c => c.memberId === memberId);
+    }
+  } else {
+    complaints = DB.getComplaints().filter(c => c.memberId === memberId);
+  }
+  const el = document.getElementById('my-complaints-list');
+  if (!el) return;
+  if (complaints.length === 0) { el.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">' + t('noComplaintsYet') + '</p>'; return; }
+  el.innerHTML = complaints.map(c => {
+    const statusColors = { open: '#e65100', in_progress: '#1565c0', resolved: '#2e7d32' };
+    const statusLabels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved ?' };
+    const d = new Date(c.createdAt).toLocaleDateString('en-MY', { month: 'short', day: 'numeric' });
+    const clickHandler = `onclick=\"openCustomerComplaintDetail('${c.id}')\" style='cursor:pointer'`;
+    return `
+      <div class="complaint-card" ${clickHandler}>
+        <div class="complaint-card-header">
+          <span class="complaint-cat-badge">${escHtml(COMPLAINT_CATEGORIES[c.category] || c.category || '')}</span>
+          <span class="complaint-status-badge" style="color:${statusColors[c.status]}">${statusLabels[c.status] || escHtml(c.status || '')}</span>
+        </div>
+        <p style="font-size:0.84rem;color:#555;margin:6px 0;line-height:1.5">${escHtml(c.description.length > 100 ? c.description.slice(0, 100) + '...' : c.description)}</p>
+        ${c.photoData ? `<div style="margin:6px 0"><img src="${c.photoData}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:2px solid #eee" /></div>` : ''}
+        ${c.response ? `<div class="complaint-response-box" style="background:#e8f5e9;border-left:3px solid #2e7d32;padding:8px 10px;border-radius:6px;margin-top:6px;font-size:0.82rem;color:#2e7d32;word-break:break-all;overflow-wrap:break-word;max-width:100%;box-sizing:border-box"><i class="fas fa-check-circle"></i> <strong>${t('merchantReplied') || 'Merchant replied'}:</strong> ${escHtml(c.response.length > 80 ? c.response.slice(0,80) + '...' : c.response)} <span style="color:#1565c0;font-size:0.72rem;white-space:nowrap">(${t('tapToView') || 'Tap to view'})</span></div>` : ''}
+        <div style="font-size:0.72rem;color:#aaa;margin-top:6px;display:flex;align-items:center;gap:4px">${d} � #${escHtml(c.id)} <i class="fas fa-chevron-right" style="margin-left:auto;color:#bbb;font-size:0.65rem"></i></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ---- Customer Complaint Detail (tap to view full detail + merchant response) ----
+async function openCustomerComplaintDetail(complaintId) {
+  let complaint = null;
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      const snap = await fb.getDoc(fb.doc(fb.db, 'complaints', complaintId));
+      if (snap.exists()) complaint = snap.data();
+    } catch(e) {
+      console.error('[openCustomerComplaintDetail] Firestore read failed:', e);
+    }
+  }
+  if (!complaint) {
+    const all = DB.getComplaints();
+    complaint = all.find(c => c.id === complaintId);
+  }
+  if (!complaint) { showToast('Complaint not found', 'error'); return; }
+
+  const statusColors = { open: '#e65100', in_progress: '#1565c0', resolved: '#2e7d32' };
+  const statusLabels = { open: t('statusOpen') || 'Open', in_progress: t('statusInProgress') || 'In Progress', resolved: t('statusResolved') || 'Resolved' };
+  const statusColor = statusColors[complaint.status] || '#888';
+  const statusLabel = statusLabels[complaint.status] || complaint.status;
+  const d = new Date(complaint.createdAt).toLocaleDateString('en-MY', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const updatedD = complaint.updatedAt ? new Date(complaint.updatedAt).toLocaleDateString('en-MY', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+  document.getElementById('complaint-detail-content').innerHTML = `
+    <div style="margin-bottom:12px">
+      <span style="display:inline-block;background:${statusColor};color:#fff;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:600">${escHtml(statusLabel)}</span>
+    </div>
+    <p><strong>${t('detailCategory') || 'Category'}:</strong> ${escHtml(COMPLAINT_CATEGORIES[complaint.category] || complaint.category || '')}</p>
+    <p><strong>${t('detailDescription') || 'Description'}:</strong></p>
+    <div style="background:#f5f5f5;padding:10px 12px;border-radius:8px;font-size:0.88rem;color:#333;line-height:1.6;margin-bottom:10px">${escHtml(complaint.description)}</div>
+    ${complaint.photoData ? `<p><strong>${t('detailPhoto') || 'Photo'}:</strong></p><div style="margin-top:6px"><img src="${complaint.photoData}" style="max-width:100%;max-height:250px;border-radius:10px;border:2px solid #eee;object-fit:contain" /></div>` : ''}
+    ${complaint.orderId ? `<p><strong>${t('detailOrderId') || 'Order ID'}:</strong> #${escHtml(complaint.orderId)}</p>` : ''}
+    <p style="font-size:0.78rem;color:#888;margin-top:4px">${t('detailSubmitted') || 'Submitted'}: ${d}</p>
+    ${updatedD ? `<p style="font-size:0.78rem;color:#888">${t('detailUpdated') || 'Last Updated'}: ${updatedD}</p>` : ''}
+    ${complaint.response ? `
+      <div style="margin-top:14px;padding:14px;background:linear-gradient(135deg,#e8f5e9 0%,#f1f8e9 100%);border-left:4px solid #2e7d32;border-radius:0 10px 10px 0">
+        <h4 style="color:#2e7d32;margin:0 0 8px;font-size:0.92rem"><i class="fas fa-reply"></i> ${t('merchantResponseTitle') || 'Merchant Response'}</h4>
+        <div style="font-size:0.88rem;color:#333;line-height:1.6;white-space:pre-wrap;word-break:break-all;overflow-wrap:break-word">${escHtml(complaint.response)}</div>
+        ${complaint.responseAt ? `<p style="font-size:0.72rem;color:#2e7d32;margin-top:8px;margin-bottom:0"><i class="fas fa-clock"></i> ${new Date(complaint.responseAt).toLocaleDateString('en-MY', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' })}</p>` : ''}
+      </div>
+    ` : `
+      <div style="margin-top:14px;padding:12px;background:#fff8e1;border-left:4px solid #f9a825;border-radius:0 10px 10px 0;font-size:0.84rem;color:#888">
+        <i class="fas fa-clock" style="color:#f9a825"></i> ${t('noResponseYet') || 'The merchant has not responded yet. Please check back later.'}
+      </div>
+    `}
+  `;
+
+  const titleEl = document.querySelector('#complaint-detail-modal h3');
+  if (titleEl) titleEl.textContent = t('myComplaintDetail') || 'My Complaint Detail';
+
+  document.getElementById('complaint-detail-modal').classList.remove('hidden');
+}
+
+// ---- Merchant Complaint Management ----
+function initComplaintsMgmtTab() {
+  renderMerchantComplaints();
+}
+
+function filterComplaints(status, btn) {
+  _activeComplaintFilter = status;
+  document.querySelectorAll('#tab-complaints .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMerchantComplaints();
+}
+
+async function renderMerchantComplaints() {
+  let complaints = [];
+  const merchantId = MERCHANT_DOC_PATH.id;
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      const q = fb.query(fb.collection(fb.db, 'complaints'), fb.where('merchantId', '==', merchantId));
+      const snap = await fb.getDocs(q);
+      complaints = snap.docs.map(d => d.data());
+      complaints.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch(e) {
+      console.error('[renderMerchantComplaints] Firestore read failed:', e);
+      complaints = DB.getComplaints().filter(c => c.merchantId === merchantId);
+    }
+  } else {
+    complaints = DB.getComplaints().filter(c => c.merchantId === merchantId);
+  }
+  if (_activeComplaintFilter !== 'all') {
+    complaints = complaints.filter(c => c.status === _activeComplaintFilter);
+  }
+  const el = document.getElementById('merchant-complaints-list');
+  if (!el) return;
+  if (complaints.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoComplaintsFound')}</p>`; return; }
+  el.innerHTML = complaints.map(c => {
+    const statusColors = { open: '#e65100', in_progress: '#1565c0', resolved: '#2e7d32' };
+    const statusLabels = { open: mt('mComplaintOpen'), in_progress: mt('mComplaintInProgress'), resolved: mt('mComplaintResolved') };
+    const d = new Date(c.createdAt).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="complaint-mgmt-card" onclick="openComplaintDetail('${c.id}')">
+        <div class="complaint-card-header">
+          <span class="complaint-cat-badge">${escHtml(COMPLAINT_CATEGORIES[c.category] || c.category || '')}</span>
+          <span class="complaint-status-badge" style="color:${statusColors[c.status]}">${statusLabels[c.status] || escHtml(c.status || '')}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:0.82rem">
+          <i class="fas fa-user" style="color:#3949ab"></i>
+          <strong>${escHtml(c.memberName || '')}</strong><span style="color:#888">${escHtml(c.memberPhone || '')}</span>
+        </div>
+        <p style="font-size:0.82rem;color:#555;line-height:1.5">${escHtml(c.description.length > 80 ? c.description.slice(0, 80) + '...' : c.description)}</p>
+        ${c.photoData ? `<div style="margin:6px 0;font-size:0.76rem;color:#1565c0"><i class="fas fa-image"></i> ${mt('mComplaintNoPhoto')}</div>` : ''}
+        <div style="font-size:0.72rem;color:#aaa;margin-top:6px">${d} � #${escHtml(c.id)}${c.orderId ? ` � Order #${escHtml(c.orderId)}` : ''}</div>
+      </div>
+    `;
+  }).join('');
+  
+  // Also update merchant ID display
+  const midEl = document.getElementById('merchant-complaints-mid');
+  if (midEl) midEl.textContent = merchantId;
+  
+  // Set up real-time listener for live updates
+  if (fb && fb.db && window.__complaintUnsub) {
+    window.__complaintUnsub(); // unsubscribe old listener
+  }
+  if (fb && fb.db) {
+    try {
+      const _cq = fb.query(fb.collection(fb.db, 'complaints'), fb.where('merchantId', '==', merchantId));
+      window.__complaintUnsub = fb.onSnapshot(_cq, (snap) => {
+        const mine = snap.docs.map(d => d.data());
+        if (mine.length !== complaints.length || 
+            (mine.length > 0 && mine[0].id !== complaints[0]?.id)) {
+          console.log('[renderMerchantComplaints] ?? Live update detected, refreshing...');
+          renderMerchantComplaints(); // refresh the list
+        }
+      });
+    } catch(e) {
+      console.error('[renderMerchantComplaints] Live listener failed:', e);
+    }
+  }
+}
+
+async function openComplaintDetail(complaintId) {
+  let complaint = null;
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      const snap = await fb.getDoc(fb.doc(fb.db, 'complaints', complaintId));
+      if (snap.exists()) complaint = snap.data();
+    } catch(e) {
+      console.error('[openComplaintDetail] Firestore read failed:', e);
+      complaint = DB.getComplaints().find(c => c.id === complaintId);
+    }
+  } else {
+    complaint = DB.getComplaints().find(c => c.id === complaintId);
+  }
+  if (!complaint) return;
+  _currentComplaintId = complaintId;
+  const statusLabels = { open: mt('mComplaintOpen'), in_progress: mt('mComplaintInProgress'), resolved: mt('mComplaintResolved') };
+  document.getElementById('complaint-detail-content').innerHTML = `
+    <div style="background:#f9f9f9;border-radius:10px;padding:12px;font-size:0.84rem">
+      <p><strong>${mt('mDetailCustomer')}:</strong> ${escHtml(complaint.memberName || '')} (${escHtml(complaint.memberPhone || '')})</p>
+      <p><strong>${mt('mDetailCategory')}:</strong> ${escHtml(COMPLAINT_CATEGORIES[complaint.category] || complaint.category || '')}</p>
+      <p><strong>${mt('mDetailStatus')}:</strong> <span style="font-weight:700">${statusLabels[complaint.status] || escHtml(complaint.status || '')}</span></p>
+      ${complaint.orderId ? `<p><strong>${mt('mDetailOrder')}:</strong> #${escHtml(complaint.orderId)}</p>` : ''}
+      <p><strong>${mt('mDetailDate')}:</strong> ${new Date(complaint.createdAt).toLocaleString('en-MY')}</p>
+      <p style="margin-top:8px;border-top:1px solid #eee;padding-top:8px">${escHtml(complaint.description || '')}</p>
+      ${complaint.photoData ? `<img src="${complaint.photoData}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid #eee" />` : ''}
+      ${complaint.response ? `<div class="complaint-response-box" style="margin-top:8px"><i class="fas fa-reply"></i> ${mt('mDetailPrevResponse')}: <em>${escHtml(complaint.response)}</em></div>` : ''}
+    </div>
+  `;
+  document.getElementById('complaint-response-text').value = complaint.response || '';
+  document.getElementById('complaint-detail-modal').classList.remove('hidden');
+}
+
+async function resolveComplaint() {
+  if (!_currentComplaintId) return;
+  const response = document.getElementById('complaint-response-text').value.trim();
+  const fb = window.__lbFirebase;
+  if (fb && fb.db) {
+    try {
+      await fb.updateDoc(fb.doc(fb.db, 'complaints', _currentComplaintId), {
+        status: 'resolved',
+        response: response,
+        updatedAt: new Date().toISOString()
+      });
+      console.log('[resolveComplaint] ? Updated in Firestore');
+    } catch(e) {
+      console.error('[resolveComplaint] Firestore update failed:', e);
+      // Fallback: update localStorage
+      const complaints = DB.getComplaints();
+      const idx = complaints.findIndex(c => c.id === _currentComplaintId);
+      if (idx !== -1) {
+        complaints[idx].status = 'resolved';
+        complaints[idx].response = response;
+        complaints[idx].updatedAt = new Date().toISOString();
+        DB.saveComplaints(complaints);
+      }
+    }
+  } else {
+    const complaints = DB.getComplaints();
+    const idx = complaints.findIndex(c => c.id === _currentComplaintId);
+    if (idx !== -1) {
+      complaints[idx].status = 'resolved';
+      complaints[idx].response = response;
+      complaints[idx].updatedAt = new Date().toISOString();
+      DB.saveComplaints(complaints);
+    }
+  }
+  closeComplaintModal();
+  showToast('? ' + mt('mComplaintResolved'));
+  renderMerchantComplaints();
+}
+
+function closeComplaintModal() {
+  document.getElementById('complaint-detail-modal').classList.add('hidden');
+  _currentComplaintId = null;
+}
+
+// ===========================
+// ===== MY ORDERS SYSTEM =====
+// ===========================
+
+function renderMyOrders(member, filter) {
+  const useFilter = filter || _myOrdersFilter;
+  let orders = DB.getOrders().filter(o =>
+    o.memberId === member.id ||
+    (o.memberPhone && o.memberPhone === member.phone)
+  );
+  if (useFilter !== 'all') orders = orders.filter(o => o.status === useFilter);
+
+  const el = document.getElementById('my-orders-list');
+  if (!el) return;
+
+  if (orders.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:#aaa">
+      <i class="fas fa-receipt" style="font-size:2.5rem;margin-bottom:12px;display:block"></i>
+      <p>No orders found</p>
+    </div>`;
+    return;
+  }
+
+  const statusColors = { pending: '#ff9800', preparing: '#1565c0', done: '#2e7d32' };
+  const statusLabels = { pending: '? Pending', preparing: '?? Preparing', done: '? Done' };
+
+  el.innerHTML = orders.map(o => {
+    const d = new Date(o.createdAt).toLocaleDateString('en-MY', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const typeTag = o.orderType === 'takeaway'
+      ? `<span style="color:#2e7d32;font-size:0.74rem"><i class="fas fa-shopping-bag"></i> Takeaway</span>`
+      : `<span style="color:#8B4513;font-size:0.74rem"><i class="fas fa-chair"></i> Table ${o.tableNo}</span>`;
+    
+    // Determine which action button to show
+    const isCashOrder = o.paymentMethod === 'cash';
+    const notYetConfirmed = !o.cashPaidAt;
+    const showNotifyBtn = isCashOrder && o.status === 'pending' && notYetConfirmed;
+    const showCompleteBtn = o.status === 'preparing';
+    
+    let actionButtons = '';
+    if (showNotifyBtn) {
+      actionButtons = `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e0e0e0">
+          <button 
+            style="width:100%;padding:10px;background:linear-gradient(135deg, #ff9800, #f57c00);color:white;border:none;border-radius:10px;font-weight:600;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"
+            onclick="event.stopPropagation(); confirmCashPaidFromList('${o.id}')">
+            <i class="fas fa-bell"></i> ${t('cashPaidBtn')}
+          </button>
+        </div>
+      `;
+    } else if (showCompleteBtn) {
+      actionButtons = `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e0e0e0">
+          <button 
+            style="width:100%;padding:10px;background:linear-gradient(135deg, #4caf50, #388e3c);color:white;border:none;border-radius:10px;font-weight:600;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"
+            onclick="event.stopPropagation(); confirmOrderReceived('${o.id}')">
+            <i class="fas fa-check-double"></i> ${t('confirmReceivedBtn')}
+          </button>
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="my-order-card" onclick="openOrderDetail('${o.id}')" style="cursor:pointer">
+        <div class="my-order-header">
+          <strong>#${o.id}</strong>
+          <span class="complaint-status-badge" style="color:${statusColors[o.status]}">${statusLabels[o.status] || o.status}</span>
+        </div>
+        <div style="margin:4px 0">${typeTag}</div>
+        <div style="font-size:0.8rem;color:#555;margin:4px 0">${o.items.map(i => `${i.qty}� ${i.name}`).join(' � ')}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <span style="font-size:0.75rem;color:#888">${d}</span>
+          <span style="font-weight:700;color:#8B4513;font-size:0.95rem">RM${o.total.toFixed(2)}</span>
+        </div>
+        ${o.walletDeduct > 0 ? `<div style="font-size:0.72rem;color:#2e7d32;margin-top:4px"><i class="fas fa-wallet"></i> Wallet paid: RM${o.walletDeduct.toFixed(2)}</div>` : ''}
+        ${actionButtons}
+      </div>
+    `;
+  }).join('');
+}
+
+function filterMyOrders(status, btn) {
+  _myOrdersFilter = status;
+  document.querySelectorAll('#my-orders-content .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (currentCustomer) renderMyOrders(currentCustomer);
+}
+
+function openOrderDetail(orderId) {
+  const order = DB.getOrders().find(o => o.id === orderId);
+  if (!order) return;
+  const statusLabels = { pending: '? Pending', preparing: '?? Preparing', done: '? Done' };
+  const d = new Date(order.createdAt).toLocaleString('en-MY');
+  
+  // Check if should show cash payment button (cash order, still pending, not yet confirmed)
+  const isCashOrder = order.paymentMethod === 'cash';
+  const isPending = order.status === 'pending';
+  const notYetConfirmed = !order.cashPaidAt;
+  const showCashBtn = isCashOrder && isPending && notYetConfirmed;
+  
+  document.getElementById('order-detail-content').innerHTML = `
+    <div style="background:#f9f9f9;border-radius:10px;padding:12px;margin-bottom:10px">
+      <p><strong>Order ID:</strong> #${order.id}</p>
+      <p><strong>Status:</strong> ${statusLabels[order.status] || order.status}</p>
+      <p><strong>Type:</strong> ${order.orderType === 'takeaway' ? '??? Takeaway' : `?? Dine In (Table ${order.tableNo})`}</p>
+      <p><strong>Date:</strong> ${d}</p>
+      ${order.paymentMethod ? `<p><strong>Payment:</strong> ${order.paymentMethod === 'cash' ? '?? Cash' : order.paymentMethod === 'tng' ? '?? Touch & Go' : '?? Bank Transfer'}</p>` : ''}
+    </div>
+    ${showCashBtn ? `
+      <div id="cash-pay-confirm-box" data-order-id="${order.id}" style="margin-bottom:12px">
+        <div class="cash-pay-banner" style="background:#fff3e0;border:2px solid #ff9800;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+          <i class="fas fa-money-bill-wave" style="color:#ff9800;font-size:1.5rem"></i>
+          <div style="flex:1">
+            <strong id="cash-pay-amount-label" style="color:#e65100;font-size:0.95rem">Total: RM${order.total.toFixed(2)}</strong>
+            <div style="font-size:0.75rem;color:#666">Please pay at the counter, then tap the button below.</div>
+          </div>
+        </div>
+        <button class="cash-paid-btn" id="cash-paid-btn" onclick="confirmCashPaidFromDetail('${order.id}')" style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg, #ff9800, #f57c00);color:white;border:none;border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          <i class="fas fa-check-circle"></i> ${t('cashPaidBtn')}
+        </button>
+      </div>
+    ` : ''}
+    ${order.cashPaidAt && order.status === 'preparing' ? `
+      <div id="cash-paid-done" style="text-align:center;padding:12px;background:#e8f5e9;border-radius:12px;color:#2e7d32;font-weight:600;font-size:0.9rem;margin-bottom:12px">
+        <i class="fas fa-check-circle"></i> ${t('cashPaidDone')}
+      </div>
+      <button onclick="confirmOrderReceivedFromDetail('${order.id}')" 
+        style="width:100%;padding:12px;background:linear-gradient(135deg, #4caf50, #388e3c);color:white;border:none;border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">
+        <i class="fas fa-check-double"></i> ${t('confirmReceivedBtn')}
+      </button>
+    ` : ''}
+    ${order.status === 'done' ? `
+      <div style="text-align:center;padding:12px;background:#e8f5e9;border-radius:12px;color:#2e7d32;font-weight:600;font-size:0.9rem;margin-bottom:12px">
+        <i class="fas fa-flag-checkered"></i> ${t('orderCompletedTitle')}
+      </div>
+    ` : ''}
+    <div style="margin-bottom:10px">
+      <strong style="font-size:0.84rem;color:#333">Items Ordered:</strong>
+      ${order.items.map(i => `
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:0.83rem">
+          <span>${i.emoji} ${i.qty}� ${i.name}</span>
+          <span style="font-weight:600">RM${(i.price*i.qty).toFixed(2)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="background:#fff9f5;border-radius:8px;padding:10px;font-size:0.84rem">
+      <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Subtotal</span><span>RM${order.subtotal.toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0"><span>SST (6%)</span><span>RM${order.tax.toFixed(2)}</span></div>
+      ${order.walletDeduct > 0 ? `<div style="display:flex;justify-content:space-between;padding:3px 0;color:#2e7d32"><span><i class="fas fa-wallet"></i> Wallet</span><span>-RM${order.walletDeduct.toFixed(2)}</span></div>` : ''}
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-weight:700;border-top:2px solid #f0e0d0;margin-top:4px"><span>Total</span><span>RM${order.total.toFixed(2)}</span></div>
+      ${order.pointsEarned > 0 ? `<div style="color:#2e7d32;font-size:0.78rem;margin-top:4px"><i class="fas fa-star"></i> Earned ${order.pointsEarned} points</div>` : ''}
+    </div>
+    ${order.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:#666"><i class="fas fa-comment"></i> <em>${order.notes}</em></div>` : ''}
+  `;
+  document.getElementById('order-detail-modal').classList.remove('hidden');
+}
+
+function renderCustomerOrdersPreview(member) {
+  const el = document.getElementById('customer-orders-preview');
+  if (!el) return;
+  const orders = DB.getOrders().filter(o =>
+    o.memberId === member.id || (o.memberPhone && o.memberPhone === member.phone)
+  ).slice(0, 3);
+
+  if (orders.length === 0) {
+    el.innerHTML = `<p style="color:#aaa;font-size:0.82rem;text-align:center;padding:8px">${t('myOrdersNoOrdersYet')}</p>`;
+    return;
+  }
+  const statusColors = { pending: '#ff9800', preparing: '#1565c0', done: '#2e7d32' };
+  el.innerHTML = orders.map(o => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;cursor:pointer" onclick="openOrderDetail('${o.id}')">
+      <div>
+        <div style="font-size:0.84rem;font-weight:600">#${o.id}</div>
+        <div style="font-size:0.74rem;color:#888">${o.items.length} item${o.items.length > 1 ? 's' : ''} � ${new Date(o.createdAt).toLocaleDateString('en-MY',{month:'short',day:'numeric'})}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;font-size:0.88rem;color:#8B4513">RM${o.total.toFixed(2)}</div>
+        <div style="font-size:0.72rem;color:${statusColors[o.status]};font-weight:600">${o.status}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===========================
+let kitchenFilter = 'pending';
+let _kitchenTimer = null;
+let _kitchenCountdown = 30;
+
+function startKitchenAutoRefresh() {
+  stopKitchenAutoRefresh();
+  _kitchenCountdown = 30;
+  updateKitchenCountdown();
+  _kitchenTimer = setInterval(() => {
+    _kitchenCountdown--;
+    updateKitchenCountdown();
+    if (_kitchenCountdown <= 0) {
+      _kitchenCountdown = 30;
+      loadKitchenOrders();
+    }
+  }, 1000);
+}
+
+function stopKitchenAutoRefresh() {
+  if (_kitchenTimer) { clearInterval(_kitchenTimer); _kitchenTimer = null; }
+}
+
+function updateKitchenCountdown() {
+  const txt = document.getElementById('kitchen-countdown-text');
+  const icon = document.getElementById('kitchen-sync-icon');
+  if (txt) txt.textContent = _kitchenCountdown + 's';
+  if (icon) {
+    if (_kitchenCountdown <= 5) {
+      icon.style.animation = 'spin 0.5s linear infinite';
+    } else {
+      icon.style.animation = '';
+    }
+  }
+}
+
+function kitchenManualRefresh() {
+  _kitchenCountdown = 30;
+  updateKitchenCountdown();
+  loadKitchenOrders();
+  showToast(mt('mRefreshed') || 'Refreshed!');
+}
+
+function loadKitchenOrders() {
+  const orders = DB.getOrders();
+  const pending   = orders.filter(o => o.status === 'pending').length;
+  const preparing = orders.filter(o => o.status === 'preparing').length;
+  document.getElementById('k-pending-count').textContent   = pending;
+  document.getElementById('k-preparing-count').textContent = preparing;
+  renderKitchenOrders(orders);
+}
+
+function renderKitchenOrders(orders) {
+  const filtered = kitchenFilter === 'all' ? orders : orders.filter(o => o.status === kitchenFilter);
+  const container = document.getElementById('kitchen-orders');
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p style="color:#aaa;text-align:center;padding:32px">${mt('mNoOrdersCategory') || 'No orders in this category'}</p>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(order => {
+    const time = new Date(order.createdAt).toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
+    const isTakeaway = order.orderType === 'takeaway';
+    const takeawayLabel = mt('mKitchenTakeaway') || 'Takeaway';
+    const pickupLabel = mt('mKitchenPickup') || 'Pickup';
+    const tableLabel = mt('mKitchenTable') || 'Table';
+    const typeTag = isTakeaway
+      ? `<span class="kitchen-type-tag takeaway"><i class="fas fa-shopping-bag"></i> ${takeawayLabel}${order.pickupTime ? `<span class="pickup-time-badge">${pickupLabel} ${order.pickupTime}</span>` : ''}</span>`
+      : `<span class="kitchen-type-tag dinein"><i class="fas fa-chair"></i> ${tableLabel} ${order.tableNo}</span>`;
+
+    const startCookingLabel = mt('mKitchenStartCooking') || 'Start Cooking';
+    const markDoneLabel = mt('mKitchenMarkDone') || 'Mark Done';
+    const completedLabel = mt('mKitchenCompleted') || 'Completed';
+
+    const btnHtml = order.status === 'pending'
+      ? `<button class="kitchen-btn start" onclick="updateOrderStatus('${order.id}','preparing')"><i class="fas fa-fire"></i> ${startCookingLabel}</button>`
+      : order.status === 'preparing'
+        ? `<button class="kitchen-btn done-btn" onclick="updateOrderStatus('${order.id}','done')"><i class="fas fa-check"></i> ${markDoneLabel}</button>`
+        : `<span style="color:#2e7d32;font-weight:600;font-size:0.82rem"><i class="fas fa-check-circle"></i> ${completedLabel}</span>`;
+
+    return `
+      <div class="kitchen-card ${order.status}">
+        <div class="kitchen-card-header">
+          <strong>Order #${order.id}</strong>
+          <span class="kitchen-time">${time}</span>
+        </div>
+        ${typeTag}
+        ${order.notes ? `<div class="kitchen-notes"><i class="fas fa-comment"></i> ${order.notes}</div>` : ''}
+        <div class="kitchen-items">
+          ${order.items.map(i => `
+            <div class="kitchen-item-row">
+              <span>${getEmojiDisplay(i.emoji)} ${i.qty}� ${i.name}</span>
+              <span>RM${(i.price * i.qty).toFixed(2)}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="kitchen-footer">
+          <span class="kitchen-table">
+            ${isTakeaway
+              ? `<i class="fas fa-phone"></i> ${order.takeawayPhone}`
+              : order.memberName ? `<i class="fas fa-user"></i> ${order.memberName}` : `<i class="fas fa-user-slash"></i> ${mt('mKitchenGuest') || 'Guest'}`}
+          </span>
+          ${btnHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterKitchen(status, btn) {
+  kitchenFilter = status;
+  document.querySelectorAll('.kfilter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadKitchenOrders();
+}
+
+function updateOrderStatus(orderId, newStatus) {
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1) {
+    orders[idx].status = newStatus;
+    DB.saveOrders(orders);
+  }
+  showToast(newStatus === 'preparing' ? (mt('mKitchenCookingStarted') || 'Cooking started!') : (mt('mKitchenOrderCompleted') || 'Order completed! ?'));
+  loadKitchenOrders();
+}
+
+// ===========================
+// ===== CUSTOMER AUTH =====
+// ===========================
+let currentCustomer = null;
+
+// Redirect after login: stores the page to return to after customerLogin/customerRegister
+let _pendingRedirect = null;
+
+// Unified login status button
+function updateLoginStatusUI() {
+  const btn = document.getElementById('login-status-btn');
+  const text = document.getElementById('login-status-text');
+  const icon = document.getElementById('login-status-icon');
+  if (!btn || !text || !icon) return;
+  if (currentCustomer) {
+    text.textContent = currentCustomer.name.split(' ')[0];
+    icon.className = 'fas fa-user-check';
+    btn.classList.add('active');
+  } else {
+    text.textContent = t('loginLabel') || 'Login';
+    icon.className = 'fas fa-user-circle';
+    btn.classList.remove('active');
+  }
+}
+
+function handleLoginStatusClick() {
+  showPage('page-customer');
+}
+
+// Auto-restore login from localStorage
+(function initCustomerSession() {
+  const savedPhone = DB.getCurrentMemberPhone();
+  if (savedPhone) {
+    const member = DB.getMembers().find(m => m.phone === savedPhone);
+    if (member && !member.deactivated) {
+      currentCustomer = member;
+    } else {
+      DB.setCurrentMemberPhone(null);
+    }
+  }
+  updateLoginStatusUI();
+  // Also warm up merchant credits on initial load (safe no-op if Firebase not ready)
+  _safeLoadMerchantCredits();
+})();
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  // ??tab?????????
+  if (tab === 'register') {
+    try {
+      var _mInfo = document.getElementById('reg-merchant-info');
+      var _mName = document.getElementById('reg-merchant-name');
+      var _mId = document.getElementById('reg-merchant-id');
+      if (_mInfo && typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) {
+        // ????????,?? localStorage shopSettings,???? Firestore
+        var _displayName = window._currentMerchantName;
+        if (!_displayName) {
+          try { var _ss = safeLS.json(_getMerchantStorageKey(SHOP_SETTINGS_KEY)); _displayName = _ss && _ss.name ? _ss.name : null; } catch(e) {}
+        }
+        if (_displayName) {
+          _mName.textContent = _displayName;
+          _mId.textContent = 'ID: ' + MERCHANT_DOC_PATH.id;
+          _mInfo.style.display = 'block';
+        } else {
+          // ??? Firestore ????????
+          _mName.textContent = MERCHANT_DOC_PATH.id;
+          _mId.textContent = 'ID: ' + MERCHANT_DOC_PATH.id;
+          _mInfo.style.display = 'block';
+          var fb = window.__lbFirebase;
+          if (fb && fb.db && fb.doc && fb.getDoc) {
+            fb.getDoc(fb.doc(fb.db, MERCHANT_DOC_PATH.col, MERCHANT_DOC_PATH.id)).then(function(snap) {
+              if (snap.exists()) {
+                var d = snap.data();
+                if (d.name) {
+                  _mName.textContent = d.name;
+                  window._currentMerchantName = d.name;
+                }
+              }
+            }).catch(function() {});
+          }
+        }
+      } else if (_mInfo) {
+        _mInfo.style.display = 'none';
+      }
+    } catch(e) { /* ignore */ }
+  }
+}
+
+function customerLogin() {
+  const phone = document.getElementById('login-phone').value.trim();
+  if (!phone) { showToast(t('enterPhoneToLogin'), 'error'); return; }
+  // Must match phone AND merchantId to prevent cross-merchant login
+  const member = DB.getMembers().find(m => m.phone === phone && m.merchantId === MERCHANT_DOC_PATH.id);
+  if (!member) { showToast(t('memberNotFoundRegister'), 'error'); return; }
+  if (member.deactivated) { showToast(t('memberDeactivatedMsg') || 'Your account has been deactivated. Please contact the merchant.', 'error'); return; }
+  currentCustomer = member;
+  DB.setCurrentMemberPhone(member.phone);
+  updateLoginStatusUI();
+  if (_pendingRedirect) {
+    const target = _pendingRedirect;
+    _pendingRedirect = null;
+    showPage(target);
+  } else {
+    showCustomerDashboard(member);
+  }
+}
+
+function customerRegister() {
+  const name     = document.getElementById('reg-name').value.trim();
+  const phone    = document.getElementById('reg-phone').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const refPhone = (document.getElementById('reg-referrer')?.value || '').trim();
+  if (!name || !phone) { showToast(t('fillNamePhone'), 'error'); return; }
+  
+  // SECURITY FIX: Input validation
+  if (name.length < 2 || name.length > 50) {
+    showToast('Name must be 2-50 characters', 'error'); return;
+  }
+  if (!/^[a-zA-Z0-9\s\-.,]+$/.test(name)) {
+    showToast('Name contains invalid characters', 'error'); return;
+  }
+  if (!/^[0-9+\-() ]{10,15}$/.test(phone)) {
+    showToast('Invalid phone number format', 'error'); return;
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Invalid email format', 'error'); return;
+  }
+  
+  const members = DB.getMembers();
+  // Check for existing member with same phone in THIS merchant's scope
+  if (members.find(m => m.phone === phone && m.merchantId === MERCHANT_DOC_PATH.id)) {
+    showToast(t('phoneRegistered'), 'error'); return;
+  }
+
+  // Validate referrer (must be from same merchant)
+  let referrerId = null;
+  if (refPhone) {
+    const referrer = members.find(m => m.phone === refPhone && m.merchantId === MERCHANT_DOC_PATH.id);
+    if (!referrer) { showToast(t('referrerNotFound'), 'error'); return; }
+    referrerId = referrer.id;
+  }
+
+  const mid = MERCHANT_DOC_PATH.id;
+  const newMember = {
+    id: mid + '_MB' + String(members.length + 1).padStart(3, '0'),
+    name: name.trim(), phone: phone.trim(), email: email.trim(), points: 0,
+    joinDate: new Date().toISOString().split('T')[0],
+    referrerId,
+    hasFirstOrder: false,
+    merchantId: mid,
+  };
+  members.push(newMember);
+  DB.saveMembers(members);
+  currentCustomer = newMember;
+  DB.setCurrentMemberPhone(newMember.phone);
+  updateLoginStatusUI();
+  showToast('Welcome, ' + name + '! ??');
+  if (document.getElementById('reg-referrer')) document.getElementById('reg-referrer').value = '';
+  if (_pendingRedirect) {
+    const target = _pendingRedirect;
+    _pendingRedirect = null;
+    showPage(target);
+  } else {
+    showCustomerDashboard(newMember);
+  }
+}
+
+function showCustomerDashboard(member) {
+  document.getElementById('customer-auth').classList.add('hidden');
+  document.getElementById('customer-dashboard').classList.remove('hidden');
+
+  const tier = getTier(member.points);
+  document.getElementById('dash-name').textContent   = member.name;
+  document.getElementById('dash-phone').textContent  = member.phone;
+  document.getElementById('dash-points').textContent = member.points.toLocaleString();
+  document.getElementById('dash-tier').textContent   = tier;
+  document.getElementById('dash-id').textContent     = member.id;
+  document.getElementById('dash-date').textContent   = t('sinceLabel') + ' ' + new Date(member.joinDate).toLocaleDateString('en-MY', { year: 'numeric', month: 'short' });
+
+  const tierColors = { Bronze: '#e65100', Silver: '#616161', Gold: '#f57f17', Platinum: '#3949ab' };
+  const badge = document.getElementById('dash-tier-badge');
+  badge.style.background  = tierColors[tier] + '33';
+  badge.style.color       = tierColors[tier];
+  badge.style.borderColor = tierColors[tier] + '66';
+
+  const nextMap = { Bronze: 200, Silver: 500, Gold: 1000 };
+  const next = nextMap[tier];
+  const tierNextName = tier === 'Bronze' ? t('tierNameSilver') : tier === 'Silver' ? t('tierNameGold') : t('tierNamePlatinum');
+  document.getElementById('tier-hint').textContent = next
+    ? t('pointsToReach').replace('{n}', next - member.points).replace('{tier}', tierNextName)
+    : t('highestTier');
+
+  updateTierSteps(member.points);
+  renderRewards(member.points);
+  renderCustomerTxns(member.id);
+  renderCustomerStampPreview(member);
+  renderCustomerWallet(member);
+  renderCustomerOrdersPreview(member);
+  renderCustomerCommissionSummary(member);
+  renderCustomerPromosPreview();
+}
+
+function updateTierSteps(points) {
+  const steps = document.querySelectorAll('.tier-step');
+  const lines = document.querySelectorAll('.tier-line');
+  const thresholds = [0, 200, 500, 1000];
+  steps.forEach((s, i) => {
+    s.classList.remove('done', 'active');
+    if (points >= thresholds[i]) {
+      if (i < steps.length - 1 && points < thresholds[i + 1]) s.classList.add('active');
+      else s.classList.add('done');
+    }
+  });
+  lines.forEach((l, i) => {
+    l.classList.remove('done');
+    if (points >= thresholds[i + 1]) l.classList.add('done');
+  });
+}
+
+function renderRewards(userPoints) {
+  const grid = document.getElementById('rewards-grid');
+  grid.innerHTML = REWARDS.map(r => {
+    const can = userPoints >= r.points;
+    return `
+      <div class="reward-item ${can ? '' : 'cannot'}" onclick="${can ? `redeemReward('${r.id}')` : ''}">
+        <div style="font-size:2rem">${r.icon}</div>
+        <div class="reward-name">${r.name}</div>
+        <div class="reward-pts">${r.points} pts</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function redeemReward(rewardId) {
+  const reward = REWARDS.find(r => r.id === rewardId);
+  if (!reward) return;
+  const members = DB.getMembers();
+  const idx = members.findIndex(m => m.id === currentCustomer.id);
+  if (members[idx].points < reward.points) { showToast(t('notEnoughPoints'), 'error'); return; }
+
+  members[idx].points -= reward.points;
+  DB.saveMembers(members);
+  currentCustomer = members[idx];
+
+  const txns = DB.getTxns();
+  txns.unshift({
+    id: 't' + Date.now(),
+    memberId: currentCustomer.id,
+    memberName: currentCustomer.name,
+    type: 'redeem',
+    points: -reward.points,
+    note: reward.name,
+    date: new Date().toISOString().split('T')[0],
+    createdAt: new Date().toISOString(),
+  });
+  DB.saveTxns(txns);
+
+  showToast(`${reward.icon} ${reward.name} redeemed! Enjoy!`);
+  showCustomerDashboard(members[idx]);
+}
+
+function renderCustomerTxns(memberId) {
+  const allTxns = DB.getTxns() || [];
+  const txns = (allTxns || []).filter(txn => txn && txn.memberId === memberId).slice(0, 10);
+  const list = document.getElementById('txn-list');
+  if (!list) return;
+  const _t = typeof t === 'function' ? t : (k) => k;
+  if (txns.length === 0) { list.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${_t('txnNoTransactions') || '????'}</p>`; return; }
+  list.innerHTML = txns.map(txn => `
+    <div class="txn-item">
+      <div class="txn-icon ${txn.type || ''}"><i class="fas ${txn.type === 'earn' ? 'fa-plus' : 'fa-minus'}"></i></div>
+      <div class="txn-details"><strong>${txn.note || ''}</strong><span>${txn.date || ''}</span></div>
+      <div class="txn-pts ${txn.type || ''}">${txn.type === 'earn' ? '+' : ''}${Number(txn.points) || 0} ${_t('points') || 'points'}</div>
+    </div>
+  `).join('');
+}
+
+function customerLogout() {
+  currentCustomer = null;
+  DB.setCurrentMemberPhone(null);
+  updateLoginStatusUI();
+  _topupPhone = '';
+  _stampPagePhone = '';
+  _pendingRedirect = null;
+  document.getElementById('customer-auth').classList.remove('hidden');
+  document.getElementById('customer-dashboard').classList.add('hidden');
+  document.getElementById('login-phone').value = '';
+  showPage('page-landing');
+}
+
+// ===========================
+// ===== MERCHANT =====
+// ===========================
+let merchantLoggedIn = false;
+let foundMember = null;
+let orderFilterStatus = 'all';
+let isSuperAdmin = false;
+const SUPER_ADMIN_EMAIL = 'achstar02@gmail.com';
+
+// ----------------------------------------------
+// ????:?? Firebase ?????? loadMerchantCredits
+// ?? "Firebase ????" ??
+// ----------------------------------------------
+async function _safeLoadMerchantCredits() {
+  const fb = window.__lbFirebase;
+  if (!fb?.auth) {
+
+    return;
+  }
+  try {
+    await loadMerchantCredits();
+  } catch (e) {
+
+  }
+}
+
+// ----------------------------------------------
+// ????:?? Firebase ??????????????
+// ----------------------------------------------
+function _ensureShowSuperAdminPage() {
+  const fb = window.__lbFirebase;
+  if (!fb?.auth) {
+    // Firebase ???,????
+
+    setTimeout(_ensureShowSuperAdminPage, 500);
+    return;
+  }
+  if (typeof window.showSuperAdminPage === 'function') {
+    window.showSuperAdminPage();
+  }
+}
+
+function getCurrentAuthEmail() {
+  const fb = window.__lbFirebase;
+  const email = fb?.auth?.currentUser?.email
+    || window?.firebase?.auth?.()?.currentUser?.email
+    || null;
+  return email ? String(email).toLowerCase() : null;
+}
+
+function initSuperAdminMode() {
+  // ???? Firebase Auth email,fallback ????????? localStorage
+  const fbEmail = getCurrentAuthEmail();
+  const localUser = document.getElementById('m-user')?.value?.trim();
+  const saved = safeLS.json('loyalbrew_merchant_saved', null);
+  const savedUser = saved?.user?.trim();
+  isSuperAdmin = (fbEmail === SUPER_ADMIN_EMAIL) || (localUser === 'admin') || (savedUser === 'admin');
+  // ??????,?? DOM ???
+  setTimeout(() => _showSuperAdminBtn(), 100);
+}
+
+function _showSuperAdminBtn() {
+  const navEl = document.getElementById('super-admin-nav');
+  const emailEl = document.getElementById('super-admin-email');
+  if (!navEl) return;
+  // ???????????,??????
+  navEl.classList.remove('hidden');
+  navEl.style.setProperty('display', 'block', 'important');
+  if (emailEl) {
+    const fb = window.__lbFirebase;
+    const email = fb?.auth?.currentUser?.email || '';
+    if (email) {
+      emailEl.textContent = '(' + email.split('@')[0] + ')';
+      emailEl.classList.remove('hidden');
+      emailEl.style.setProperty('display', 'inline', 'important');
+    }
+  }
+}
+
+// ===== renderSuperAdminMerchantsList � ??????? #sa-list =====
+async function renderSuperAdminMerchantsList() {
+
+  // ???:?? sa-summary ? sa-list ????
+  let summaryEl = document.getElementById('sa-summary');
+  let listEl = document.getElementById('sa-list');
+  
+  let mainContent = document.getElementById('main-content');
+  if (!summaryEl || !listEl) {
+
+    if (mainContent) {
+      mainContent.innerHTML = `
+        <div style="padding:20px;max-width:1000px;margin:0 auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <h2 style="margin:0">?? ????? � ?? Credits ??</h2>
+            <button onclick="showPage('page-customer')" style="padding:8px 16px;border:none;background:#eee;border-radius:8px;cursor:pointer">????</button>
+          </div>
+          <div id="sa-summary" style="color:#666;margin-bottom:16px;font-size:0.9rem">???...</div>
+          <div id="sa-list" style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #eee"></div>
+        </div>
+      `;
+      summaryEl = document.getElementById('sa-summary');
+      listEl = document.getElementById('sa-list');
+    }
+    if (!summaryEl || !listEl) {
+
+      return;
+    }
+  }
+
+  const fb = window.__lbFirebase;
+  if (!fb?.db) {
+    summaryEl.textContent = 'Firestore ???';
+    listEl.innerHTML = '<div style="padding:30px;color:#c62828;text-align:center">???????</div>';
+    return;
+  }
+
+  try {
+    let rows = [];
+    if (typeof fb.getDocs === 'function' && typeof fb.collection === 'function') {
+      const snap = await fb.getDocs(fb.collection(fb.db, 'merchants'));
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    } else if (typeof fb.db.collection === 'function') {
+      const snap = await fb.db.collection('merchants').get();
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    }
+
+    const merchants = rows
+      .filter(m => m.status !== 'deleted')  // ?????????
+      .map(m => ({ id: m.id, name: String(m.merchant_name || '???'), credits: Number(m.credits) || 0, promoEnabled: !!m.promoEnabled }))
+      .sort((a, b) => b.credits - a.credits);
+
+    const totalCredits = merchants.reduce((s, m) => s + m.credits, 0);
+    summaryEl.textContent = `? ${merchants.length} ??? � ? Credits: ${totalCredits}`;
+
+    const deletedMerchants = rows
+      .filter(m => m.status === 'deleted')
+      .map(m => ({ id: m.id, name: String(m.merchant_name || '???'), credits: Number(m.credits) || 0, promoEnabled: !!m.promoEnabled }))
+      .sort((a, b) => b.credits - a.credits);
+
+    if (merchants.length === 0 && deletedMerchants.length === 0) {
+      listEl.innerHTML = '<div style="padding:30px;color:#aaa;text-align:center">??????</div>';
+      return;
+    }
+
+    listEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 0.7fr 0.5fr 0.6fr 2fr;background:#f7f7f7;padding:12px 16px;font-weight:700;font-size:0.82rem;border-bottom:2px solid #ddd">
+        <div>????</div><div>ID</div><div style="text-align:center">QR</div><div style="text-align:center">??</div><div style="text-align:right">Credits</div><div style="text-align:center">??</div>
+      </div>
+      ${merchants.map((m, i) => {
+        const promoOn = !!m.promoEnabled;
+        const custUrl = 'https://loyalbrew-app-2f8c7.web.app/?m=' + m.id;
+        return `
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 0.7fr 0.5fr 0.6fr 2fr;padding:12px 16px;border-bottom:1px solid #f1f1f1;align-items:center;${i % 2 === 1 ? 'background:#fafafa;' : ''}">
+          <div style="font-weight:600">${escHtml(m.name)}</div>
+          <div style="font-family:ui-monospace,monospace;font-size:0.75rem;color:#555;word-break:break-all">${m.id}</div>
+          <div style="display:flex;justify-content:center;cursor:pointer" id="sa-qr-thumb-${i}" onclick="_saShowQR('${escHtml(m.name)}','${m.id}')" title="???? QR"></div>
+          <div style="text-align:center">${promoOn ? '<span style="background:#e65100;color:#fff;font-size:0.7rem;padding:3px 8px;border-radius:10px">?? On</span>' : '<span style="color:#ccc;font-size:0.7rem">Off</span>'}</div>
+          <div style="text-align:right;font-weight:700;color:${m.credits > 0 ? '#2e7d32' : '#c62828'};font-size:1rem">${m.credits}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">
+            <a href="${custUrl}" target="_blank" style="color:#1976d2;text-decoration:none;font-size:0.75rem;background:#e3f2fd;padding:4px 10px;border-radius:6px;border:1px solid #bbdefb;display:inline-block">?? ????</a>
+            <button onclick="_saShowQR('${escHtml(m.name)}','${m.id}')" style="background:#7b1fa2;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem">?? QR?</button>
+            <button onclick="_saOpenTopup('${m.id}', ${m.credits})" style="background:#1b5e20;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem">?? ??</button>
+            <button onclick="_saDeactivateMerchant('${m.id}', '${escHtml(m.name)}')" style="background:#b91c1c;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem">?? ??</button>
+          </div>
+        </div>`;
+      }).join('')}
+      ${deletedMerchants.length > 0 ? `
+      <div style="margin-top:28px;padding:0 4px">
+        <div style="font-size:0.82rem;font-weight:700;color:#b91c1c;margin-bottom:10px;display:flex;align-items:center;gap:8px">?? ?????(${deletedMerchants.length}?,???)</div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 0.7fr 0.5fr 0.6fr 2fr;background:#f7f7f7;padding:12px 16px;font-weight:700;font-size:0.82rem;border-bottom:2px solid #ddd">
+          <div>????</div><div>ID</div><div style="text-align:center">QR</div><div style="text-align:center">??</div><div style="text-align:right">Credits</div><div style="text-align:center">??</div>
+        </div>
+        ${deletedMerchants.map((m, i) => {
+          var delIdx = 'del-' + i;
+          return `
+          <div style="display:grid;grid-template-columns:1.5fr 1fr 0.7fr 0.5fr 0.6fr 2fr;padding:12px 16px;border-bottom:1px solid #f1f1f1;align-items:center;${i % 2 === 1 ? 'background:#fff5f5;' : 'background:#fff8f8;'}">
+            <div style="font-weight:600;color:#888;text-decoration:line-through">${escHtml(m.name)}</div>
+            <div style="font-family:ui-monospace,monospace;font-size:0.75rem;color:#888;word-break:break-all">${m.id}</div>
+            <div style="display:flex;justify-content:center;cursor:pointer" id="sa-qr-thumb-${delIdx}" onclick="_saShowQR('${escHtml(m.name)}','${m.id}')" title="???? QR"></div>
+            <div style="text-align:right;font-weight:700;color:#c62828;font-size:1rem">${m.credits}</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">
+              <a href="https://loyalbrew-app-2f8c7.web.app/?m=${m.id}" target="_blank" style="color:#1976d2;text-decoration:none;font-size:0.75rem;background:#e3f2fd;padding:4px 10px;border-radius:6px;border:1px solid #bbdefb;display:inline-block">?? ????</a>
+              <button onclick="_saShowQR('${escHtml(m.name)}','${m.id}')" style="background:#7b1fa2;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem">?? QR?</button>
+              <button onclick="_saRestoreMerchant('${m.id}', '${escHtml(m.name)}')" style="background:#1e40af;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem">? ??</button>
+            </div>
+          </div>
+        `}).join('')}
+      </div>
+      ` : ''}
+    `;
+
+    // Generate QR code thumbnails for each merchant row (active + deleted)
+    // Strategy: Try QRCode lib first with retries; fallback to inline SVG placeholder
+    function _renderQrPlaceholder(el, url, color) {
+      // Draw a visual QR-like placeholder using inline SVG (always works, no external deps)
+      el.innerHTML = '<svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg"><rect width="44" height="44" fill="#f5f5f5" rx="4"/><rect x="4" y="4" width="14" height="14" fill="' + color + '" rx="2"/><rect x="7" y="7" width="8" height="8" fill="#fff" rx="1"/><rect x="26" y="4" width="14" height="14" fill="' + color + '" rx="2"/><rect x="29" y="7" width="8" height="8" fill="#fff" rx="1"/><rect x="4" y="26" width="14" height="14" fill="' + color + '" rx="2"/><rect x="7" y="29" width="8" height="8" fill="#fff" rx="1"/><rect x="24" y="24" width="6" height="6" fill="' + color + '" rx="1"/><rect x="32" y="24" width="6" height="6" fill="' + color + '" rx="1"/><rect x="24" y="32" width="6" height="6" fill="' + color + '" rx="1"/><rect x="32" y="32" width="6" height="6" fill="' + color + '" rx="1"/><rect x="22" y="10" width="4" height="4" fill="' + color + '"/><rect x="10" y="22" width="4" height="4" fill="' + color + '"/></svg>';
+      el.onclick = function() { _saShowQR(el.getAttribute('data-mname') || '', el.getAttribute('data-mid') || ''); };
+      el.style.cursor = 'pointer';
+      el.setAttribute('title', '???? QR');
+    }
+    (function _generateQrThumbnails(retryCount) {
+      if (retryCount === undefined) retryCount = 0;
+      var delay = Math.min(100 + retryCount * 200, 1500); // 100, 300, 500, ... max 1500ms
+      setTimeout(function() {
+        if (typeof QRCode === 'undefined') {
+          if (retryCount < 10) {
+            _generateQrThumbnails(retryCount + 1); // retry up to ~10 times
+          } else {
+            // Final fallback: render SVG placeholders for ALL rows
+            console.warn('[LoyalBrew] QRCode library not loaded after retries, using SVG placeholders');
+            merchants.forEach(function(m, i) {
+              var thumbEl = document.getElementById('sa-qr-thumb-' + i);
+              if (thumbEl) {
+                thumbEl.setAttribute('data-mname', m.name);
+                thumbEl.setAttribute('data-mid', m.id);
+                _renderQrPlaceholder(thumbEl, 'https://loyalbrew-app-2f8c7.web.app/?m=' + m.id, '#333');
+              }
+            });
+            deletedMerchants.forEach(function(m, i) {
+              var thumbEl = document.getElementById('sa-qr-thumb-del-' + i);
+              if (thumbEl) {
+                thumbEl.setAttribute('data-mname', m.name);
+                thumbEl.setAttribute('data-mid', m.id);
+                _renderQrPlaceholder(thumbEl, 'https://loyalbrew-app-2f8c7.web.app/?m=' + m.id, '#bbb');
+              }
+            });
+          }
+          return;
+        }
+        // QRCode is ready � generate all thumbnails
+        merchants.forEach(function(m, i) {
+          var thumbEl = document.getElementById('sa-qr-thumb-' + i);
+          if (thumbEl && !thumbEl.querySelector('canvas') && !thumbEl.querySelector('img')) {
+            var url = 'https://loyalbrew-app-2f8c7.web.app/?m=' + m.id;
+            try {
+              new QRCode(thumbEl, {
+                text: url,
+                width: 44,
+                height: 44,
+                colorDark: '#333',
+                colorLight: '#f9f9f9',
+                correctLevel: QRCode.CorrectLevel.L
+              });
+            } catch(e) {
+              console.error('QR gen error for', m.id, e.message);
+              _renderQrPlaceholder(thumbEl, url, '#333');
+            }
+          }
+        });
+        deletedMerchants.forEach(function(m, i) {
+          var thumbEl = document.getElementById('sa-qr-thumb-del-' + i);
+          if (thumbEl && !thumbEl.querySelector('canvas') && !thumbEl.querySelector('img')) {
+            var url = 'https://loyalbrew-app-2f8c7.web.app/?m=' + m.id;
+            try {
+              new QRCode(thumbEl, {
+                text: url,
+                width: 44,
+                height: 44,
+                colorDark: '#aaa',
+                colorLight: '#f0f0f0',
+                correctLevel: QRCode.CorrectLevel.L
+              });
+            } catch(e) {
+              console.error('QR gen error for del', m.id, e.message);
+              _renderQrPlaceholder(thumbEl, url, '#bbb');
+            }
+          }
+        });
+      }, delay);
+    })();
+  } catch (e) {
+
+    summaryEl.textContent = '????';
+    listEl.innerHTML = '<div style="padding:30px;color:#c62828;text-align:center">' + escHtml(e.message) + '</div>';
+  }
+}
+
+// ===== Super Admin: Show Merchant QR Code Modal =====
+function _saShowQR(merchantName, merchantId) {
+  var url = 'https://loyalbrew-app-2f8c7.web.app/?m=' + merchantId;
+  var existing = document.getElementById('sa-qr-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'sa-qr-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99999';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:18px;padding:28px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
+    '<div style="font-size:1.1rem;font-weight:700;margin-bottom:4px">' + escHtml(merchantName) + '</div>' +
+    '<div style="font-size:0.8rem;color:#888;margin-bottom:16px;font-family:ui-monospace,monospace">' + escHtml(merchantId) + '</div>' +
+    '<div id="sa-qr-code-container" style="display:flex;justify-content:center;margin:16px 0"></div>' +
+    '<div style="font-size:0.8rem;color:#555;margin-bottom:16px;word-break:break-all;background:#f5f5f5;padding:8px;border-radius:8px">' + escHtml(url) + '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:center">' +
+    '<button onclick="navigator.clipboard.writeText(\'' + url.replace(/'/g, "\\'") + '\').then(function(){showToast(\'Link copied!\')})" style="padding:8px 20px;background:#1976d2;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600">?? ????</button>' +
+    '<button onclick="_saPrintQR(\'' + url.replace(/'/g, "\\'") + '\', \'' + escHtml(merchantName).replace(/'/g, "\\'") + '\')" style="padding:8px 20px;background:#7b1fa2;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600">?? ?? QR</button>' +
+    '<button onclick="document.getElementById(\'sa-qr-modal\').remove()" style="padding:8px 20px;background:#eee;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600">??</button>' +
+    '</div></div>';
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+
+  setTimeout(function() {
+    var container = document.getElementById('sa-qr-code-container');
+    if (container && typeof QRCode !== 'undefined') {
+      new QRCode(container, {
+        text: url,
+        width: 200,
+        height: 200,
+        colorDark: '#1a1a2e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+  }, 100);
+}
+
+// Print merchant QR code for Super Admin
+function _saPrintQR(url, name) {
+  var printWindow = window.open('', '_blank');
+  if (!printWindow) { showToast('Please allow popups to print', 'error'); return; }
+  printWindow.document.write('<html><head><title>QR - ' + escHtml(name) + '</title>');
+  printWindow.document.write('<style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:sans-serif}');
+  printWindow.document.write('.name{font-size:24px;font-weight:700;margin:8px 0 4px}');
+  printWindow.document.write('.id{font-size:13px;color:#888;margin-bottom:20px}</style>');
+  printWindow.document.write('</head><body>');
+  printWindow.document.write('<div class="name">' + escHtml(name) + '</div>');
+  printWindow.document.write('<div id="print-qr"></div>');
+  printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"><\/script>');
+  printWindow.document.write('<script>new QRCode(document.getElementById("print-qr"),{text:"' + escHtml(url) + '",width:220,height:220,colorDark:\"#000\",colorLight:\"#fff\",correctLevel:QRCode.CorrectLevel.H});setTimeout(function(){window.print()},500);<\/script>');
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+}
+
+// SECURITY FIX: Enhanced XSS escape functions
+function escHtml(str) {
+  if (!str) return '';
+  const s = String(str);
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\//g, '&#47;');
+}
+
+// Escape for use in JS strings (quotes)
+function escJs(str) {
+  if (!str) return '';
+  return String(str).replace(/[\\'"]/g, '\\$&').replace(/\n/g, '\\n');
+}
+
+// Escape for use in CSS (prevent CSS injection)
+function escCss(str) {
+  if (!str) return '';
+  return String(str).replace(/[<>'";()]/g, '');
+}
+
+// ===== SECURITY: Password hashing =====
+// Simple hash using Web Crypto API (SHA-256)
+async function hashPassword(password, salt) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(salt ? password + salt : password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// openSuperAdminMerchants defined below (line ~6753) to avoid duplicate
+
+// ------------------------------------------------------
+// ??????????(??,? Firebase ??)
+// ?????,???? Firebase ?????????,????,??????
+// ------------------------------------------------------
+(async () => {
+  // ?? Firebase SDK ??(?? 5 ?)
+  let fb = window.__lbFirebase;
+  let attempts = 0;
+  while (!fb?.auth && attempts < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    fb = window.__lbFirebase;
+    attempts++;
+  }
+
+  if (!fb?.auth) {
+
+    return;
+  }
+
+  // ?? listener(Firebase ???????,??????)
+  initFirebaseAuthListener();
+
+  // ????????? � Firebase SDK ???? localStorage ??
+  const _u = fb.auth().currentUser;
+  if (_u && String(_u.email || '').toLowerCase() !== SUPER_ADMIN_EMAIL) {
+    // ?????? ? ????
+
+    await fb.signOut().catch(() => {});
+    // ??????? listener(???? null),???????
+    setTimeout(() => window.showSuperAdminPage && window.showSuperAdminPage(), 500);
+  }
+})();
+
+// ===== FIREBASE AUTH STATE LISTENER (Super Admin) =====
+function initFirebaseAuthListener() {
+  const fb = window.__lbFirebase;
+  if (!fb?.auth) return;
+  fb.auth().onAuthStateChanged((user) => {
+    const email = user ? String(user.email || '').toLowerCase() : null;
+    if (user && email === SUPER_ADMIN_EMAIL) {
+      // ? ????? ? ?????
+      isSuperAdmin = true;
+
+      _showSuperAdminBtn();
+      _safeLoadMerchantCredits();
+    } else if (user) {
+      // ?? ?????????? ? ????
+    } else if (user) {
+      // Fix #2: signOut non-admin, then trigger login modal
+
+      fb.signOut().catch(() => {});
+      // Wait for signOut, then show login modal
+      setTimeout(() => {
+        if (!document.getElementById("sa-login-modal")) {
+          window.showSuperAdminPage && window.showSuperAdminPage();
+        }
+      }, 600);
+    }
+  });
+}
+
+// ===== SUPER ADMIN PAGE (showSuperAdminPage) =====
+let _saTopupTarget = null;
+
+window.showSuperAdminPage = async function() {
+
+  const fb = window.__lbFirebase;
+  if (!fb?.auth) {
+    showToast('Firebase ????,?????', 'error');
+    return;
+  }
+
+  // Fix #3: safe async/await for Firebase auth init (no deadlock)
+  await new Promise(resolve => {
+    let resolved = false;
+    const unsub = fb.auth().onAuthStateChanged(user => {
+      if (!resolved) { resolved = true; resolve(user); unsub(); }
+    });
+    setTimeout(() => { if (!resolved) { resolved = true; resolve(fb.auth().currentUser || null); unsub(); } }, 3000);
+  });
+
+  // -- ??:?? Firebase Email ??? (??? HTML modal) --
+  function _openSuperAdminLoginModal() {
+    // ????? modal
+    const old = document.getElementById('sa-login-modal');
+    if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sa-login-modal';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99999';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:32px;width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <h2 style="margin:0 0 8px 0;font-size:1.3rem">?? ???????</h2>
+        <p style="color:#666;font-size:0.85rem;margin:0 0 24px 0">???????????????</p>
+        <input id="sa-login-email" type="email" placeholder="Email (achstar02@gmail.com)"
+          style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:12px" />
+        <input id="sa-login-pass" type="password" placeholder="??"
+          style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:20px" />
+        <div id="sa-login-error" style="color:#c62828;font-size:0.85rem;margin-bottom:12px;display:none"></div>
+        <button onclick="_doSuperAdminLogin()"
+          style="width:100%;padding:14px;background:linear-gradient(135deg,#f57c00,#ff8f00);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:10px">? ?</button>
+        <button onclick="_cancelSuperAdminLogin()"
+          style="width:100%;padding:10px;background:#f5f5f5;color:#666;border:none;border-radius:10px;font-size:0.9rem;cursor:pointer">? ?</button>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('sa-login-email').focus();
+    // ????
+    document.getElementById('sa-login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') _doSuperAdminLogin(); });
+  }
+
+  // ??:?????
+  window._cancelSuperAdminLogin = function() {
+    const m = document.getElementById('sa-login-modal');
+    if (m) m.remove();
+  };
+
+  // ??:????
+  window._doSuperAdminLogin = async function() {
+    const email = document.getElementById('sa-login-email')?.value?.trim();
+    const pass = document.getElementById('sa-login-pass')?.value;
+    const errEl = document.getElementById('sa-login-error');
+    if (!email || !pass) { errEl.textContent = '????????'; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+    try {
+      await fb.signInWithEmailAndPassword(email, pass);
+      document.getElementById('sa-login-modal').remove();
+      showToast('????,????...', 'success');
+      // ?????,auth listener ???,???? showSuperAdminPage
+      setTimeout(() => window.showSuperAdminPage(), 300);
+    } catch (e) {
+      errEl.textContent = '????:' + (e.message || '????');
+      errEl.style.display = 'block';
+    }
+  };
+
+  // ------------------------------------------------------
+  // ???:????? � ?? signOut ????????
+  // ------------------------------------------------------
+  const currentEmail = fb.auth().currentUser?.email || null;
+  if (currentEmail && currentEmail.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+
+    await fb.signOut().catch(() => {});
+  }
+
+  // ------------------------------------------------------
+  // ???:?? auth ??
+  // ------------------------------------------------------
+  const userNow = fb.auth().currentUser;
+  if (userNow && String(userNow.email || '').toLowerCase() === SUPER_ADMIN_EMAIL) {
+    // ? ????????? ? ????
+
+    _renderSuperAdminPage();
+    return;
+  }
+
+  // ??? ? ?????? ? ?????
+
+  _openSuperAdminLoginModal();
+
+  // ------------------------------------------------------
+  // ???:?? auth ????(???????)
+  // ------------------------------------------------------
+  fb.auth().onAuthStateChanged((user) => {
+    if (!user) return;
+    const email = String(user.email || '').toLowerCase();
+    if (email !== SUPER_ADMIN_EMAIL) return; // ?????????
+
+    isSuperAdmin = true;
+    _showSuperAdminBtn();
+    _safeLoadMerchantCredits();
+
+    // ???????,????????
+    const modal = document.getElementById('sa-login-modal');
+    if (modal) {
+      modal.remove();
+      showToast('?????????', 'success');
+      _renderSuperAdminPage();
+    }
+  });
+
+  // ------------------------------------------------------
+
+// ------------------------------------------------------
+// ????? - Toggle ????
+// ------------------------------------------------------
+window._saToggleRegisterForm = function() {
+  var panel = document.getElementById("sa-register-panel");
+  if (!panel) return;
+  var isHidden = panel.style.display === "none";
+  panel.style.display = isHidden ? "block" : "none";
+  var btn = document.getElementById("sa-toggle-reg-btn");
+  if (btn) {
+    btn.textContent = isHidden ? "- ????" : "+ ????";
+    btn.style.background = isHidden ? "#374151" : "#1b5e20";
+  }
+};
+
+// ------------------------------------------------------
+// ????? - ?????? ID
+// ------------------------------------------------------
+window._saGenerateMerchantId = function() {
+  var chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  var id = "";
+  for (var i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  var el = document.getElementById("sa-reg-merchant-id");
+  if (el) el.value = id;
+};
+
+// ------------------------------------------------------
+// ????? - ????
+// ------------------------------------------------------
+window._saSubmitRegister = async function() {
+  var fb = window.__lbFirebase;
+  if (!fb || !fb.db) { showToast("Firebase ???", "error"); return; }
+
+  var nameEl   = document.getElementById("sa-reg-merchant-name");
+  var idEl     = document.getElementById("sa-reg-merchant-id");
+  var creditEl = document.getElementById("sa-reg-credits");
+  var emailEl  = document.getElementById("sa-reg-email");
+
+  var name       = nameEl  ? nameEl.value.trim()  : "";
+  var merchantId  = idEl    ? idEl.value.trim()     : "";
+  var creditsVal = parseFloat(creditEl ? creditEl.value : "0") || 0;
+  var emailVal   = emailEl  ? emailEl.value.trim()  : "";
+
+  // ??
+  if (!name)      { showToast("???????", "error"); if(nameEl) nameEl.focus(); return; }
+  if (!merchantId){ showToast("????? ID",   "error"); if(idEl)   idEl.focus();   return; }
+  if (creditsVal < 0){ showToast("Credits ?????", "error"); return; }
+  if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    showToast("???????", "error"); if(emailEl) emailEl.focus(); return;
+  }
+
+  var btn = document.getElementById("sa-reg-submit-btn");
+  var origText = btn ? btn.textContent : "????";
+  if (btn) { btn.disabled = true; btn.textContent = "???..."; }
+
+  try {
+    // ?? ID ?????
+    var ref = fb.doc(fb.db, "merchants", merchantId);
+    var existing = await fb.getDoc(ref);
+    if (existing.exists()) {
+      showToast("?? ID ???,????????", "error");
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+      return;
+    }
+
+    // ?? Firestore(???????)
+    var now = new Date().toISOString();
+    await fb.runTransaction(fb.db, function(tx) {
+      return tx.get(ref).then(function(snap) {
+        if (snap.exists()) throw new Error("?? ID ??,???");
+        tx.set(ref, {
+          merchant_name: name,
+          credits:      creditsVal,
+          email:        emailVal || null,
+          createdAt:    now,
+          updatedAt:    now,
+          createdBy:    SUPER_ADMIN_EMAIL,
+          active:       true,
+        });
+      });
+    });
+
+    showToast("??[" + name + "] ????!", "success");
+
+    // ?????????
+    if (nameEl)  nameEl.value  = "";
+    if (creditEl) creditEl.value = "";
+    if (emailEl) emailEl.value = "";
+    await _loadSuperAdminMerchants();
+
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  } catch(e) {
+
+    showToast("????:" + (e.message || "????"), "error");
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  }
+};
+  // ??:????????
+  // ------------------------------------------------------
+  function _renderSuperAdminPage() {
+
+    const main = document.querySelector('main') || document.body;
+    main.style.display = 'block';
+    main.innerHTML = `
+      <div id="super-admin-section" class="p-4" style="padding:20px;max-width:1000px;margin:0 auto">
+        <h1 style="margin:0 0 16px 0">?? ??????</h1>
+        <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button onclick="location.reload()" style="padding:8px 16px;border:none;background:#1976d2;color:#fff;border-radius:8px;cursor:pointer">?? ????</button>
+          <span id="sa-email-badge" style="font-size:0.8rem;color:#fff;background:#f57c00;padding:4px 12px;border-radius:20px"></span>
+          <button onclick="window.__lbFirebase.auth().signOut().then(() => location.reload())" style="padding:8px 16px;border:none;background:linear-gradient(135deg,#c62828,#e53935);color:#fff;border-radius:8px;cursor:pointer;font-weight:600">? ??????</button>
+        </div>
+        <div id="sa-summary" style="color:#666;margin-bottom:16px;font-size:0.9rem">???...</div>
+
+        <div style="margin-bottom:16px">
+          <button onclick="_saOpenRegModal()"
+            style="background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;padding:10px 22px;border-radius:10px;cursor:pointer;font-size:0.92rem;font-weight:600;box-shadow:0 2px 8px rgba(21,128,61,0.3)">?? ????</button>
+        </div>
+
+        <div id="sa-list" style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #eee">???????...</div>
+      </div>`;
+    // ????????
+    const badge = document.getElementById('sa-email-badge');
+    if (badge) badge.textContent = '?? ' + SUPER_ADMIN_EMAIL;
+    renderSuperAdminMerchantsList();
+  }
+}
+
+function openSuperAdminMerchants() {
+  showSuperAdminPage();
+}
+
+// ===== ???? (Super Admin) =====
+window.openSuperAdminMerchants = openSuperAdminMerchants;
+window.renderSuperAdminMerchantsList = renderSuperAdminMerchantsList;
+window.initSuperAdminMode = initSuperAdminMode;
+window._saOpenTopup = _saOpenTopup;
+// global already
+window._showSuperAdminBtn = _showSuperAdminBtn;window._showSuperAdminBtn = _showSuperAdminBtn;
+window.getCurrentAuthEmail = getCurrentAuthEmail;
+window.escHtml = escHtml;
+window.logout = function() {
+  const fb = window.__lbFirebase;
+  if (fb?.auth) {
+    fb.signOut().then(() => {
+
+      window.location.reload();
+    }).catch(err => {
+
+      alert('????: ' + err.message);
+    });
+  } else {
+
+  }
+};
+
+async function _loadSuperAdminMerchants() {
+  const fb = window.__lbFirebase;
+  if (!fb?.db) {
+    document.getElementById('sa-list').innerHTML = '<div style="padding:20px;color:#c62828;text-align:center">Firestore ???,???????</div>';
+    return;
+  }
+  try {
+    let rows = [];
+    if (typeof fb.getDocs === 'function' && typeof fb.collection === 'function') {
+      const snap = await fb.getDocs(fb.collection(fb.db, 'merchants'));
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    } else if (typeof fb.db.collection === 'function') {
+      const snap = await fb.db.collection('merchants').get();
+      rows = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    }
+
+    const merchants = rows
+      .filter(m => m.status !== 'deleted')  // ?????????
+      .map(m => ({ id: m.id, name: String(m.merchant_name || ''), credits: Number(m.credits) || 0, updatedAt: m.updatedAt || null, promoEnabled: !!m.promoEnabled }))
+      .sort((a, b) => (b.credits - a.credits));
+
+    const deletedMerchants = rows
+      .filter(m => m.status === 'deleted')
+      .map(m => ({ id: m.id, name: String(m.merchant_name || ''), credits: Number(m.credits) || 0, updatedAt: m.updatedAt || null, promoEnabled: !!m.promoEnabled }))
+      .sort((a, b) => (b.credits - a.credits));
+
+    document.getElementById('sa-summary').textContent = `? ${merchants.length} ??? � ??? ${deletedMerchants.length} ? � ?????: ${SUPER_ADMIN_EMAIL}`;
+
+    if (merchants.length === 0 && deletedMerchants.length === 0) {
+      document.getElementById('sa-list').innerHTML = '<div style="padding:20px;color:#aaa;text-align:center">??????</div>';
+      return;
+    }
+
+    document.getElementById('sa-list').innerHTML = merchants.map(m => `      <div style="display:grid;grid-template-columns:1.5fr 1fr 0.5fr 0.6fr 1.5fr;padding:12px 16px;border-bottom:1px solid #f1f1f1;align-items:center">        <div style="font-weight:600">${m.name || '(ununnamed)'}</div>        <div style="font-family:ui-monospace,monospace;font-size:0.75rem;color:#555">${m.id}</div>        <div style="text-align:center">${m.promoEnabled ? '<span style="background:#e65100;color:#fff;font-size:0.7rem;padding:3px 8px;border-radius:10px">On</span>' : '<span style="color:#ccc;font-size:0.7rem">Off</span>'}</div>        <div style="text-align:right;font-weight:700;color:${m.credits > 0 ? '#2e7d32' : '#c62828'};font-size:1rem">${m.credits}</div>        <div>          <a href="https://loyalbrew-app-2f8c7.web.app/?m=${m.id}" target="_blank" style="color:#1976d2;text-decoration:none;font-size:0.75rem;background:#e3f2fd;padding:3px 10px;border-radius:6px;border:1px solid #bbdefb;display:inline-block;margin-right:4px">CUSTOMER LINK</a>          <button onclick="_saOpenTopup('${m.id}', ${m.credits})" style="background:#1b5e20;color:#fff;border:none;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:0.78rem">CREDIT</button>          <button onclick="_saDeactivateMerchant('${m.id}', '${escHtml(m.name)}')" style="background:#b91c1c;color:#fff;border:none;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:0.78rem;margin-left:4px">DELETE</button>        </div>      </div>`).join('') + (deletedMerchants.length > 0 ? `      <div style="margin-top:28px;padding:0 4px">        <div style="font-size:0.82rem;font-weight:700;color:#b91c1c;margin-bottom:10px">DELETED MERCHANTS (${deletedMerchants.length})</div>        ${deletedMerchants.map(m => `          <div style="display:grid;grid-template-columns:1.5fr 1fr 0.5fr 0.6fr 1.5fr;padding:12px 16px;border-bottom:1px solid #f1f1f1;align-items:center;background:#fff5f5">            <div style="font-weight:600;color:#888;text-decoration:line-through">${m.name || '(ununnamed)'}</div>            <div style="font-family:ui-monospace,monospace;font-size:0.75rem;color:#888">${m.id}</div>            <div style="text-align:center"><span style="color:#ccc;font-size:0.7rem">-</span></div>            <div style="text-align:right;font-weight:700;color:#c62828;font-size:1rem">${m.credits}</div>            <div>              <a href="https://loyalbrew-app-2f8c7.web.app/?m=${m.id}" target="_blank" style="color:#1976d2;text-decoration:none;font-size:0.75rem;background:#e3f2fd;padding:3px 10px;border-radius:6px;border:1px solid #bbdefb;display:inline-block;margin-right:4px">CUSTOMER LINK</a>              <button onclick="_saRestoreMerchant('${m.id}', '${escHtml(m.name || '')}')" style="background:#1e40af;color:#fff;border:none;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:0.78rem">RESTORE</button>            </div>          </div>`).join('')}      </div>    ` : '');  } catch(e) {
+
+    document.getElementById('sa-list').innerHTML = '<div style="padding:20px;color:#c62828;text-align:center">????:' + e.message + '</div>';
+  }
+}
+
+async function _saOpenTopup(merchantId, currentCredits) {
+  const input = prompt(`?? ??? [${merchantId}] ??\n????: ${currentCredits}\n\n???????(credits):`, '50');
+  if (!input || isNaN(parseFloat(input))) { showToast('????????', 'info'); return; }
+  const amount = parseFloat(input);
+  if (amount <= 0) { showToast('??????0', 'error'); return; }
+
+  const fb = window.__lbFirebase;
+  if (!fb?.db) { showToast('Firestore ???', 'error'); return; }
+  try {
+    const ref = fb.doc(fb.db, 'merchants', merchantId);
+    await fb.runTransaction(fb.db, async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = Number(snap.data()?.credits) || 0;
+      tx.update(ref, { credits: cur + amount, updatedAt: new Date().toISOString() });
+    });
+    showToast(`? ????!+${amount} credits`, 'success');
+    await _loadSuperAdminMerchants();
+  } catch(e) {
+
+    showToast('????:' + e.message, 'error');
+  }
+}
+
+// ===== MERCHANT LANGUAGE SYSTEM =====
+const MERCHANT_LANGS = {
+  en: {
+    mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
+    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional � for off-peak special',
+    mUsername: 'Username', mPassword: 'Password', mSavePassword: 'Save Password',
+    mLoginBtn: 'Login to Dashboard', mKitchen: 'Kitchen', mKitchenDisplay: 'Kitchen Display', mRefresh: 'Refresh', mKitchenNew: 'New', mKitchenPreparing: 'Preparing', mKitchenDone: 'Done', mTabSettings: 'Settings',
+    mTabAds: 'Ads',
+    mCreateAd: 'Create New Ad', mAdTitle: 'Ad Title', mAdLink: 'Link URL (optional)', mAdStart: 'Start Date', mAdEnd: 'End Date', mAdImage: 'Ad Image', mAdPosition: 'Display Position', mAdPriority: 'Priority', mAdPriorityHint: 'Higher number = shown first', mActiveAds: 'Active Ads', mNoActiveAds: 'No active ads', mAllAds: 'All Ads', mNoAds: 'No ads yet', mAdStats: 'Ad Statistics', mClickToUploadAd: 'Click to upload ad image',    mPromoEngineTitle: 'Off-Peak Special Promo Engine', mPromoEngineDesc: 'Auto-show promo prices to customers when your shop is quiet. Stops automatically when orders pile up.',
+    mEnablePromo: 'Enable Promo', mStartTime: 'Start Time', mEndTime: 'End Time',
+    mActiveDays: 'Active Days', mBusyThreshold: 'Busy Threshold (in-progress orders)', mPromoHideHint: 'Promo hides when active orders reach this number',
+    mDaySun: 'Sun', mDayMon: 'Mon', mDayTue: 'Tue', mDayWed: 'Wed', mDayThu: 'Thu', mDayFri: 'Fri', mDaySat: 'Sat',
+    mTabOverview: 'Overview', mTabOrders: 'Orders', mTabMenu: 'Menu',
+    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',
+    mTabTopup: 'Top Up', mTabComplaints: 'Complaints', mTabCommissions: 'Commissions', mTabQR: 'QR Codes',
+    mAddNewItem: 'Add New Item', mItemName: 'Item Name', mItemPrice: 'Price (RM)',
+    mItemCat: 'Category', mItemEmoji: 'Emoji Icon', mItemDesc: 'Description',
+    mItemPhoto: 'Item Photo', mItemPhotoOpt: '(optional)', mClickToUpload: 'Click to upload photo',
+    mRemovePhoto: 'Remove Photo', mAddToMenu: 'Add to Menu', mMenuItems: 'Menu Items',
+    mAllMembers: 'All Members', mRecentTxns: 'Recent Transactions',
+    mDeactivateMember: 'Deactivate Member', mConfirmDeactivate: 'Confirm Deactivate',
+    mActivateMember: 'Activate Member', mConfirmActivate: 'Confirm Activate',
+    mMemberActive: 'Active', mMemberInactive: 'Inactive',
+    mDeactivateBtn: 'Deactivate', mActivateBtn: 'Activate',
+    // Overview
+    mStatMembers: 'Members', mStatPoints: 'Points Issued', mStatOrders: 'Orders Today', mStatRevenue: 'Revenue Today',
+    mAddPointsManually: 'Add Points Manually', mPhoneNumber: 'Phone Number',
+    mBillAmount: 'Bill Amount (RM)', mWillEarn: 'Will earn', mPoints: 'points', mAddPoints: 'Add Points', mPurchase: 'purchase', mFreeCoffee: 'Free Coffee',
+    // Orders
+    mAllOrders: 'All Orders', mFilterAll: 'All', mFilterPending: 'Pending', mFilterPreparing: 'Preparing', mFilterDone: 'Done',
+    // New Items
+    mLaunchNewItem: 'Launch New Item', mSelectMenuItem: 'Select Menu Item', mChooseAnItem: '-- Choose an item --',
+    mSpecialPrice: 'Special Price (RM)', mOptional: 'optional',
+    mLaunchDate: 'Launch Date', mEndDate: 'End Date',
+    mAnnouncementText: 'Announcement Text',
+    mActiveNewLaunches: 'Active New Launches', mNoActiveItems: 'No active new items',
+    mPastLaunches: 'Past Launches', mNoPastLaunches: 'No past launches',
+    // Stamp
+    mCreateStampCard: 'Create Stamp Card', mCardName: 'Card Name', mCardEmoji: 'Card Emoji / Icon',
+    mStampsRequired: 'Stamps Required to Complete', mStampRule: 'Stamp Rule',
+    mRulePerOrder: 'Every purchase = 1 stamp', mRulePerAmount: 'Every RM X spent = 1 stamp', mRulePerItem: 'Purchase specific item = 1 stamp',
+    mRewardType: 'Reward Type', mRewardFreeItem: 'Free Menu Item', mRewardFlatDiscount: 'Flat Discount (RM off)',
+    mRewardPctDiscount: 'Percentage Discount (% off)', mRewardBonusPoints: 'Bonus Points',
+    mFreeItem: 'Free Item', mCardColorTheme: 'Card Color Theme',
+    mActiveStampCards: 'Active Stamp Cards', mNoStampCards: 'No stamp cards yet',
+    mMemberStampProgress: 'Member Stamp Progress', mSearchForMember: 'Search for a member',
+    // Top Up
+    mPendingTopupRequests: 'Pending Top Up Requests', mNoPendingRequests: 'No pending requests',
+    mTopupBonusSettings: 'Top Up Bonus Settings', mAddBonusRule: 'Add Bonus Rule',
+    mMinTopupAmount: 'Min Amount (RM)', mBonusPercent: 'Bonus (%)', mBonusExpiry: 'Expiry Date',
+    mAddRule: 'Add Rule', mDeleteRule: 'Delete', mExpired: 'Expired', mNoExpiry: 'No expiry',
+    mMinAmt: 'Min RM', mBonusPct: 'Bonus',
+    mMemberWalletBalances: 'Member Wallet Balances', mTopupHistory: 'Top Up History', mNoTopupHistory: 'No top up history',
+    // Complaints
+    mCustomerComplaints: 'Customer Complaints',
+    mComplaintOpen: 'Open', mComplaintInProgress: 'In Progress', mComplaintResolved: 'Resolved',
+    // QR
+    mGenerateQR: 'Generate Table QR Codes', mQRHint: 'Each table gets a unique QR code. Customers scan to order directly.',
+    mNumberOfTables: 'Number of Tables',
+    // Commissions
+    mCommissionSettings: 'Commission Settings', mReferralCommissionRate: 'Referral Commission Rate',
+    mCommissionDesc: "Referrer earns % of referee's first order total",
+    mCurrentRate: 'Current rate:', mCommissionCredited: "credited to referrer's wallet after first order.",
+    mPendingPaymentProofs: 'Pending Payment Proofs', mNoPaymentProofs: 'No pending payment proofs',
+    mCommissionRecords: 'Commission Records',
+    mVerify: 'Verify', mReject: 'Reject', mApprove: 'Approve',
+    mPaymentVerified: 'Payment verified ?',
+    mPaymentRejected: 'Payment proof rejected.',
+    mNoCommissions: 'No commission records found',
+    mFirstOrderDone: '? First order done', mNotOrderedYet: '? Not ordered yet',
+    mTopupSubmitted: '? Top up request submitted! Pending merchant approval.',
+    mTopupApproved: 'Approved! credited to', mTopupRejected: 'Request rejected.',
+    mScreenshotUploaded: 'Screenshot uploaded. Pending merchant verification.',
+    mScreenshotUploaded2: 'Screenshot uploaded', mTapToChange: 'Tap to change',
+    cancelBtn: 'Cancel',
+    mPhBillAmount: 'e.g. 25.50', mPhItemName: 'e.g. Caramel Latte', mPhItemDesc: 'Short description...', mPhSpecialPrice: 'e.g. 9.90', mPhPromoPrice: 'e.g. 3.50',
+    mPhAnnounce: 'e.g. Try our new Rose Latte! Limited time only ??', mPhSearchMember: 'Search by name or phone...', mPhCardName: 'e.g. Coffee Lover Card',
+    // Dynamic render keys
+    mStampActive: 'Active', mStampPaused: 'Paused', mStampPause: 'Pause', mStampActivate: 'Activate', mStampDelete: 'Delete',
+    mStampMembers: 'members', mFreePrefix: 'Free', mRmOff: 'Off', mPctOff: 'Off', mBonusPtsLabel: 'pts',
+    mStampPerPurchase: '1 stamp / purchase', mStampPerRM: '1 stamp / RM', mStampPerItem: '1 stamp / item',
+    mStampsLabel: 'stamps',
+    mNoStampCardsYet: 'No stamp cards yet', mNoMembersYet: 'No members yet', mNoOrdersFound: 'No orders found',
+    mNoTransactions: 'No transactions', mNoMembersFound: 'No members found', mNoComplaintsFound: 'No complaints found',
+    mNiSpecial: 'Special: RM', mNiWas: 'was RM', mNiLaunch: 'Launch:', mNiEnds: 'Ends:', mNiNoEndDate: 'No end date',
+    mNiDeactivate: 'Deactivate', mNiDelete: 'Delete',
+    mBalance: 'balance',
+    mOrderPrepare: 'Prepare', mOrderDone: 'Done',
+    mOrderTakeaway: 'Takeaway', mOrderTable: 'Table', mOrderPickup: 'Pickup',
+    mOrderCompleted: 'Order completed! ?', mOrderMovedPreparing: 'Moved to preparing!',
+    mComplaintNoPhoto: 'Photo attached', mDetailCustomer: 'Customer', mDetailCategory: 'Category',
+    mDetailStatus: 'Status', mDetailOrder: 'Order', mDetailDate: 'Date', mDetailPrevResponse: 'Previous response',
+    mComplaintResolved: 'Complaint marked as resolved ?',
+    mQRTable: 'Table', mQRPrint: 'Print',
+    mNoActiveItems: 'No active new items', mNoPastLaunches: 'No past launches',
+    mPhComplaintDesc: 'Please describe your issue in detail...', mPhComplaintOrderId: 'e.g. ORD123456',    mPromoEngineTitle: '???????', mPromoEngineDesc: '?????????????????????????',
+    mEnablePromo: '????', mStartTime: '????', mEndTime: '????',
+    mActiveDays: '????', mBusyThreshold: '????(??????)', mPromoHideHint: '?????????????????',
+    mDaySun: '?', mDayMon: '?', mDayTue: '?', mDayWed: '?', mDayThu: '?', mDayFri: '?', mDaySat: '?',
+  },
+  zh: {
+    mCatHotDrinks: '??', mCatColdDrinks: '??', mCatFood: '??', mCatDesserts: '??', mCatSnacks: '??', mCatPromotions: '??',
+    mPromoPrice: '???(RM)', mPromoPriceDesc: '?? � ?????',
+    mUsername: '???', mPassword: '??', mSavePassword: '????',
+    mLoginBtn: '????', mKitchen: '??', mKitchenDisplay: '????', mRefresh: '??', mKitchenNew: '???', mKitchenPreparing: '???', mKitchenDone: '???', mTabSettings: '??',
+    mTabAds: '??',
+    mCreateAd: '????', mAdTitle: '????'', mAdLink: '??URL(??)', mAdStart: '????', mAdEnd: '????', mAdImage: '????', mAdPosition: '????', mAdPriority: '???', mAdPriorityHint: '???????', mActiveAds: '????', mNoActiveAds: '??????', mAllAds: '????', mNoAds: '????', mAdStats: '????', mClickToUploadAd: '????????',
+    mTabOverview: '??', mTabOrders: '??', mTabMenu: '??',
+    mTabMembers: '??', mTabNewItems: '??', mTabStamp: '???',
+    mTabTopup: '??', mTabComplaints: '??', mTabCommissions: '??', mTabQR: '???',
+    mAddNewItem: '?????', mItemName: '????', mItemPrice: '??(RM)',
+    mItemCat: '??', mItemEmoji: 'Emoji??', mItemDesc: '??',
+    mItemPhoto: '????', mItemPhotoOpt: '(??)', mClickToUpload: '????',
+    mRemovePhoto: '????', mAddToMenu: '?????', mMenuItems: '????',
+    mAllMembers: '????', mRecentTxns: '????',
+    mDeactivateMember: '????', mConfirmDeactivate: '????',
+    mActivateMember: '????', mConfirmActivate: '????',
+    mMemberActive: '??', mMemberInactive: '???',
+    mDeactivateBtn: '??', mActivateBtn: '??',
+    // Overview
+    mStatMembers: '???', mStatPoints: '????', mStatOrders: '????', mStatRevenue: '????',
+    mAddPointsManually: '??????', mPhoneNumber: '????',
+    mBillAmount: '???? (RM)', mWillEarn: '???', mPoints: '??', mAddPoints: '????', mPurchase: '??', mFreeCoffee: '????',
+    // Orders
+    mAllOrders: '????', mFilterAll: '??', mFilterPending: '???', mFilterPreparing: '???', mFilterDone: '??',
+    // New Items
+    mLaunchNewItem: '????', mSelectMenuItem: '??????', mChooseAnItem: '-- ???? --',
+    mSpecialPrice: '?? (RM)', mOptional: '??',
+    mLaunchDate: '????', mEndDate: '????',
+    mAnnouncementText: '????',
+    mActiveNewLaunches: '????', mNoActiveItems: '????',
+    mPastLaunches: '????', mNoPastLaunches: '??????',
+    // Stamp
+    mCreateStampCard: '?????', mCardName: '???', mCardEmoji: '? Emoji / ??',
+    mStampsRequired: '???????', mStampRule: '????',
+    mRulePerOrder: '???? = 1 ??', mRulePerAmount: '??? RM X = 1 ??', mRulePerItem: '?????? = 1 ??',
+    mRewardType: '????', mRewardFreeItem: '??????', mRewardFlatDiscount: '???? (RM)',
+    mRewardPctDiscount: '????? (%)', mRewardBonusPoints: '????',
+    mFreeItem: '????', mCardColorTheme: '??????',
+    mActiveStampCards: '?????', mNoStampCards: '?????',
+    mMemberStampProgress: '??????', mSearchForMember: '????',
+    // Top Up
+    mPendingTopupRequests: '???????', mNoPendingRequests: '???????',
+    mTopupBonusSettings: '??????', mAddBonusRule: '??????',
+    mMinTopupAmount: '?????? (RM)', mBonusPercent: '????? (%)', mBonusExpiry: '????',
+    mAddRule: '????', mDeleteRule: '??', mExpired: '???', mNoExpiry: '?????',
+    mMinAmt: '?? RM', mBonusPct: '??',
+    mMemberWalletBalances: '??????', mTopupHistory: '????', mNoTopupHistory: '??????',
+    // Complaints
+    mCustomerComplaints: '????',
+    mComplaintOpen: '???', mComplaintInProgress: '???', mComplaintResolved: '???',
+    // QR
+    mGenerateQR: '???????', mQRHint: '???????,?????????',
+    mNumberOfTables: '????',
+    // Commissions
+    mCommissionSettings: '????', mReferralCommissionRate: '??????',
+    mCommissionDesc: '??????????????????',
+    mCurrentRate: '????:', mCommissionCredited: '?????????????',
+    mPendingPaymentProofs: '???????', mNoPaymentProofs: '?????????',
+    mCommissionRecords: '????',
+    mVerify: '????', mReject: '??', mApprove: '??',
+    mPaymentVerified: '????? ?',
+    mPaymentRejected: '????????',
+    mNoCommissions: '??????',
+    mFirstOrderDone: '? ?????', mNotOrderedYet: '? ????',
+    mTopupSubmitted: '? ???????!???????',
+    mTopupApproved: '???!???', mTopupRejected: '??????',
+    mScreenshotUploaded: '?????,???????',
+    mScreenshotUploaded2: '?????', mTapToChange: '????',
+    cancelBtn: '??',
+    mPhBillAmount: '?:25.50', mPhItemName: '?:????', mPhItemDesc: '????...', mPhSpecialPrice: '?:9.90', mPhPromoPrice: '?:3.50',
+    mPhAnnounce: '?:???????????!???? ??', mPhSearchMember: '?????????...', mPhCardName: '?:??????',
+    // Dynamic render keys
+    mStampActive: '???', mStampPaused: '???', mStampPause: '??', mStampActivate: '??', mStampDelete: '??',
+    mStampMembers: '???', mFreePrefix: '??', mRmOff: '??', mPctOff: '??', mBonusPtsLabel: '??',
+    mStampPerPurchase: '???? = 1 ??', mStampPerRM: '??? RM', mStampPerItem: '?????? = 1 ??',
+    mStampsLabel: '???',
+    mNoStampCardsYet: '?????', mNoMembersYet: '????', mNoOrdersFound: '??????',
+    mNoTransactions: '??????', mNoMembersFound: '??????', mNoComplaintsFound: '??????',
+    mNiSpecial: '??:RM', mNiWas: '?? RM', mNiLaunch: '????:', mNiEnds: '??:', mNiNoEndDate: '?????',
+    mNiDeactivate: '??', mNiDelete: '??',
+    mBalance: '??',
+    mOrderPrepare: '???', mOrderDone: '??',
+    mOrderTakeaway: '??', mOrderTable: '??', mOrderPickup: '??',
+    mOrderCompleted: '?????!?', mOrderMovedPreparing: '??????!',
+    mComplaintNoPhoto: '?????', mDetailCustomer: '??', mDetailCategory: '??',
+    mDetailStatus: '??', mDetailOrder: '??', mDetailDate: '??', mDetailPrevResponse: '?????',
+    mComplaintResolved: '????????? ?',
+    mQRTable: '??', mQRPrint: '??',
+    mNoActiveItems: '??????', mNoPastLaunches: '????????',
+    mPhComplaintDesc: '?????????...', mPhComplaintOrderId: '??:ORD123456',    mPromoEngineTitle: '????-???? ??????? ?????? ???????', mPromoEngineDesc: '???? ??????? ????????????? ?????? ????????? ??????? ??????. ????????? ??????????? ????????.',
+    mEnablePromo: '???????? ??????', mStartTime: '?????? ?????', mEndTime: '?????? ?????',
+    mActiveDays: '?????????? ???????', mBusyThreshold: '???? ????????? (??????????????)', mPromoHideHint: '?????????? ????????? ???? ????? ??????????? ?????? ????????',
+    mDaySun: '??', mDayMon: '??', mDayTue: '??', mDayWed: '??', mDayThu: '??', mDayFri: '??', mDaySat: '??',
+  },
+    ms: {
+    mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
+    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan � untuk promosi off-peak',
+    mUsername: 'Nama Pengguna', mPassword: 'Kata Laluan', mSavePassword: 'Simpan Kata Laluan',
+    mLoginBtn: 'Log Masuk Dashboard', mKitchen: 'Dapur', mKitchenDisplay: 'Paparan Dapur', mRefresh: 'Segarkan', mKitchenNew: 'Baru', mKitchenPreparing: 'Sedang Disediakan', mKitchenDone: 'Selesai', mTabSettings: 'Tetapan',
+    mTabAds: 'Iklan',
+    mCreateAd: 'Cipta Iklan Baharu', mAdTitle: 'Tajuk Iklan', mAdLink: 'URL Pautan (pilihan)', mAdStart: 'Tarikh Mula', mAdEnd: 'Tarikh Tamat', mAdImage: 'Imej Iklan', mAdPosition: 'Kedudukan Paparan', mAdPriority: 'Keutamaan', mAdPriorityHint: 'Nombor lebih tinggi = dipaparkan dahulu', mActiveAds: 'Iklan Aktif', mNoActiveAds: 'Tiada iklan aktif', mAllAds: 'Semua Iklan', mNoAds: 'Belum ada iklan', mAdStats: 'Statistik Iklan', mClickToUploadAd: 'Klik untuk muat naik imej iklan',
+    mTabOverview: 'Ringkasan', mTabOrders: 'Pesanan', mTabMenu: 'Menu',
+    mTabMembers: 'Ahli', mTabNewItems: 'Item Baru', mTabStamp: 'Kad Setem',
+    mTabTopup: 'Tambah Nilai', mTabComplaints: 'Aduan', mTabCommissions: 'Komisen', mTabQR: 'Kod QR',
+    mAddNewItem: 'Tambah Item Baru', mItemName: 'Nama Item', mItemPrice: 'Harga (RM)',
+    mItemCat: 'Kategori', mItemEmoji: 'Ikon Emoji', mItemDesc: 'Penerangan',
+    mItemPhoto: 'Foto Item', mItemPhotoOpt: '(pilihan)', mClickToUpload: 'Klik untuk muat naik foto',
+    mRemovePhoto: 'Buang Foto', mAddToMenu: 'Tambah ke Menu', mMenuItems: 'Senarai Menu',
+    mAllMembers: 'Semua Ahli', mRecentTxns: 'Transaksi Terkini',
+    mDeactivateMember: 'Nyahaktif Ahli', mConfirmDeactivate: 'Sahkan Nyahaktif',
+    mActivateMember: 'Aktifkan Ahli', mConfirmActivate: 'Sahkan Aktif',
+    mMemberActive: 'Aktif', mMemberInactive: 'Tidak Aktif',
+    mDeactivateBtn: 'Nyahaktif', mActivateBtn: 'Aktifkan',
+    // Overview
+    mStatMembers: 'Ahli', mStatPoints: 'Mata Diberikan', mStatOrders: 'Pesanan Hari Ini', mStatRevenue: 'Hasil Hari Ini',
+    mAddPointsManually: 'Tambah Mata Secara Manual', mPhoneNumber: 'Nombor Telefon',
+    mBillAmount: 'Jumlah Bil (RM)', mWillEarn: 'Akan dapat', mPoints: 'mata', mAddPoints: 'Tambah Mata', mPurchase: 'pembelian', mFreeCoffee: 'Kopi Percuma',
+    // Orders
+    mAllOrders: 'Semua Pesanan', mFilterAll: 'Semua', mFilterPending: 'Belum Siap', mFilterPreparing: 'Sedang Disediakan', mFilterDone: 'Siap',
+    // New Items
+    mLaunchNewItem: 'Lancarkan Item Baru', mSelectMenuItem: 'Pilih Item Menu', mChooseAnItem: '-- Pilih item --',
+    mSpecialPrice: 'Harga Istimewa (RM)', mOptional: 'pilihan',
+    mLaunchDate: 'Tarikh Lancar', mEndDate: 'Tarikh Tamat',
+    mAnnouncementText: 'Teks Pengumuman',
+    mActiveNewLaunches: 'Pelancaran Aktif', mNoActiveItems: 'Tiada item baru aktif',
+    mPastLaunches: 'Pelancaran Lalu', mNoPastLaunches: 'Tiada pelancaran lalu',
+    // Stamp
+    mCreateStampCard: 'Cipta Kad Setem', mCardName: 'Nama Kad', mCardEmoji: 'Emoji / Ikon Kad',
+    mStampsRequired: 'Setem Diperlukan untuk Lengkap', mStampRule: 'Peraturan Setem',
+    mRulePerOrder: 'Setiap pembelian = 1 setem', mRulePerAmount: 'Setiap RM X dibelanjakan = 1 setem', mRulePerItem: 'Beli item tertentu = 1 setem',
+    mRewardType: 'Jenis Ganjaran', mRewardFreeItem: 'Item Menu Percuma', mRewardFlatDiscount: 'Diskaun Tetap (RM)',
+    mRewardPctDiscount: 'Diskaun Peratusan (%)', mRewardBonusPoints: 'Mata Bonus',
+    mFreeItem: 'Item Percuma', mCardColorTheme: 'Tema Warna Kad',
+    mActiveStampCards: 'Kad Setem Aktif', mNoStampCards: 'Tiada kad setem lagi',
+    mMemberStampProgress: 'Kemajuan Setem Ahli', mSearchForMember: 'Cari ahli',
+    // Top Up
+    mPendingTopupRequests: 'Permintaan Tambah Nilai Tertunda', mNoPendingRequests: 'Tiada permintaan tertunda',
+    mTopupBonusSettings: 'Tetapan Bonus Tambah Nilai', mAddBonusRule: 'Tambah Peraturan Bonus',
+    mMinTopupAmount: 'Jumlah Min (RM)', mBonusPercent: 'Bonus (%)', mBonusExpiry: 'Tarikh Tamat',
+    mAddRule: 'Tambah Peraturan', mDeleteRule: 'Padam', mExpired: 'Tamat Tempoh', mNoExpiry: 'Tiada tarikh tamat',
+    mMinAmt: 'Min RM', mBonusPct: 'Bonus',
+    mMemberWalletBalances: 'Baki Dompet Ahli', mTopupHistory: 'Sejarah Tambah Nilai', mNoTopupHistory: 'Tiada sejarah tambah nilai',
+    // Complaints
+    mCustomerComplaints: 'Aduan Pelanggan',
+    mComplaintOpen: 'Terbuka', mComplaintInProgress: 'Dalam Proses', mComplaintResolved: 'Selesai',
+    // QR
+    mGenerateQR: 'Jana Kod QR Meja', mQRHint: 'Setiap meja mendapat kod QR unik. Pelanggan imbas untuk memesan.',
+    mNumberOfTables: 'Bilangan Meja',
+    // Commissions
+    mCommissionSettings: 'Tetapan Komisen', mReferralCommissionRate: 'Kadar Komisen Rujukan',
+    mCommissionDesc: 'Perujuk mendapat % daripada jumlah pesanan pertama yang dirujuk',
+    mCurrentRate: 'Kadar semasa:', mCommissionCredited: 'dikreditkan ke dompet perujuk selepas pesanan pertama.',
+    mPendingPaymentProofs: 'Bukti Bayaran Tertunda', mNoPaymentProofs: 'Tiada bukti bayaran tertunda',
+    mCommissionRecords: 'Rekod Komisen',
+    mVerify: 'Sahkan', mReject: 'Tolak', mApprove: 'Luluskan',
+    mPaymentVerified: 'Bayaran disahkan ?',
+    mPaymentRejected: 'Bukti bayaran ditolak.',
+    mNoCommissions: 'Tiada rekod komisen',
+    mFirstOrderDone: '? Pesanan pertama selesai', mNotOrderedYet: '? Belum memesan',
+    mTopupSubmitted: '? Permintaan tambah nilai dihantar! Menunggu kelulusan peniaga.',
+    mTopupApproved: 'Diluluskan! dikreditkan ke', mTopupRejected: 'Permintaan ditolak.',
+    mScreenshotUploaded: 'Tangkapan skrin dimuat naik. Menunggu pengesahan peniaga.',
+    mScreenshotUploaded2: 'Tangkapan skrin dimuat naik', mTapToChange: 'Ketik untuk tukar',
+    cancelBtn: 'Batal',
+    mPhBillAmount: 'cth. 25.50', mPhItemName: 'cth. Caramel Latte', mPhItemDesc: 'Penerangan ringkas...', mPhSpecialPrice: 'cth. 9.90', mPhPromoPrice: 'cth. 9.90',
+    mPhAnnounce: 'cth. Cuba Rose Latte baru kami! Masa terhad ??', mPhSearchMember: 'Cari nama atau telefon...', mPhCardName: 'cth. Kad Pencinta Kopi',
+    // Dynamic render keys
+    mStampActive: 'Aktif', mStampPaused: 'Dijeda', mStampPause: 'Jeda', mStampActivate: 'Aktifkan', mStampDelete: 'Padam',
+    mStampMembers: 'ahli', mFreePrefix: 'Percuma', mRmOff: 'diskaun', mPctOff: 'diskaun', mBonusPtsLabel: 'mata',
+    mStampPerPurchase: '1 setem / pembelian', mStampPerRM: '1 setem / RM', mStampPerItem: '1 setem / item tertentu',
+    mStampsLabel: 'setem',
+    mNoStampCardsYet: 'Tiada kad setem lagi', mNoMembersYet: 'Tiada ahli lagi', mNoOrdersFound: 'Tiada pesanan dijumpai',
+    mNoTransactions: 'Tiada transaksi', mNoMembersFound: 'Tiada ahli dijumpai', mNoComplaintsFound: 'Tiada aduan dijumpai',
+    mNiSpecial: 'Istimewa: RM', mNiWas: 'asal RM', mNiLaunch: 'Tarikh Lancar:', mNiEnds: 'Tamat:', mNiNoEndDate: 'Tiada tarikh tamat',
+    mNiDeactivate: 'Nyahaktif', mNiDelete: 'Padam',
+    mBalance: 'baki',
+    mOrderPrepare: 'Sediakan', mOrderDone: 'Selesai',
+    mOrderTakeaway: 'Bawa Balik', mOrderTable: 'Meja', mOrderPickup: 'Ambil',
+    mOrderCompleted: 'Pesanan selesai! ?', mOrderMovedPreparing: 'Dipindahkan ke sedang disediakan!',
+    mComplaintNoPhoto: 'Foto dilampirkan', mDetailCustomer: 'Pelanggan', mDetailCategory: 'Kategori',
+    mDetailStatus: 'Status', mDetailOrder: 'Pesanan', mDetailDate: 'Tarikh', mDetailPrevResponse: 'Respons sebelumnya',
+    mComplaintResolved: 'Aduan ditandakan sebagai selesai ?',
+    mQRTable: 'Meja', mQRPrint: 'Cetak',
+    mNoActiveItems: 'Tiada item baru aktif', mNoPastLaunches: 'Tiada pelancaran lepas',
+    mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...', mPhComplaintOrderId: 'cth. ORD123456',    mPromoEngineTitle: 'Enjin Promo Off-Peak', mPromoEngineDesc: 'Auto-tunjuk harga promo bila kedai sepi. Berhenti bila order banyak.',
+    mEnablePromo: 'Aktifkan Promo', mStartTime: 'Masa Mula', mEndTime: 'Masa Tamat',
+    mActiveDays: 'Hari Aktif', mBusyThreshold: 'Ambang Sibuk (order dalam progress)', mPromoHideHint: 'Promo sorok bila active order sampai numero ini',
+    mDaySun: 'Aha', mDayMon: 'Isn', mDayTue: 'Sel', mDayWed: 'Rab', mDayThu: 'Kha', mDayFri: 'Jum', mDaySat: 'Sab',
+  },
+    ta: {
+    mCatHotDrinks: '????? ????????', mCatColdDrinks: '?????? ????????', mCatFood: '????', mCatDesserts: '??????????', mCatSnacks: '??????????', mCatPromotions: '????????????',
+    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? � off-peak ???????',
+    mUsername: '????? ?????', mPassword: '??????????', mSavePassword: '?????????? ????',
+    mLoginBtn: '?????????????? ???????', mKitchen: '???????', mKitchenDisplay: '??????? ??????', mRefresh: '????????', mKitchenNew: '???????', mKitchenPreparing: '??????????', mKitchenDone: '?????????', mTabSettings: '??????????',
+    mTabAds: '????????????',
+    mCreateAd: '????? ????????? ?????????', mAdTitle: '????'??? ???????', mAdLink: 'URL ??????? (?????????)', mAdStart: '?????? ????', mAdEnd: '?????? ????', mAdImage: '??????? ????', mAdPosition: '?????? ????', mAdPriority: '??????????', mAdPriorityHint: '???? ??? = ??????? ??????', mActiveAds: '??????? ????????????', mNoActiveAds: '??????? ???????????? ?????', mAllAds: '??????? ????????????', mNoAds: '??????? ???????????? ?????', mAdStats: '??????? ????????????', mClickToUploadAd: '??????? ?????? ???????? ?????? ?????????',
+    mTabOverview: '?????????', mTabOrders: '?????????', mTabMenu: '????',
+    mTabMembers: '?????????????', mTabNewItems: '????? ?????????', mTabStamp: '???????? ??????',
+    mTabTopup: '???? ???', mTabComplaints: '?????????', mTabCommissions: '??????', mTabQR: 'QR ????????',
+    mAddNewItem: '????? ???? ????', mItemName: '???? ?????', mItemPrice: '???? (RM)',
+    mItemCat: '???', mItemEmoji: 'Emoji ?????', mItemDesc: '????????',
+    mItemPhoto: '???? ??????????', mItemPhotoOpt: '(????????????)', mClickToUpload: '???? ???????? ??????',
+    mRemovePhoto: '???? ??????', mAddToMenu: '???????? ????', mMenuItems: '???? ????????',
+    mAllMembers: '??????? ?????????????', mRecentTxns: '????????? ??????????????',
+    mDeactivateMember: '?????????? ??????', mConfirmDeactivate: '?????? ??????????????',
+    mActivateMember: '?????????? ???????', mConfirmActivate: '??????????? ?????',
+    mMemberActive: '???????', mMemberInactive: '???????',
+    mDeactivateBtn: '??????', mActivateBtn: '???????',
+    // Overview
+    mStatMembers: '?????????????', mStatPoints: '??????? ?????????', mStatOrders: '?????? ?????????', mStatRevenue: '?????? ???????',
+    mAddPointsManually: '????????? ????????? ????', mPhoneNumber: '???????? ???',
+    mBillAmount: '???? ???? (RM)', mWillEarn: '???????????', mPoints: '?????????', mAddPoints: '????????? ????', mPurchase: '?????????', mFreeCoffee: '???? ????',
+    // Orders
+    mAllOrders: '??????? ?????????', mFilterAll: '?????????', mFilterPending: '??????????', mFilterPreparing: '?????????????', mFilterDone: '?????????',
+    // New Items
+    mLaunchNewItem: '????? ???? ????????', mSelectMenuItem: '???? ???? ??????????', mChooseAnItem: '-- ?????? ?????????? --',
+    mSpecialPrice: '??????? ???? (RM)', mOptional: '????????????',
+    mLaunchDate: '?????????? ????', mEndDate: '?????? ????',
+    mAnnouncementText: '????????? ???',
+    mActiveNewLaunches: '??????? ???? ????? ???????????', mNoActiveItems: '??????? ????? ????????? ?????',
+    mPastLaunches: '????? ???????????', mNoPastLaunches: '????? ??????????? ?????',
+    // Stamp
+    mCreateStampCard: '???????? ?????? ?????????', mCardName: '?????? ?????', mCardEmoji: '?????? Emoji / ?????',
+    mStampsRequired: '??????? ??????? ???????????', mStampRule: '???????? ????',
+    mRulePerOrder: '??????? ??????????????? = 1 ????????', mRulePerAmount: 'RM X ?????? = 1 ????????', mRulePerItem: '??????????? ?????? ????? = 1 ????????',
+    mRewardType: '??????? ???', mRewardFreeItem: '???? ???? ??????', mRewardFlatDiscount: '??????? ???????? (RM)',
+    mRewardPctDiscount: '????? ???????? (%)', mRewardBonusPoints: '????? ?????????',
+    mFreeItem: '???? ??????', mCardColorTheme: '?????? ??? ???????????',
+    mActiveStampCards: '??????? ???? ???????? ?????????', mNoStampCards: '??????? ???????? ????????? ?????',
+    mMemberStampProgress: '?????????? ???????? ???????????', mSearchForMember: '???????????? ?????????',
+    // Top Up
+    mPendingTopupRequests: '????????????? ????-??? ???????????', mNoPendingRequests: '????????????? ??????????? ?????',
+    mTopupBonusSettings: '????-??? ????? ??????????', mAddBonusRule: '????? ???? ????',
+    mMinTopupAmount: '??????????? ???? (RM)', mBonusPercent: '????? (%)', mBonusExpiry: '??????? ????',
+    mAddRule: '???? ????', mDeleteRule: '??????', mExpired: '???????', mNoExpiry: '??????? ?????',
+    mMinAmt: '???? RM', mBonusPct: '?????',
+    mMemberWalletBalances: '?????????? ????? ???????', mTopupHistory: '????-??? ??????', mNoTopupHistory: '????-??? ?????? ?????',
+    // Complaints
+    mCustomerComplaints: '????????????? ?????????',
+    mComplaintOpen: '????????', mComplaintInProgress: '?????????????', mComplaintResolved: '???????????????',
+    // QR
+    mGenerateQR: '???? QR ??????????? ?????????', mQRHint: '??????? ?????????? ??? QR ????????. ???????????????? ?????? ?????? ?????? ?????????.',
+    mNumberOfTables: '????????? ?????????',
+    // Commissions
+    mCommissionSettings: '?????? ??????????', mReferralCommissionRate: '????????? ?????? ?????',
+    mCommissionDesc: '??????????????? ????? ?????? ??????????? % ???????????????',
+    mCurrentRate: '???????? ?????:', mCommissionCredited: '????? ???????????? ????? ????????????????? ????????? ??????????????.',
+    mPendingPaymentProofs: '????????????? ????? ?????????', mNoPaymentProofs: '????????????? ????? ????????? ?????',
+    mCommissionRecords: '?????? ????????',
+    mVerify: '???????', mReject: '???????', mApprove: '??????',
+    mPaymentVerified: '??????? ?????????????????? ?',
+    mPaymentRejected: '????? ?????? ??????????????????.',
+    mNoCommissions: '?????? ???????? ?????',
+    mFirstOrderDone: '? ????? ?????? ?????????', mNotOrderedYet: '? ??????? ?????? ???????????',
+    mTopupSubmitted: '? ????-??? ???????? ???????????????????! ?????? ????????????? ???????????????.',
+    mTopupApproved: '?????????????????! ???????? ???????????????', mTopupRejected: '???????? ??????????????????.',
+    mScreenshotUploaded: '???????????? ????????????????. ?????? ???????????????? ???????????????.',
+    mScreenshotUploaded2: '???????????? ????????????????', mTapToChange: '????? ???????',
+    cancelBtn: '????? ????',
+    mPhBillAmount: '?.??. 25.50', mPhItemName: '?.??. ?????? ?????', mPhItemDesc: '?????????? ????????...', mPhSpecialPrice: '?.??. 9.90', mPhPromoPrice: '?.??. 9.90',
+    mPhAnnounce: '?.??. ????? ???? ????? ??????????????! ??', mPhSearchMember: '????? ?????? ???????????? ?????????...', mPhCardName: '?.??. ???? ??????',
+    // Dynamic render keys
+    mStampActive: '???????', mStampPaused: '??????????????????', mStampPause: '????????', mStampActivate: '????????????', mStampDelete: '??????',
+    mStampMembers: '?????????????', mFreePrefix: '??????', mRmOff: '????????', mPctOff: '????????', mBonusPtsLabel: '?????????',
+    mStampPerPurchase: '1 ???????? / ???????', mStampPerRM: '1 ???????? / RM', mStampPerItem: '1 ???????? / ??????????? ????',
+    mStampsLabel: '???????????',
+    mNoStampCardsYet: '??????? ???????? ?????? ?????', mNoMembersYet: '??????? ?????????? ?????', mNoOrdersFound: '?????? ?????????????',
+    mNoTransactions: '?????????????? ?????', mNoMembersFound: '?????????? ?????????????', mNoComplaintsFound: '????????? ?????????????',
+    mNiSpecial: '???????: RM', mNiWas: '?????? RM', mNiLaunch: '????????:', mNiEnds: '??????:', mNiNoEndDate: '?????? ???? ?????',
+    mNiDeactivate: '????????', mNiDelete: '??????',
+    mBalance: '???????',
+    mOrderPrepare: '????? ????', mOrderDone: '?????????',
+    mOrderTakeaway: '???????', mOrderTable: '????', mOrderPickup: '???????',
+    mOrderCompleted: '?????? ?????????! ?', mOrderMovedPreparing: '????????? ???????? ???????????????!',
+    mComplaintNoPhoto: '?????????? ??????????????', mDetailCustomer: '?????????????', mDetailCategory: '???',
+    mDetailStatus: '????', mDetailOrder: '??????', mDetailDate: '????', mDetailPrevResponse: '??????? ?????',
+    mComplaintResolved: '?????? ???????????????? ??????????????? ?',
+    mQRTable: '????', mQRPrint: '???????',
+    mNoActiveItems: '??????? ????? ????????? ?????', mNoPastLaunches: '????? ??????????? ?????',
+    mPhComplaintDesc: '?????? ?????????? ??????? ????????????...', mPhComplaintOrderId: '?.??. ORD123456',
+  },
+};
+let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
+
+function mt(key) {
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
+}
+
+function setMerchantLang(lang) {
+  _merchantLang = lang;
+  safeLS.set('loyalbrew_merchant_lang', lang);
+  document.documentElement.lang = lang;
+  // Also sync customer language to keep consistent
+  currentLang = lang;
+  safeLS.set('loyalbrew_lang', lang);
+  applyMerchantLang();
+  // Also apply customer language for data-i18n elements on merchant page
+  // BUT skip elements that already have data-mi18n (those are handled by applyMerchantLang)
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    if (el.hasAttribute('data-mi18n')) return; // Skip merchant-translated elements
+    const key = el.getAttribute('data-i18n');
+    if (LANGS[lang] && LANGS[lang][key]) el.textContent = LANGS[lang][key];
+  });
+}
+
+function applyMerchantLang() {
+  document.querySelectorAll('[data-mi18n]').forEach(el => {
+    const key = el.getAttribute('data-mi18n');
+    el.textContent = mt(key);
+  });
+  // Translate <option> elements with data-mi18n-opt
+  document.querySelectorAll('[data-mi18n-opt]').forEach(el => {
+    const key = el.getAttribute('data-mi18n-opt');
+    el.textContent = mt(key);
+  });
+  // Translate placeholder with data-mi18n-ph
+  document.querySelectorAll('[data-mi18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-mi18n-ph');
+    el.placeholder = mt(key);
+  });
+  // Highlight active lang buttons
+  ['en','zh','ms','ta'].forEach(l => {
+    ['mlang-','mlang2-'].forEach(prefix => {
+      const btn = document.getElementById(prefix + l);
+      if (btn) btn.classList.toggle('active', l === _merchantLang);
+    });
+  });
+  // Re-render member table to update status labels
+  renderMemberTable(DB.getMembers());
+  // Re-render all dynamic merchant content to apply new language
+  renderMenuMgmt();
+  renderMerchantOrders(DB.getOrders());
+  renderNewItemsMgmt();
+  initStampMgmtTab();
+  initTopupMgmtTab();
+  initComplaintsMgmtTab();
+  initCommissionsTab();
+  renderPaymentProofsPending();
+}
+
+// ===== MERCHANT SAVE PASSWORD =====
+function initMerchantSavedPassword() {
+  const saved = safeLS.json('loyalbrew_merchant_saved', null);
+  if (saved) {
+    document.getElementById('m-user').value = saved.user || '';
+    document.getElementById('m-pass').value = saved.pass || '';
+    document.getElementById('m-remember').checked = true;
+  }
+}
+
+function onMerchantRememberChange() {
+  const checked = document.getElementById('m-remember').checked;
+  if (!checked) {
+    safeLS.del('loyalbrew_merchant_saved');
+  }
+}
+
+async function merchantLogin() {
+  var fb = window.__lbFirebase;
+  if (!fb || !fb.db) { showToast("Firebase not ready", "error"); return; }
+  var user = document.getElementById('m-user').value.trim();
+  var pass = document.getElementById('m-pass').value.trim();
+  var remember = document.getElementById('m-remember').checked;
+  var btn = document.querySelector('#page-merchant-login .btn-merchant');
+  if (!user || !pass) {
+    showToast('Please enter Merchant ID and Password', 'error');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Logging in...'; }
+  try {
+    // Look up merchant in Firestore by ID
+    var docRef = fb.doc(fb.db, 'merchants', user);
+    var docSnap = await fb.getDoc(docRef);
+    if (!docSnap.exists()) {
+      showToast('Merchant ID not found', 'error');
+      return;
+    }
+    var mData = docSnap.data();
+    // Check if merchant is deleted
+    if (mData.status === 'deleted') {
+      showToast('This merchant account has been deactivated', 'error');
+      return;
+    }
+    // Verify password - support both hashed (new) and plaintext (legacy)
+    var storedPassword = mData.password;
+    var isValid = false;
+    if (storedPassword && storedPassword.length === 64 && /^[a-f0-9]+$/.test(storedPassword)) {
+      // New format: hashed password (SHA-256 = 64 hex chars)
+      // Use email as salt for consistent hashing
+      var inputHash = await hashPassword(pass, mData.email || user);
+      isValid = (inputHash === storedPassword);
+    } else {
+      // Legacy format: plaintext password (backward compatibility)
+      isValid = (storedPassword === pass);
+    }
+    if (!isValid) {
+      showToast('Incorrect password', 'error');
+      return;
+    }
+    // Login success - set MERCHANT_DOC_PATH to this merchant
+    MERCHANT_DOC_PATH = { col: 'merchants', id: user };
+    if (remember) {
+      safeLS.setJSON('loyalbrew_merchant_saved', { user, pass });
+    } else {
+      safeLS.del('loyalbrew_merchant_saved');
+    }
+    merchantLoggedIn = true;
+    window._currentMerchantId = user;
+    window._currentMerchantName = mData.name || user;
+    // Sync shop settings from Firestore to localStorage
+    if (mData.name || mData.announce || mData.banner || mData.welcomeText || mData.landingTitle) {
+      const shopSettings = {
+        name: mData.name || user,
+        announce: mData.announce || '',
+        banner: mData.banner || '',
+        welcomeText: mData.welcomeText || '',
+        landingTitle: mData.landingTitle || '',
+        updatedAt: new Date().toISOString()
+      };
+      safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), shopSettings);
+    }
+    // Sync points settings from Firestore
+    if (mData.pointsRate) {
+      const pointsSettings = { rate: mData.pointsRate, updatedAt: new Date().toISOString() };
+      safeLS.setJSON(_getMerchantStorageKey(POINTS_SETTINGS_KEY), pointsSettings);
+    }
+    showPage('page-merchant');
+    _safeLoadMerchantCredits();
+    initSuperAdminMode();
+    showToast('Welcome, ' + (mData.name || user) + '!', 'success');
+  } catch (e) {
+
+    showToast('Login failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = mt('mLoginBtn') || 'Login to Dashboard'; }
+  }
+}
+
+function merchantLogout() {
+  merchantLoggedIn = false;
+  MERCHANT_DOC_PATH = { col: 'merchants', id: 'test_shop' };
+  window._currentMerchantId = null;
+  window._currentMerchantName = null;
+  _merchantCredits = null;
+  // Only clear fields if not remembering
+  var saved = safeLS.json('loyalbrew_merchant_saved', null);
+  if (!saved) {
+    document.getElementById('m-user').value = '';
+    document.getElementById('m-pass').value = '';
+  }
+  showPage('page-landing');
+}
+
+// ===== DEACTIVATE MEMBER =====
+let _deactivateMemberId = null;
+
+function openDeactivateMemberModal(memberId) {
+  const members = DB.getMembers();
+  const m = members.find(x => x.id === memberId);
+  if (!m) return;
+  _deactivateMemberId = memberId;
+  const isActive = !m.deactivated;
+  const modal = document.getElementById('deactivate-member-modal');
+  const msg = document.getElementById('deactivate-member-msg');
+  const confirmBtn = modal.querySelector('.btn-danger');
+  if (isActive) {
+    msg.innerHTML = `${mt('mDeactivateMember')}: <strong>${escHtml(m.name)}</strong> (${escHtml(m.phone)})?<br><small style="color:#c62828">${_merchantLang==='zh'?'?????????????????':_merchantLang==='ms'?'Ahli tidak boleh log masuk selepas dinyahaktifkan.':_merchantLang==='ta'?'?????????????? ?????????? ???????? ????????.':'Member will be blocked from login after deactivation.'}</small>`;
+    confirmBtn.innerHTML = `<i class="fas fa-user-slash"></i> ${mt('mConfirmDeactivate')}`;
+    confirmBtn.onclick = confirmDeactivateMember;
+  } else {
+    msg.innerHTML = `${mt('mActivateMember')}: <strong>${escHtml(m.name)}</strong> (${escHtml(m.phone)})?`;
+    confirmBtn.innerHTML = `<i class="fas fa-user-check"></i> ${mt('mConfirmActivate')}`;
+    confirmBtn.onclick = confirmActivateMember;
+  }
+  modal.classList.remove('hidden');
+}
+
+function closeDeactivateMemberModal() {
+  document.getElementById('deactivate-member-modal').classList.add('hidden');
+  _deactivateMemberId = null;
+}
+
+function confirmDeactivateMember() {
+  if (!_deactivateMemberId) return;
+  const members = DB.getMembers();
+  const idx = members.findIndex(m => m.id === _deactivateMemberId);
+  if (idx !== -1) {
+    members[idx].deactivated = true;
+    DB.saveMembers(members);
+    showToast(_merchantLang==='zh'?'?????':_merchantLang==='ms'?'Ahli telah dinyahaktifkan':_merchantLang==='ta'?'?????????? ??????????????':'Member deactivated', 'error');
+    renderMemberTable(DB.getMembers());
+    closeDeactivateMemberModal();
+  }
+}
+
+function confirmActivateMember() {
+  if (!_deactivateMemberId) return;
+  const members = DB.getMembers();
+  const idx = members.findIndex(m => m.id === _deactivateMemberId);
+  if (idx !== -1) {
+    members[idx].deactivated = false;
+    DB.saveMembers(members);
+    showToast(_merchantLang==='zh'?'?????':_merchantLang==='ms'?'Ahli telah diaktifkan':_merchantLang==='ta'?'?????????? ???????????????????':'Member activated');
+    renderMemberTable(DB.getMembers());
+    closeDeactivateMemberModal();
+  }
+}
+
+// ===== FOOD PHOTO UPLOAD =====
+let _newItemPhotoData = null;
+
+function previewItemPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast(mt('mPhotoUnder5MB') || t('photoUnder5MB'), 'error');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _newItemPhotoData = e.target.result;
+    const preview = document.getElementById('item-photo-preview');
+    const placeholder = document.getElementById('item-photo-placeholder');
+    const clearBtn = document.getElementById('item-photo-clear-btn');
+    preview.src = _newItemPhotoData;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    clearBtn.style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearItemPhoto() {
+  _newItemPhotoData = null;
+  document.getElementById('new-item-photo-input').value = '';
+  document.getElementById('item-photo-preview').src = '';
+  document.getElementById('item-photo-preview').style.display = 'none';
+  document.getElementById('item-photo-placeholder').style.display = 'flex';
+  document.getElementById('item-photo-clear-btn').style.display = 'none';
+}
+
+function loadMerchantDashboard() {
+  const members = DB.getMembers();
+  const txns    = DB.getTxns();
+  const orders  = DB.getOrders();
+  const today   = new Date().toISOString().split('T')[0];
+
+  const todayOrders  = orders.filter(o => o.createdAt.startsWith(today));
+  const totalRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
+  const totalPoints  = txns.filter(t => t.type === 'earn').reduce((s, t) => s + t.points, 0);
+
+  document.getElementById('stat-members').textContent = members.length;
+  document.getElementById('stat-points').textContent  = totalPoints.toLocaleString();
+  document.getElementById('stat-orders').textContent  = todayOrders.length;
+  document.getElementById('stat-revenue').textContent = 'RM' + totalRevenue.toFixed(0);
+
+  // Update merchant name in header
+  const headerNameEl = document.getElementById('merchant-header-name');
+  if (headerNameEl && window._currentMerchantName) {
+    headerNameEl.textContent = window._currentMerchantName;
+  }
+
+  renderMemberTable(members);
+  renderAllTxns(txns.slice(0, 15));
+  renderMenuMgmt();
+  renderMerchantOrders(orders);
+}
+
+function switchMerchantTab(tabId) {
+  document.querySelectorAll('.mtab').forEach(t => { t.classList.remove('active'); t.classList.add('hidden'); });
+  document.querySelectorAll('.mnav').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.remove('hidden');
+  document.getElementById(tabId).classList.add('active');
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  if (tabId === 'tab-new-items')   { populateNewItemSelect(); renderNewItemsMgmt(); }
+  if (tabId === 'tab-stamp-mgmt')  { initStampMgmtTab(); }
+  if (tabId === 'tab-topup-mgmt')  { initTopupMgmtTab(); }
+  if (tabId === 'tab-complaints')  { initComplaintsMgmtTab(); }
+  if (tabId === 'tab-commissions') { initCommissionsTab(); }
+  if (tabId === 'tab-ads')        { renderMerchantAds(); }
+  if (tabId === 'tab-qr')         { initMerchantShopQR(); }
+  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSettings(); loadPointsSettings(); }
+}
+
+// --- Orders tab ---
+function renderMerchantOrders(orders) {
+  const filtered = orderFilterStatus === 'all' ? orders : orders.filter(o => o.status === orderFilterStatus);
+  const list = document.getElementById('merchant-orders-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoOrdersFound')}</p>`;
+    return;
+  }
+  list.innerHTML = filtered.map(order => {
+    const time = new Date(order.createdAt).toLocaleString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const isTakeaway = order.orderType === 'takeaway';
+    const typeLabel = isTakeaway
+      ? `<span style="color:#2e7d32;font-size:0.78rem;font-weight:600"><i class="fas fa-shopping-bag"></i> ${mt('mOrderTakeaway')}${order.pickupTime ? ' � ' + mt('mOrderPickup') + ' ' + order.pickupTime : ''}</span>`
+      : `<span style="color:#8B4513;font-size:0.78rem;font-weight:600"><i class="fas fa-chair"></i> ${mt('mOrderTable')} ${order.tableNo}</span>`;
+    const statusLabel = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+    return `
+      <div class="order-card ${order.status}">
+        <div class="order-card-header">
+          <strong>#${order.id}</strong>
+          <span class="order-status-badge status-${order.status}">${statusLabel}</span>
+        </div>
+        <div style="margin-bottom:6px">${typeLabel}</div>
+        <div class="order-items-list">${order.items.map(i => `${i.qty}� ${i.name}`).join(' � ')}</div>
+        <div class="order-card-footer">
+          <span class="order-total">RM${order.total.toFixed(2)} � ${time}</span>
+          <div class="order-action-btns">
+            ${order.status === 'pending'   ? `<button class="oa-btn prepare"  onclick="merchantUpdateOrder('${order.id}','preparing')"><i class="fas fa-fire"></i> ${mt('mOrderPrepare')}</button>` : ''}
+            ${order.status === 'preparing' ? `<button class="oa-btn complete" onclick="merchantUpdateOrder('${order.id}','done')"><i class="fas fa-check"></i> ${mt('mOrderDone')}</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterOrders(status, btn) {
+  orderFilterStatus = status;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMerchantOrders(DB.getOrders());
+}
+
+function merchantUpdateOrder(orderId, newStatus) {
+  const orders = DB.getOrders();
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1) { orders[idx].status = newStatus; DB.saveOrders(orders); }
+  showToast(newStatus === 'done' ? mt('mOrderCompleted') : mt('mOrderMovedPreparing'));
+  renderMerchantOrders(DB.getOrders());
+  loadMerchantDashboard();
+  // Re-render customer menu � promo prices may flip on/off based on new order count
+  if (isPromoActive() || getActiveOrderCount() < (parseInt(getMerchantPromoSettings()?.busyThreshold) || 10)) {
+    renderMenu();
+  }
+}
+
+// --- Points tab ---
+async function searchMember() {
+  const phone = document.getElementById('m-search-phone').value.trim();
+  if (!phone) { showToast(mt('mEnterPhone') || t('enterPhoneSearch'), 'error'); return; }
+  const box = document.getElementById('member-found');
+  const fb = window.__lbFirebase;
+  if (!fb?.db) { showToast('Firestore ???,?????', 'error'); box.classList.add('hidden'); return; }
+
+  try {
+    // members collection: docId = phone number
+    const ref = fb.doc(fb.db, 'members', phone);
+    const snap = await fb.getDoc(ref);
+    if (!snap.exists()) {
+      foundMember = { id: phone, phone, name: '???', points: 0, exists: false };
+      showToast('???:?????(ID=???)', 'success');
+    } else {
+      const data = snap.data() || {};
+      foundMember = {
+        id: phone,
+        phone,
+        name: String(data.name || '???'),
+        points: Number(data.points) || 0,
+        exists: true,
+      };
+    }
+  } catch (e) {
+
+    showToast('??????,?????', 'error');
+    box.classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('found-name').textContent   = foundMember.name;
+  document.getElementById('found-points').textContent = foundMember.points + ' pts � ' + getTier(foundMember.points);
+  document.getElementById('found-tier').textContent   = foundMember.exists ? getTier(foundMember.points) : 'New';
+  box.classList.remove('hidden');
+
+  document.getElementById('bill-amount').oninput = function() {
+    document.getElementById('earn-preview').textContent = Math.floor(parseFloat(this.value) || 0);
+  };
+}
+
+function addPoints() {
+  if (!merchantLoggedIn) { showToast(mt('mInvalidCredentials') || '????????', 'error'); return; }
+  if (!foundMember) return;
+  const bill = parseFloat(document.getElementById('bill-amount').value);
+  if (!bill || bill <= 0) { showToast(mt('mEnterValidBill') || t('enterValidBill'), 'error'); return; }
+  const _apRate = (typeof getPointsSettings === "function" ? getPointsSettings() : null)?.rate || 1;
+    const pts = Math.floor(bill * _apRate);
+
+  // Firestore members docId is phone number
+  spendCreditAndAddMemberPointsOrThrow(foundMember.phone || foundMember.id, pts)
+    .then(({ nextPoints }) => {
+      const txns = DB.getTxns();
+      txns.unshift({
+        id: 't' + Date.now(),
+        memberId: foundMember.phone || foundMember.id,
+        memberName: foundMember.name,
+        type: 'earn',
+        points: pts,
+        note: `RM${bill.toFixed(2)} purchase`,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+      });
+      DB.saveTxns(txns);
+
+      // Real-time refresh: credits already updated in transaction; fetch again for safety.
+      loadMerchantCredits();
+      // Real-time refresh member points in UI before clearing inputs
+      foundMember.points = Number(nextPoints) || ((Number(foundMember.points) || 0) + pts);
+      document.getElementById('found-points').textContent = foundMember.points + ' pts � ' + getTier(foundMember.points);
+      document.getElementById('found-tier').textContent = getTier(foundMember.points);
+
+      alert('????');
+      document.getElementById('m-search-phone').value = '';
+      document.getElementById('bill-amount').value = '';
+      loadMerchantDashboard();
+    })
+    .catch(err => {
+      if (String(err?.message || err) === 'MERCHANT_NOT_LOGGED_IN') {
+        showToast('????????', 'error');
+        return;
+      }
+      if (String(err?.message || err) === 'INSUFFICIENT_CREDITS') {
+        showToast('????(credits = 0)', 'error');
+        return;
+      }
+      showToast('????(credits ? member points ???),?????', 'error');
+
+    });
+}
+
+async function createMemberFromSearch() {
+  if (!foundMember?.phone) return;
+  if (foundMember.exists) { showToast('?????', 'success'); return; }
+  const fb = window.__lbFirebase;
+  if (!fb?.db) { showToast('Firestore ???,?????', 'error'); return; }
+
+  const name = (prompt('?????(name)', '') || '').trim();
+  if (!name) { showToast('?????(name ????)', 'error'); return; }
+
+  try {
+    const ref = fb.doc(fb.db, 'members', foundMember.phone);
+    await fb.setDoc(ref, {
+      name,
+      phone: foundMember.phone,
+      points: 0,
+      merchantId: MERCHANT_DOC_PATH.id,
+      visitCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, { merge: false });
+    foundMember.name = name;
+    foundMember.points = 0;
+    foundMember.exists = true;
+    document.getElementById('found-name').textContent = foundMember.name;
+    document.getElementById('found-points').textContent = foundMember.points + ' pts � ' + getTier(foundMember.points);
+    document.getElementById('found-tier').textContent = getTier(foundMember.points);
+    showToast('??????', 'success');
+  } catch (e) {
+
+    showToast('??????,?????', 'error');
+  }
+}
+
+// --- Menu management ---
+function renderMenuMgmt() {
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const list = document.getElementById('menu-mgmt-list');
+  list.innerHTML = menu.map(item => `
+    <div class="menu-mgmt-item">
+      ${item.image
+        ? `<img src="${item.image}" alt="${item.name}" class="menu-mgmt-photo" />`
+        : `<span class="menu-mgmt-emoji">${item.emoji}</span>`}
+      <div class="menu-mgmt-info">
+        <strong>${item.name}</strong>
+        <small>${item.category} � ${item.desc}</small>
+        ${item.promoPrice ? `<small style="color:#e65100"><i class="fas fa-fire"></i> Promo: RM${item.promoPrice.toFixed(2)}</small>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="menu-mgmt-price">RM${item.price.toFixed(2)}</span>
+        <button class="btn-sm" style="font-size:0.7rem;padding:3px 7px" onclick="openPromoPriceModal('${item.id}')"><i class="fas fa-fire"></i> ${item.promoPrice ? 'Edit Promo' : 'Set Promo'}</button>
+        <button class="delete-btn" onclick="deleteMenuItem('${item.id}')"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addMenuItem() {
+  const name  = document.getElementById('new-item-name').value.trim();
+  const price = parseFloat(document.getElementById('new-item-price').value);
+  const cat   = document.getElementById('new-item-cat').value;
+  const emoji = document.getElementById('new-item-emoji').value.trim() || '???';
+  const desc  = document.getElementById('new-item-desc').value.trim();
+  const promoPrice = parseFloat(document.getElementById('new-item-promo-price').value) || null;
+
+  if (!name || !price) { showToast(mt('mFillNamePrice') || t('fillNamePrice'), 'error'); return; }
+
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  menu.push({ id: 'm' + Date.now(), name, emoji, price, category: cat, desc, image: _newItemPhotoData || null, promoPrice });
+  DB.saveMenu(menu);
+
+  document.getElementById('new-item-name').value  = '';
+  document.getElementById('new-item-price').value = '';
+  document.getElementById('new-item-emoji').value = '';
+  document.getElementById('new-item-desc').value  = '';
+  document.getElementById('new-item-promo-price').value = '';
+  clearItemPhoto();
+
+  showToast(emoji + ' ' + name + ' added!');
+  renderMenuMgmt();
+}
+
+function deleteMenuItem(id) {
+  const menu = (DB.getMenu() || DEFAULT_MENU).filter(i => i.id !== id);
+  DB.saveMenu(menu);
+  // Also delete from Firestore directly
+  FSSync.deleteItem('menu', id);
+  showToast('Item removed');
+  renderMenuMgmt();
+}
+
+// --- Promo Price Modal ---
+function openPromoPriceModal(itemId) {
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const item = menu.find(i => i.id === itemId);
+  if (!item) return;
+  const modal = document.getElementById('promo-price-modal') || createPromoPriceModal();
+  document.getElementById('ppm-item-name').textContent = item.name;
+  document.getElementById('ppm-normal-price').textContent = 'RM' + item.price.toFixed(2);
+  document.getElementById('ppm-item-id').value = itemId;
+  document.getElementById('ppm-promo-price').value = item.promoPrice || '';
+  document.getElementById('ppm-clear-btn').style.display = item.promoPrice ? 'inline-block' : 'none';
+  modal.classList.remove('hidden');
+}
+
+function closePromoPriceModal() {
+  const modal = document.getElementById('promo-price-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function savePromoPrice() {
+  const itemId = document.getElementById('ppm-item-id').value;
+  const promoPriceRaw = document.getElementById('ppm-promo-price').value.trim();
+  const promoPrice = promoPriceRaw ? parseFloat(promoPriceRaw) : null;
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const idx = menu.findIndex(i => i.id === itemId);
+  if (idx === -1) { showToast('Item not found', 'error'); return; }
+  if (promoPrice !== null && (isNaN(promoPrice) || promoPrice <= 0 || promoPrice >= menu[idx].price)) {
+    showToast('Promo price must be > 0 and < normal price', 'error'); return;
+  }
+  menu[idx].promoPrice = promoPrice;
+  DB.saveMenu(menu);
+  closePromoPriceModal();
+  renderMenuMgmt();
+  showToast(promoPrice ? '?? Promo price set!' : 'Promo price cleared');
+}
+
+function clearPromoPrice() {
+  document.getElementById('ppm-promo-price').value = '';
+  savePromoPrice();
+}
+
+function createPromoPriceModal() {
+  const div = document.createElement('div');
+  div.id = 'promo-price-modal';
+  div.className = 'modal-overlay hidden';
+  div.innerHTML = `
+    <div class="modal-content" style="max-width:380px">
+      <h3 style="margin:0 0 12px"><i class="fas fa-fire" style="color:#e65100"></i> Set Promo Price</h3>
+      <p id="ppm-item-name" style="font-weight:600;margin:0 0 4px"></p>
+      <p style="color:#888;margin:0 0 16px;font-size:0.85rem">Normal: <span id="ppm-normal-price" style="text-decoration:line-through"></span></p>
+      <input type="hidden" id="ppm-item-id" />
+      <div class="form-group">
+        <label><i class="fas fa-tag"></i> Promo Price (RM)</label>
+        <input type="number" id="ppm-promo-price" placeholder="e.g. 3.50" step="0.10" min="0.1" />
+        <p class="hint">Leave empty to clear promo price</p>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-merchant" style="flex:1" onclick="savePromoPrice()"><i class="fas fa-save"></i> Save</button>
+        <button class="btn-sm" id="ppm-clear-btn" style="display:none;background:#f44336;color:#fff" onclick="clearPromoPrice()"><i class="fas fa-times"></i> Clear</button>
+        <button class="btn-sm" onclick="closePromoPriceModal()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  return div;
+}
+
+// --- Member table ---
+function renderMemberTable(members) {
+  const table = document.getElementById('member-table');
+  if (!table) return;
+  if (members.length === 0) { table.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoMembersYet')}</p>`; return; }
+  table.innerHTML = members.map(m => {
+    const tier = getTier(m.points);
+    const isDeactivated = !!m.deactivated;
+    const statusBadge = isDeactivated
+      ? `<span style="background:#f44336;color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:10px">${mt('mMemberInactive')}</span>`
+      : `<span style="background:#43a047;color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:10px">${mt('mMemberActive')}</span>`;
+    const actionBtn = isDeactivated
+      ? `<button class="btn-sm" style="background:#43a047;color:#fff;font-size:0.74rem;padding:4px 8px" onclick="openDeactivateMemberModal('${m.id}')"><i class="fas fa-user-check"></i> ${mt('mActivateBtn')}</button>`
+      : `<button class="btn-sm" style="background:#f44336;color:#fff;font-size:0.74rem;padding:4px 8px" onclick="openDeactivateMemberModal('${m.id}')"><i class="fas fa-user-slash"></i> ${mt('mDeactivateBtn')}</button>`;
+    return `
+      <div class="member-row" style="${isDeactivated ? 'opacity:0.6' : ''}">
+        <i class="fas fa-user-circle" style="font-size:2rem;color:${isDeactivated ? '#aaa' : '#3949ab'};flex-shrink:0"></i>
+        <div class="member-row-info"><strong>${m.name}</strong><span>${m.phone}</span>${statusBadge}</div>
+        <span class="member-tier-badge ${getTierClass(tier)}">${tier}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div class="member-row-pts">${m.points.toLocaleString()} pts</div>
+          ${actionBtn}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterMembers() {
+  const q = document.getElementById('member-search').value.toLowerCase();
+  renderMemberTable(DB.getMembers().filter(m => m.name.toLowerCase().includes(q) || m.phone.includes(q)));
+}
+
+function translateTxnNote(note) {
+  // Translate common transaction note patterns
+  if (note === 'Free Coffee') return mt('mFreeCoffee') || note;
+  if (note.endsWith(' purchase')) {
+    const amount = note.replace(' purchase', '');
+    return `${amount} ${mt('mPurchase') || 'purchase'}`;
+  }
+  return note;
+}
+
+function renderAllTxns(txns) {
+  const list = document.getElementById('all-txns');
+  if (txns.length === 0) { list.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoTransactions')}</p>`; return; }
+  list.innerHTML = txns.map(t => `
+    <div class="txn-item">
+      <div class="txn-icon ${t.type}"><i class="fas ${t.type === 'earn' ? 'fa-plus' : 'fa-minus'}"></i></div>
+      <div class="txn-details"><strong>${t.memberName} � ${translateTxnNote(t.note)}</strong><span>${t.date}</span></div>
+      <div class="txn-pts ${t.type}">${t.type === 'earn' ? '+' : ''}${t.points} ${mt('mPoints')}</div>
+    </div>
+  `).join('');
+}
+
+// ===========================
+// ===== QR CODE =====
+// ===========================
+function generateQRCodes() {
+  const count = parseInt(document.getElementById('qr-table-count').value) || 10;
+  const baseUrl = window.location.href.split('?')[0];
+  const mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : '';
+  const grid = document.getElementById('qr-grid');
+  grid.innerHTML = '';
+
+  for (let i = 1; i <= count; i++) {
+    const url = mid ? (baseUrl + '?m=' + mid + '&table=' + i) : (baseUrl + '?table=' + i);
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `<h4><i class="fas fa-chair"></i> ${mt('mQRTable')} ${i}</h4><div id="qr-${i}"></div><p>${url}</p><button class="print-qr-btn" onclick="printQR(${i})"><i class="fas fa-print"></i> ${mt('mQRPrint')}</button>`;
+    grid.appendChild(card);
+
+    new QRCode(document.getElementById('qr-' + i), {
+      text: url,
+      width: 130,
+      height: 130,
+      colorDark: '#2c1810',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  }
+  showToast(`Generated ${count} QR codes!`);
+}
+
+function printQR(tableNo) {
+  const qrEl = document.getElementById('qr-' + tableNo);
+  const canvas = qrEl.querySelector('canvas') || qrEl.querySelector('img');
+  if (!canvas) { showToast(mt('mQRNotReady') || t('qrNotReady'), 'error'); return; }
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Please allow popups to print', 'error'); return; }
+  const imgSrc = canvas.tagName === 'CANVAS' ? canvas.toDataURL() : canvas.src;
+  // SECURITY FIX: Use safer DOM manipulation instead of document.write
+  win.document.body.innerHTML = '';
+  const style = win.document.createElement('style');
+  style.textContent = 'body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif}img{width:200px;height:200px}h2{margin-bottom:8px}p{color:#666;font-size:14px;margin-top:8px}';
+  const h2 = win.document.createElement('h2');
+  h2.textContent = '?? LoyalBrew';
+  const img = win.document.createElement('img');
+  img.src = imgSrc;
+  const p = win.document.createElement('p');
+  p.textContent = `Scan to order � Table ${tableNo}`;
+  win.document.head.appendChild(style);
+  win.document.body.appendChild(h2);
+  win.document.body.appendChild(img);
+  win.document.body.appendChild(p);
+  win.print();
+}
+
+// ===========================
+// ===== URL PARAM HANDLING =====
+// ===========================
+// ===== ?????? & QR =====
+function getMerchantShopUrl() {
+  var baseUrl = window.location.href.split('?')[0];
+  var mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : '';
+  return mid ? (baseUrl + '?m=' + mid) : baseUrl;
+}
+
+function initMerchantShopQR() {
+  var urlInput = document.getElementById('merchant-shop-url');
+  var qrDiv = document.getElementById('merchant-shop-qr');
+  if (!urlInput || !qrDiv) return;
+  var url = getMerchantShopUrl();
+  urlInput.value = url;
+  qrDiv.innerHTML = '';
+  new QRCode(qrDiv, {
+    text: url,
+    width: 160,
+    height: 160,
+    colorDark: '#667eea',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+}
+
+function copyMerchantLink() {
+  var url = getMerchantShopUrl();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function() {
+      showToast('Link copied!');
+    });
+  } else {
+    var el = document.getElementById('merchant-shop-url');
+    el.select();
+    document.execCommand('copy');
+    showToast('Link copied!');
+  }
+}
+
+function printShopQR() {
+  var qrDiv = document.getElementById('merchant-shop-qr');
+  var canvas = qrDiv ? (qrDiv.querySelector('canvas') || qrDiv.querySelector('img')) : null;
+  if (!canvas) { showToast('QR not ready, please wait', 'error'); return; }
+  var imgSrc = canvas.tagName === 'CANVAS' ? canvas.toDataURL() : canvas.src;
+  var mName = window._currentMerchantName || (typeof MERCHANT_DOC_PATH !== 'undefined' ? MERCHANT_DOC_PATH.id : 'My Shop');
+  var mUrl = getMerchantShopUrl();
+  var win = window.open('', '_blank');
+  win.document.write('<html><head><title>' + mName + ' QR</title>' +
+    '<style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif}' +
+    'img{width:250px;height:250px}h2{margin-bottom:8px;color:#667eea}p{color:#666;font-size:14px;margin-top:8px}</style></head>' +
+    '<body><h2>' + mName + '</h2><img src="' + imgSrc + '"/><p>Scan to visit our shop</p><p style="font-size:11px;color:#aaa">' + mUrl + '</p></body></html>');
+  win.print();
+}
+
+function checkTableParam() {
+  const params = new URLSearchParams(window.location.search);
+  const tableNo = parseInt(params.get('table'));
+  if (tableNo && tableNo > 0) {
+    currentTable = tableNo;
+    showPage('page-menu');
+  }
+}
+
+// Handle ?m=xxx merchant direct link (legacy, main logic now in initApp)
+function checkMerchantParam() {
+  const params = new URLSearchParams(window.location.search);
+  const merchantId = params.get('m');
+  return !!merchantId;
+}
+
+// ===========================
+// ===== INIT =====
+// ===========================
+// Initialize Firestore sync first, then check for seed data
+async function initApp() {
+  console.log('[initApp] Starting app initialization...');
+  
+  // CRITICAL: Parse URL params FIRST to set merchant context before loading data
+  const _preParams = new URLSearchParams(window.location.search);
+  const _preMerchantId = _preParams.get('m');
+  const _preTableNo = parseInt(_preParams.get('table')) || 0;
+  
+  if (_preMerchantId) {
+    MERCHANT_DOC_PATH = { col: 'merchants', id: _preMerchantId };
+    window._currentMerchantId = _preMerchantId;
+    // Try to load merchant name from Firestore (async, non-blocking)
+    var fb = window.__lbFirebase;
+    if (fb && fb.db && fb.doc && fb.getDoc) {
+      fb.getDoc(fb.doc(fb.db, 'merchants', _preMerchantId)).then(function(snap) {
+        if (snap.exists()) {
+          var d = snap.data();
+          if (d.name) window._currentMerchantName = d.name;
+          if (d.name || d.announce || d.banner || d.welcomeText || d.landingTitle) {
+            try { safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), { name: d.name || _preMerchantId, announce: d.announce || '', banner: d.banner || '', welcomeText: d.welcomeText || '', landingTitle: d.landingTitle || '', updatedAt: new Date().toISOString() }); } catch(e) {}
+          }
+          if (d.pointsRate) {
+            try { safeLS.setJSON(_getMerchantStorageKey(POINTS_SETTINGS_KEY), { rate: d.pointsRate, updatedAt: new Date().toISOString() }); } catch(e) {}
+          }
+        }
+      }).catch(function() {});
+    }
+  }
+  if (_preTableNo > 0) currentTable = _preTableNo;
+  
+  // NOW load data from Firestore (with correct merchant context)
+  await FSSync.loadAll();
+  
+  // Seed data if empty
+  seedData();
+  
+  // Navigate based on URL params
+  if (_preMerchantId && _preTableNo > 0) {
+    showPage('page-menu');
+  } else if (_preMerchantId) {
+    showPage('page-landing');
+  } else if (_preTableNo > 0) {
+    showPage('page-menu');
+  }
+  
+  // Restore customer session from localStorage
+  const savedPhone = DB.getCurrentMemberPhone();
+  if (savedPhone) {
+    const members = DB.getMembers();
+    const member = members.find(m => m.phone === savedPhone);
+    if (member) {
+      currentCustomer = member;
+    }
+  }
+  
+  // Apply saved language on load + set html lang attribute
+  document.documentElement.lang = currentLang;
+  setTimeout(() => setLang(currentLang), 0);
+  
+  // Apply merchant language on load + sync data-i18n on merchant page
+  setTimeout(() => {
+    applyMerchantLang();
+    initMerchantSavedPassword();
+    initFirebaseAuthListener();
+  }, 0);
+  
+  // ????????????????
+  setTimeout(() => {
+    _showSuperAdminBtn();
+  }, 500);
+  
+  // Set today as default launch date
+  const _today = new Date().toISOString().split('T')[0];
+  const _launchEl = document.getElementById('ni-launch-date');
+  if (_launchEl) _launchEl.value = _today;
+  
+  // Default: show landing page if no URL params directed elsewhere
+  if (!_preMerchantId && !_preTableNo) {
+    showPage('page-landing');
+  }
+  
+  // Init ad carousel
+  setTimeout(() => { renderAdCarousel(); renderMerchantAds(); }, 100);
+  
+  console.log('[initApp] ? App initialization complete');
+}
+
+// Start the app
+initApp().catch(e => {
+  console.error('[initApp] Initialization failed:', e);
+  // Fallback: still seed data and show page
+  seedData();
+  showPage('page-landing');
+});
+
+// ===== GLOBAL DATA RESET FUNCTION =====
+// Call window.clearMerchantDataKeepMenu() in browser console to reset (keep menu)
+// Call window.clearAllMerchantData() to reset everything including menu
+window.clearMerchantDataKeepMenu = async function() {
+  const fb = window.__lbFirebase;
+  if (!fb?.db) {
+    console.error('Firebase not initialized');
+    return;
+  }
+  
+  const mid = MERCHANT_DOC_PATH?.id;
+  if (!mid) {
+    console.error('No merchant context');
+    return;
+  }
+  
+  console.log(`[ClearData] Clearing data for merchant: ${mid} (keeping menu)`);
+  
+  // ????,????????
+  const collections = ['members', 'orders', 'txns', 'stampCards', 'memberStamps', 
+                       'wallets', 'walletTxns', 'commissions', 'topupRequests', 
+                       'paymentProofs', 'newItems'];
+  
+  let totalDeleted = 0;
+  
+  for (const col of collections) {
+    try {
+      const colRef = fb.collection(fb.db, 'merchants/' + mid + '/' + col);
+      const snap = await fb.getDocs(colRef);
+      
+      for (const doc of snap.docs) {
+        await fb.deleteDoc(doc.ref);
+        totalDeleted++;
+      }
+      console.log(`[ClearData] Deleted ${snap.docs.length} from ${col}`);
+    } catch(e) {
+      console.error(`[ClearData] Failed to clear ${col}:`, e);
+    }
+  }
+  
+  // Clear localStorage (except menu)
+  const keys = Object.keys(localStorage).filter(k => k.includes(mid) && !k.includes('menu'));
+  keys.forEach(k => localStorage.removeItem(k));
+  console.log(`[ClearData] Cleared ${keys.length} localStorage keys`);
+  
+  // Clear FSSync cache (except menu)
+  Object.keys(FSSync._cache).forEach(k => {
+    if (k !== 'menu') FSSync._cache[k] = null;
+  });
+  
+  console.log(`[ClearData] ? Total deleted: ${totalDeleted} documents (menu preserved)`);
+  console.log('[ClearData] Please refresh the page (Ctrl+Shift+R)');
+  
+  return { success: true, deleted: totalDeleted, menuPreserved: true };
+};
+
+window.clearAllMerchantData = async function() {
+  const fb = window.__lbFirebase;
+  if (!fb?.db) {
+    console.error('Firebase not initialized');
+    return;
+  }
+  
+  const mid = MERCHANT_DOC_PATH?.id;
+  if (!mid) {
+    console.error('No merchant context');
+    return;
+  }
+  
+  console.log(`[ClearData] Clearing ALL data for merchant: ${mid}`);
+  
+  const collections = ['members', 'orders', 'txns', 'stampCards', 'memberStamps', 
+                       'wallets', 'walletTxns', 'commissions', 'topupRequests', 
+                       'paymentProofs', 'newItems', 'menu'];
+  
+  let totalDeleted = 0;
+  
+  for (const col of collections) {
+    try {
+      const colRef = fb.collection(fb.db, 'merchants/' + mid + '/' + col);
+      const snap = await fb.getDocs(colRef);
+      
+      for (const doc of snap.docs) {
+        await fb.deleteDoc(doc.ref);
+        totalDeleted++;
+      }
+      console.log(`[ClearData] Deleted ${snap.docs.length} from ${col}`);
+    } catch(e) {
+      console.error(`[ClearData] Failed to clear ${col}:`, e);
+    }
+  }
+  
+  // Clear localStorage
+  const keys = Object.keys(localStorage).filter(k => k.includes(mid));
+  keys.forEach(k => localStorage.removeItem(k));
+  console.log(`[ClearData] Cleared ${keys.length} localStorage keys`);
+  
+  // Clear FSSync cache
+  Object.keys(FSSync._cache).forEach(k => FSSync._cache[k] = null);
+  
+  console.log(`[ClearData] ? Total deleted: ${totalDeleted} documents`);
+  console.log('[ClearData] Please refresh the page (Ctrl+Shift+R)');
+  
+  return { success: true, deleted: totalDeleted };
+};
+
+// ===== CUSTOMER PROMOS PAGE =====
+let promosCurrentSlide = 0;
+
+function renderPromosPage() {
+  const ads = getActiveAds();
+  const carousel = document.getElementById('promos-carousel');
+  const wrapper = document.getElementById('promos-slides-wrapper');
+  const dotsEl = document.getElementById('promos-dots');
+  const grid = document.getElementById('promos-grid');
+
+  // Carousel
+  if (wrapper) {
+    if (ads.length === 0) {
+      carousel.style.display = 'none';
+      if (promosCarouselTimer) { clearInterval(promosCarouselTimer); promosCarouselTimer = null; }
+    } else {
+      carousel.style.display = 'block';
+      promosCurrentSlide = 0;
+
+      wrapper.innerHTML = ads.map(ad => {
+        const ctaHtml = ad.link ? '<span class="promos-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : '';
+        return `<div class="promos-slide" data-ad-id="${ad.id}" onclick="onPromoSlideClick('${ad.id}')">
+          <img src="${ad.image}" alt="${ad.title}" />
+          <div class="promos-slide-overlay">
+            <div class="promos-slide-title">${ad.title}</div>
+            ${ctaHtml}
+          </div>
+          <span class="promos-slide-sponsor"><i class="fas fa-bullhorn"></i> Promo</span>
+        </div>`;
+      }).join('');
+
+      dotsEl.innerHTML = ads.map((_, i) =>
+        `<button class="promos-dot${i === 0 ? ' active' : ''}" onclick="goToPromoSlide(${i})"></button>`
+      ).join('');
+
+      if (promosCarouselTimer) clearInterval(promosCarouselTimer);
+      if (ads.length > 1) {
+        promosCarouselTimer = setInterval(() => {
+          promosCurrentSlide = (promosCurrentSlide + 1) % ads.length;
+          slidePromoTo(promosCurrentSlide);
+        }, 5000);
+      }
+    }
+  }
+
+  // Grid - show all active ads
+  if (grid) {
+    if (ads.length === 0) {
+      grid.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 16px">No promos available right now. Check back soon!</p>';
+    } else {
+      grid.innerHTML = ads.map(ad => {
+        const hasLink = ad.link ? `<i class="fas fa-external-link-alt" style="margin-left:4px;font-size:0.68rem"></i>` : '';
+        return `<div class="promo-card" onclick="onPromoCardClick('${ad.id}')">
+          <img class="promo-card-img" src="${ad.image}" alt="${ad.title}" />
+          <div class="promo-card-body">
+            <span class="promo-card-badge"><i class="fas fa-fire"></i> PROMO</span>
+            <div class="promo-card-title">${ad.title}</div>
+            <div class="promo-card-meta"><i class="fas fa-clock"></i> Limited time${hasLink}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function slidePromoTo(index) {
+  const wrapper = document.getElementById('promos-slides-wrapper');
+  const dots = document.querySelectorAll('.promos-dot');
+  if (!wrapper) return;
+  wrapper.style.transform = `translateX(-${index * 100}%)`;
+  dots.forEach((d, i) => d.classList.toggle('active', i === index));
+}
+
+function goToPromoSlide(index) {
+  promosCurrentSlide = index;
+  slidePromoTo(index);
+  if (promosCarouselTimer) { clearInterval(promosCarouselTimer); promosCarouselTimer = null; }
+  const ads = getActiveAds();
+  if (ads.length > 1) {
+    promosCarouselTimer = setInterval(() => {
+      promosCurrentSlide = (promosCurrentSlide + 1) % ads.length;
+      slidePromoTo(promosCurrentSlide);
+    }, 5000);
+  }
+}
+
+function onPromoSlideClick(adId) {
+  trackAdClick(adId);
+  const ads = getAds();
+  const ad = ads.find(a => a.id === adId);
+  if (ad && ad.link) window.open(ad.link, '_blank');
+}
+
+function onPromoCardClick(adId) {
+  trackAdClick(adId);
+  const ads = getAds();
+  const ad = ads.find(a => a.id === adId);
+  if (ad && ad.link) window.open(ad.link, '_blank');
+}
+
+function renderCustomerPromosPreview() {
+  const el = document.getElementById('customer-promos-preview');
+  if (!el) return;
+  const ads = getActiveAds().slice(0, 4); // max 4 preview
+  if (ads.length === 0) {
+    el.innerHTML = '<p style="color:#aaa;text-align:center;padding:12px;font-size:0.82rem">' + (t('noPromos') || '????') + '</p>';
+    return;
+  }
+  el.innerHTML = '<div class="customer-promos-preview-grid">' +
+    ads.map(ad => `<div class="customer-promos-mini" onclick="showPage('page-promos')">
+      <img src="${ad.image}" alt="${ad.title}" />
+      <div class="customer-promos-mini-label">${ad.title}</div>
+    </div>`).join('') +
+    '</div>';
+}
+
+// ------------------------------------------------------
+// ???? Modal + ???? (?????)
+// ------------------------------------------------------
+
+window._saOpenRegModal = function() {
+  var old = document.getElementById("sa-reg-modal");
+  if(old) old.remove();
+  var m = document.createElement("div");
+  m.id = "sa-reg-modal";
+  m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center";
+  m.innerHTML = '<div style="background:#0f172a;padding:32px;border-radius:20px;width:420px;max-width:95vw;color:#f1f5f9;font-family:sans-serif;border:1px solid #334155;box-shadow:0 25px 80px rgba(0,0,0,0.5)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span style="font-size:1.5rem">??</span>' +
+        '<div><div style="font-weight:700;font-size:1.1rem">????</div><div style="color:#64748b;font-size:0.72rem;margin-top:2px">Register New Merchant</div></div>' +
+      '</div>' +
+      '<button onclick="_saCloseRegModal()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;width:36px;height:36px;cursor:pointer;font-size:1.2rem;line-height:1">?</button>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:14px">' +
+      '<div><label style="display:block;color:#94a3b8;font-size:0.78rem;font-weight:600;margin-bottom:6px">???? * <span style="color:#475569">(Merchant Name)</span></label>' +
+        '<input id="mreg-name" type="text" placeholder="?:???? A" style="width:100%;padding:11px 14px;background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:10px;font-size:0.95rem;box-sizing:border-box;outline:none" onfocus="this.style.borderColor=\'#3b82f6\'" onblur="this.style.borderColor=\'#334155\'"></div>' +
+      '<div><label style="display:block;color:#94a3b8;font-size:0.78rem;font-weight:600;margin-bottom:6px">?? ID (???????) * <span style="color:#475569">(Merchant ID)</span></label>' +
+        '<div style="display:flex;gap:8px"><input id="mreg-id" type="text" placeholder="?:0123456789" style="flex:1;padding:11px 14px;background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:10px;font-size:0.95rem;box-sizing:border-box;outline:none" onfocus="this.style.borderColor=\'#3b82f6\'" onblur="this.style.borderColor=\'#334155\'"><button onclick="_saGenId2()" title="????" style="padding:0 16px;background:#1e3a5f;color:#60a5fa;border:1px solid #1e3a5f;border-radius:10px;cursor:pointer;font-size:1.2rem;white-space:nowrap">??</button></div>' +
+        '<div style="color:#475569;font-size:0.72rem;margin-top:4px">?? ?????? ID ???,???????</div></div>' +
+      '<div><label style="display:block;color:#94a3b8;font-size:0.78rem;font-weight:600;margin-bottom:6px">???? * <span style="color:#475569">(Password)</span></label>' +
+        '<input id="mreg-password" type="password" placeholder="??4?" style="width:100%;padding:11px 14px;background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:10px;font-size:0.95rem;box-sizing:border-box;outline:none" onfocus="this.style.borderColor=\'#3b82f6\'" onblur="this.style.borderColor=\'#334155\'"></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label style="display:block;color:#94a3b8;font-size:0.78rem;font-weight:600;margin-bottom:6px">???? * <span style="color:#475569">(Credits)</span></label>' +
+          '<input id="mreg-credits" type="number" min="0" step="0.01" value="100" style="width:100%;padding:11px 14px;background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:10px;font-size:0.95rem;box-sizing:border-box;outline:none" onfocus="this.style.borderColor=\'#3b82f6\'" onblur="this.style.borderColor=\'#334155\'"></div>' +
+        '<div><label style="display:block;color:#94a3b8;font-size:0.78rem;font-weight:600;margin-bottom:6px">???? <span style="color:#f87171">(??)</span></label>' +
+          '<input id="mreg-phone" type="tel" placeholder="+6012-3456789" style="width:100%;padding:11px 14px;background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:10px;font-size:0.95rem;box-sizing:border-box;outline:none" onfocus="this.style.borderColor=\'#3b82f6\'" onblur="this.style.borderColor=\'#334155\'"></div>' +
+      '</div>' +
+      '<div id="mreg-err" style="display:none;color:#f87171;font-size:0.82rem;background:#7f1d1d33;border:1px solid #7f1d1d55;border-radius:8px;padding:8px 12px"></div>' +
+      '<div style="display:flex;gap:10px;margin-top:4px">' +
+        '<button id="mreg-submit" onclick="_saSubmitReg()" style="flex:1;padding:13px;background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(21,128,61,0.4)">?? ????</button>' +
+        '<button onclick="_saCloseRegModal()" style="padding:13px 18px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:12px;font-size:0.9rem;cursor:pointer">??</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(m);
+  var idInput = document.getElementById("mreg-id");
+  if(idInput) idInput.addEventListener("keydown", function(e){ if(e.key==="Enter") _saSubmitReg(); });
+  document.getElementById("mreg-name").focus();
+  m.addEventListener("click", function(e){ if(e.target===m) _saCloseRegModal(); });
+};
+
+window._saCloseRegModal = function() {
+  var m = document.getElementById("sa-reg-modal");
+  if(m) m.remove();
+};
+
+window._saGenId2 = function() {
+  var chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  var id = "";
+  for(var i = 0; i < 10; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  var el = document.getElementById("mreg-id");
+  if(el) el.value = id;
+};
+
+window._saSubmitReg = async function() {
+  var fb = window.__lbFirebase;
+  if(!fb || !fb.db) {
+    var err = document.getElementById("mreg-err");
+    if(err) { err.textContent = "Firebase???"; err.style.display = "block"; }
+    return;
+  }
+  var nameEl = document.getElementById("mreg-name");
+  var idEl = document.getElementById("mreg-id");
+  var creditsEl = document.getElementById("mreg-credits");
+  var phoneEl = document.getElementById("mreg-phone");
+  var err = document.getElementById("mreg-err");
+  var name = nameEl ? nameEl.value.trim() : "";
+  var merchantId = idEl ? idEl.value.trim() : "";
+  var password = document.getElementById("mreg-password") ? document.getElementById("mreg-password").value.trim() : "";
+  var credits = creditsEl ? parseFloat(creditsEl.value) : 100;
+  if(isNaN(credits) || credits < 0) credits = 100;
+  var phone = phoneEl ? phoneEl.value.trim() : "";
+  if(!name || !merchantId || !password) {
+    if(err) { err.textContent = "??????????ID????????"; err.style.display = "block"; }
+    return;
+  }
+  if(password.length < 4) {
+    if(err) { err.textContent = "??????4?"; err.style.display = "block"; }
+    return;
+  }
+    var _regPhone = phoneEl ? phoneEl.value.trim() : "";
+    if(!_regPhone || _regPhone.length < 6) {
+      if(err) { err.textContent = "??????????"; err.style.display = "block"; }
+      if(phoneEl) phoneEl.focus();
+      return;
+    }
+  if(err) err.style.display = "none";
+  var btn = document.getElementById("mreg-submit");
+  var origText = btn ? btn.textContent : "????";
+  if(btn) { btn.disabled = true; btn.textContent = "???..."; btn.style.opacity = "0.6"; }
+  try {
+    var ref = fb.doc(fb.db, "merchants", merchantId);
+    var existing = await fb.getDoc(ref);
+    if(existing.exists()) {
+      if(err) { err.textContent = "??ID [" + merchantId + "] ???,???"; err.style.display = "block"; }
+      if(btn) { btn.disabled = false; btn.textContent = origText; btn.style.opacity = "1"; }
+      return;
+    }
+    var now = new Date().toISOString();
+    await fb.runTransaction(fb.db, function(tx) {
+      return tx.get(ref).then(function(snap) {
+        if(snap.exists()) throw new Error("ID??");
+        tx.set(ref, {
+          merchant_name: name,
+          credits: credits,
+          phone: phone || null,
+          email: null,
+          password: password,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: SUPER_ADMIN_EMAIL,
+          active: true
+        });
+      });
+    });
+    showToast("?? [" + name + "] ????!Credits: " + credits, "success");
+    _saCloseRegModal();
+    if(typeof renderSuperAdminMerchantsList === "function") renderSuperAdminMerchantsList();
+  } catch(e) {
+
+    if(err) { err.textContent = "????: " + (e.message || "????"); err.style.display = "block"; }
+    if(btn) { btn.disabled = false; btn.textContent = origText; btn.style.opacity = "1"; }
+  }
+};
+
+// ------------------------------------------------------
+// ?????? � ???? + Firestore ??
+// ------------------------------------------------------
+window._saDeactivateMerchant = function(merchantId, merchantName) {
+  var fb = window.__lbFirebase;
+  if(!fb || !fb.db) { showToast("Firebase???", "error"); return; }
+  // ????
+  var overlay = document.createElement("div");
+  overlay.id = "sa-deactivate-modal";
+  overlay.style = "position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center";
+  overlay.innerHTML = '<div style="background:#0f172a;padding:28px;border-radius:20px;width:380px;max-width:95vw;color:#f1f5f9;font-family:sans-serif;border:1px solid #334155">' +
+    '<div style="text-align:center;margin-bottom:20px">' +
+      '<div style="font-size:2.5rem;margin-bottom:8px">??</div>' +
+      '<div style="font-weight:700;font-size:1.1rem">?????????</div>' +
+    '</div>' +
+    '<div style="background:#1e293b;border-radius:10px;padding:14px;margin-bottom:20px">' +
+      '<div style="color:#94a3b8;font-size:0.78rem;margin-bottom:4px">????</div>' +
+      '<div style="font-weight:600">' + merchantName + '</div>' +
+      '<div style="color:#94a3b8;font-size:0.78rem;margin-top:8px;margin-bottom:4px">?? ID</div>' +
+      '<div style="font-family:monospace;color:#60a5fa">' + merchantId + '</div>' +
+    '</div>' +
+    '<div style="background:#7f1d1d33;border:1px solid #7f1d1d55;border-radius:8px;padding:10px 12px;margin-bottom:16px;color:#f87171;font-size:0.82rem">????? 14 ??????,14 ????????????????????????</div>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button id="sa-deactivate-confirm" style="flex:1;padding:12px;background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:0.95rem;font-weight:600">?? ????(14?)</button>' +
+      '<button onclick="document.getElementById(\'sa-deactivate-modal\').remove()" style="padding:12px 18px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:10px;cursor:pointer">??</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", function(e){ if(e.target===overlay) overlay.remove(); });
+  document.getElementById("sa-deactivate-confirm").addEventListener("click", async function() {
+    var confirmBtn = document.getElementById("sa-deactivate-confirm");
+    if(confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = "???..."; confirmBtn.style.opacity = "0.6"; }
+    try {
+      var ref = fb.doc(fb.db, "merchants", merchantId);
+      await fb.updateDoc(fb.doc(fb.db, "merchants", merchantId), {
+        status: "deleted",
+        deletedAt: new Date().toISOString()
+      });
+      showToast("?? [" + merchantName + "] ??????(14??)", "success");
+      overlay.remove();
+      if(typeof renderSuperAdminMerchantsList === "function") renderSuperAdminMerchantsList();
+    } catch(e2) {
+
+      showToast("????: " + (e2.message || "????"), "error");
+      if(confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "????"; confirmBtn.style.opacity = "1"; }
+    }
+  });
+};
+
+// ------------------------------------------------------
+// ?????????
+// ------------------------------------------------------
+window._saRestoreMerchant = function(merchantId, merchantName) {
+  var fb = window.__lbFirebase;
+  if(!fb || !fb.db) { showToast("Firebase???", "error"); return; }
+  if(!confirm("?????? [" + merchantName + "] ????\n??????????????????")) return;
+  var btn = event ? event.target : null;
+  if(btn) { btn.disabled = true; btn.textContent = "???..."; }
+  fb.updateDoc(fb.doc(fb.db, "merchants", merchantId), {
+    status: "active",
+    deletedAt: null
+  }).then(function() {
+    showToast("?? [" + merchantName + "] ???", "success");
+    if(typeof renderSuperAdminMerchantsList === "function") renderSuperAdminMerchantsList();
+    if(typeof _loadSuperAdminMerchants === "function") _loadSuperAdminMerchants();
+  }).catch(function(e2) {
+
+    showToast("????: " + (e2.message || "????"), "error");
+    if(btn) { btn.disabled = false; btn.textContent = "? ??"; }
+  });
+};
+
+// ------------------------------------------------------
+// ?? showPage ???? + ????
+// ------------------------------------------------------
+window.showPage = showPage;
+console.log("[app.js] ? showPage ???? window");
+
+// ?????? showPage ??
+if (window._showPageQueue && window._showPageQueue.length > 0) {
+  console.log("[app.js] ?????? showPage ??:", window._showPageQueue);
+  window._showPageQueue.forEach(function(pageId) {
+    showPage(pageId);
+  });
+  window._showPageQueue = [];
+}

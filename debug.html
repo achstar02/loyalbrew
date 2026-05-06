@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug mt()</title>
+</head>
+<body>
+  <h1>Debug mt() function</h1>
+  <div id="output"></div>
+  <script>
+    // Copy relevant code from app.js for testing
+    const MERCHANT_LANGS = {
+      en: { mNoOrdersFound: 'No orders found' },
+      zh: { mNoOrdersFound: '没有找到订单' },
+      ms: { mNoOrdersFound: 'Tiada pesanan dijumpai' },
+      ta: { mNoOrdersFound: 'ஆர்டர் கிடைக்கவில்லை' }
+    };
+    
+    let _merchantLang = 'en';
+    
+    function mt(key) {
+      return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
+    }
+    
+    const out = document.getElementById('output');
+    out.innerHTML = `
+      <p>Testing mt('mNoOrdersFound'):</p>
+      <ul>
+        <li>EN: ${mt('mNoOrdersFound')}</li>
+      </ul>
+      <p>MERCHANT_LANGS.en.mNoOrdersFound = ${MERCHANT_LANGS.en.mNoOrdersFound}</p>
+      <p>MERCHANT_LANGS['en']['mNoOrdersFound'] = ${MERCHANT_LANGS['en']['mNoOrdersFound']}</p>
+    `;
+    
+    // Now test changing language
+    _merchantLang = 'ta';
+    out.innerHTML += `<p>After setting _merchantLang='ta': ${mt('mNoOrdersFound')}</p>`;
+    
+    _merchantLang = 'en';
+    out.innerHTML += `<p>After setting _merchantLang='en': ${mt('mNoOrdersFound')}</p>`;
+  </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ang Success Enterprise - 菜单导入工具</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI','Noto Sans SC',sans-serif; background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); min-height:100vh; color:#fff; padding:20px; }
+.container { max-width:800px; margin:0 auto; }
+h1 { text-align:center; font-size:1.8rem; margin-bottom:8px; background:linear-gradient(90deg,#f6d365,#fda085); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.subtitle { text-align:center; color:#aaa; font-size:0.9rem; margin-bottom:24px; }
+.card { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:20px; margin-bottom:16px; backdrop-filter:blur(10px); }
+.card h2 { font-size:1.1rem; margin-bottom:12px; color:#f6d365; }
+.btn { display:inline-block; padding:12px 28px; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; transition:all .2s; text-align:center; }
+.btn-primary { background:linear-gradient(135deg,#f6d365,#fda085); color:#1a1a2e; }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(246,211,101,.35); }
+.btn-danger { background:linear-gradient(135deg,#ff6b6b,#ee5a5a); color:#fff; }
+.btn-danger:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(255,107,107,.35); }
+.btn-success { background:linear-gradient(135deg,#51cf66,#40c057); color:#fff; }
+.btn-success:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(81,207,102,.35); }
+.btn-group { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+.status { padding:10px 14px; border-radius:8px; font-size:0.88rem; margin-top:12px; display:none; }
+.status.success { display:block; background:rgba(81,207,102,.15); color:#51cf66; border:1px solid rgba(81,207,102,.3); }
+.status.error { display:block; background:rgba(255,107,107,.15); color:#ff6b6b; border:1px solid rgba(255,107,107,.3); }
+.status.info { display:block; background:rgba(111,123,247,.15); color:#818cf8; border:1px solid rgba(111,123,247,.3); }
+.preview-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-top:14px; }
+.preview-item { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; }
+.preview-item img { width:100%; height:140px; object-fit:cover; }
+.preview-info { padding:10px; }
+.preview-name { font-size:.9rem; font-weight:600; margin-bottom:4px; }
+.preview-price { color:#f6d365; font-weight:700; font-size:1rem; }
+.preview-cat { font-size:.75rem; color:#888; margin-top:4px; }
+.merchant-select { width:100%; padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.08); color:#fff; font-size:.95rem; margin-bottom:12px; outline:none; }
+.merchant-select option { background:#1a1a2e; color:#fff; }
+.info-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:.88rem; }
+.info-row:last-child { border-bottom:none; }
+.badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:700; }
+.badge-cake { background:rgba(246,211,101,.2); color:#f6d365; }
+.badge-mochi { background:rgba(168,85,247,.2); color:#a855f7; }
+.badge-pastry { background:rgba(251,146,60,.2); color:#fb923c; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🥧 Ang Success Enterprise</h1>
+  <p class="subtitle">菜单导入工具 — 一键将商品照片和价格导入 LoyalBrew 点餐系统</p>
+
+  <!-- Step 1: Preview -->
+  <div class="card">
+    <h2>📋 菜单预览 (<span id="item-count">0</span> 个商品)</h2>
+    <div id="preview-grid" class="preview-grid"></div>
+  </div>
+
+  <!-- Step 2: Import -->
+  <div class="card">
+    <h2>🚀 导入到 Web App</h2>
+    <p style="color:#aaa;font-size:.88rem;margin-bottom:12px">选择要导入的目标商家（localStorage key），然后点击导入按钮。</p>
+    
+    <label style="font-size:.88rem;color:#ccc">目标商家存储 Key：</label>
+    <select id="merchant-key" class="merchant-select" onchange="checkExisting()"></select>
+    
+    <div id="existing-info" class="status info" style="display:none"></div>
+    
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="importMenu()">✅ 导入 Ang Success 菜单</button>
+      <button class="btn btn-danger" onclick="clearMenu()">🗑️ 清空目标菜单</button>
+      <button class="btn btn-success" onclick="openApp()">🌐 打开点餐页面</button>
+    </div>
+    <div id="import-status" class="status"></div>
+  </div>
+
+  <!-- Step 3: Instructions -->
+  <div class="card">
+    <h2>📖 使用说明</h2>
+    <div class="info-row"><span>1. 打开此页面（import_ang_success_menu.html）</span></div>
+    <div class="info-row"><span>2. 检查菜单预览，确认商品信息正确</span></div>
+    <div class="info-row"><span>3. 选择目标商家（或保持默认）</span></div>
+    <div class="info-row"><span>4. 点击「导入」按钮</span></div>
+    <div class="info-row"><span>5. 点击「打开点餐页面」查看效果</span></div>
+    <div class="info-row"><span style="color:#f6d365">💡 所有数据保存在浏览器 localStorage 中</span></div>
+  </div>
+</div>
+
+<script src="ang_success_menu_data.js"></script>
+<script>
+// ===== Render preview =====
+const grid = document.getElementById('preview-grid');
+const countEl = document.getElementById('item-count');
+
+// Group by category for better display
+const categories = {};
+ANG_SUCCESS_MENU.forEach(item => {
+  if (!categories[item.category]) categories[item.category] = [];
+  categories[item.category].push(item);
+});
+
+let html = '';
+Object.entries(categories).forEach(([cat, items]) => {
+  items.forEach(item => {
+    const badgeClass = cat.includes('Cake') ? 'badge-cake' : cat.includes('Mochi') ? 'badge-mochi' : 'badge-pastry';
+    html += `
+    <div class="preview-item">
+      ${item.image ? `<img src="${item.image}" alt="${item.name}" />` : `<div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);font-size:2.5rem">${item.emoji}</div>`}
+      <div class="preview-info">
+        <div class="preview-name">${item.name}</div>
+        <div class="preview-price">RM ${item.price.toFixed(2)}</div>
+        <div class="preview-cat"><span class="badge ${badgeClass}">${cat}</span> ${item.desc || ''}</div>
+      </div>
+    </div>`;
+  });
+});
+grid.innerHTML = html;
+countEl.textContent = ANG_SUCCESS_MENU.length;
+
+// ===== Merchant key detection =====
+function detectMerchantKeys() {
+  const sel = document.getElementById('merchant-key');
+  sel.innerHTML = '';
+  
+  // Find all loyalbrew_menu keys in localStorage
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.includes('loyalbrew_menu')) keys.push(k);
+  }
+  
+  // Default key
+  if (keys.length === 0) keys.push('loyalbrew_menu');
+  
+  keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k + (k === 'loyalbrew_menu' ? ' (默认)' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function checkExisting() {
+  const key = document.getElementById('merchant-key').value;
+  const info = document.getElementById('existing-info');
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || 'null');
+    if (data && Array.isArray(data)) {
+      info.className = 'status info';
+      info.innerHTML = `📦 当前已有 <strong>${data.length}</strong> 个商品在菜单中`;
+    } else {
+      info.className = 'status info';
+      info.textContent = '📭 当前菜单为空（将使用默认菜单）';
+    }
+  } catch(e) {
+    info.style.display = 'none';
+  }
+}
+
+// ===== Import function =====
+function importMenu() {
+  const key = document.getElementById('merchant-key').value;
+  const status = document.getElementById('import-status');
+  
+  try {
+    localStorage.setItem(key, JSON.stringify(ANG_SUCCESS_MENU));
+    status.className = 'status success';
+    status.innerHTML = `✅ 成功导入！共 <strong>${ANG_SUCCESS_MENU.length}</strong> 个商品已保存到 <code>${key}</code><br/>📍 请点击「打开点餐页面」查看效果`;
+  } catch(e) {
+    status.className = 'status error';
+    status.textContent = '❌ 导入失败：' + e.message;
+  }
+}
+
+function clearMenu() {
+  const key = document.getElementById('merchant-key').value;
+  if (!confirm(`确定要清空 ${key} 中的所有菜单数据吗？`)) return;
+  localStorage.removeItem(key);
+  const status = document.getElementById('import-status');
+  status.className = 'status success';
+  status.textContent = '🗑️ 菜单已清空';
+  checkExisting();
+}
+
+function openApp() {
+  // Open the main app in same directory
+  window.open('./index.html', '_blank');
+}
+
+// Init
+detectMerchantKeys();
+checkExisting();
+</script>
+</body>
+</html>

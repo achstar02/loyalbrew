@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<h1>Testing app.js</h1>
+<div id="result">Loading...</div>
+<script src="app.js"></script>
+<script>
+document.getElementById('result').innerHTML = 
+  'showPage type: ' + (typeof showPage) + '<br>' +
+  'safeLS type: ' + (typeof safeLS);
+</script>
+</body>
+</html>
