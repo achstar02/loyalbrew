@@ -1,10 +1,6 @@
-app.js
-style.css
-index.html
 firebase.json
 firestore.rules
 functions/
-dist/
 node_modules/
 .firebase/
 package.json
