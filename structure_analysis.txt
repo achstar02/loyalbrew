@@ -1,0 +1,12 @@
+Total file size: 392959
+MERCHANT_LANGS starts at: 304900
+MERCHANT_LANGS en block ends at: 312545
+  en: at 304928 snippet: "en: {\r\n    mCatHotDrinks: 'Hot Drinks', mCatColdDr"
+After en block (first 200 chars): "},\r\n  zh: {\r\n    mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮', mCatFood: '食品', mCatDesserts: '甜品', mCatSnacks: '小吃', mCatPromotions: '促销',\r\n    mPromoPrice: '促销价 (RM)', mPromoPriceDesc: '可选 — 非高峰特惠',\r\n  "
+zh: at 312551 indent=2 snippet: "zh: {\r\n    mCatHotDrinks: '热饮', mCatColdDrinks: '冷"
+ms: at 313398 indent=0 snippet: "ms: '新品', mTabStamp: '印章卡',\r\n    mTabTopup: '充值', "
+ta: at 326180 indent=4 snippet: "ta: {\r\n    mCatHotDrinks: 'சூடான பானங்கள்', mCatCo"
+MERCHANT_LANGS ends at: 312545
+Content around end: "OrderId: 'e.g. ORD123456',\r\n  },\r\n  zh: {\r\n    mCatHotDrinks"
+ta: at 78726
+Snippet: "d: 'cth: ORD123456',\r\n  },\r\n  ta: {\r\n    mCatHotDrinks: 'சூடான பானங்கள்', mCatCo"

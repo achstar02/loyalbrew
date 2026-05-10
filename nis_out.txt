@@ -1,0 +1,81 @@
+Position: 179886
+function populateNewItemSelect() {
+  const menu = DB.getMenu() || DEFAULT_MENU;
+  const sel  = document.getElementById('ni-select-item');
+  sel.innerHTML = `<option value="" data-mi18n-opt="mChooseAnItem">${mt('mChooseAnItem')}</option>` +
+    menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name} (RM${i.price.toFixed(2)})</option>`).join('');
+}
+
+function launchNewItem() {
+  const menuItemId = document.getElementById('ni-select-item').value;
+  const specialPriceVal = document.getElementById('ni-special-price').value;
+  const launchDate = document.getElementById('ni-launch-date').value;
+  const endDate    = document.getElementById('ni-end-date').value;
+  const announce   = document.getElementById('ni-announce').value.trim();
+
+  if (!menuItemId) { showToast(mt('mSelectMenuItem') || t('selectMenuItem'), 'error'); return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const newItems = DB.getNewItems();
+
+  // Deactivate previous launch for same item
+  newItems.forEach(n => { if (n.menuItemId === menuItemId) n.active = false; });
+
+  const entry = {
+    id: 'ni' + Date.now(),
+    menuItemId,
+    specialPrice: specialPriceVal ? parseFloat(specialPriceVal) : null,
+    launchDate:   launchDate || today,
+    endDate:      endDate || null,
+    announcement: announce,
+    active:       true,
+    createdAt:    new Date().toISOString(),
+  };
+  newItems.unshift(entry);
+  DB.saveNewItems(newItems);
+
+  // Clear form
+  document.getElementById('ni-select-item').value    = '';
+  document.getElementById('ni-special-price').value  = '';
+  document.getElementById('ni-launch-date').value    = '';
+  document.getElementById('ni-end-date').value       = '';
+  document.getElementById('ni-announce').value       = '';
+
+  showToast('🚀 New item launched!');
+  renderNewItemsMgmt();
+  // Reset seen so modal shows again
+  DB.setAnnounceSeen('');
+}
+
+function deactivateNewItem(id) {
+  const newItems = DB.getNewItems();
+  const idx = newItems.findIndex(n => n.id === id);
+  if (idx !== -1) { newItems[idx].active = false; DB.saveNewItems(newItems); }
+  showToast(mt('mNiDeactivate') + ' ✅');
+  renderNewItemsMgmt();
+}
+
+function deleteNewItem(id) {
+  DB.saveNewItems(DB.getNewItems().filter(n => n.id !== id));
+  showToast(mt('mNiDelete') + ' ✅');
+  renderNewItemsMgmt();
+}
+
+function renderNewItemsMgmt() {
+  const newItems = DB.getNewItems() || [];
+  const menu     = DB.getMenu() || DEFAULT_MENU;
+  const today    = new Date().toISOString().split('T')[0];
+
+  const active = newItems.filter(n => {
+    if (!n.active) return false;
+    if (n.endDate && n.endDate < today) return false;
+    return true;
+  });
+  const past = newItems.filter(n => !active.includes(n));
+
+  function renderCard(n, isPast) {
+    const m = menu.find(i => i.id === n.menuItemId);
+    if (!m) return '';
+    const priceText = n.specialPrice ? `${mt('mNiSpecial')}${n.specialPrice.toFixed(2)} (${mt('mNiWas')}${m.price.toFixed(2)})` : `RM${m.price.toFixed(2)}`;
+    return `
+      <div class="new-item-mgmt-card $

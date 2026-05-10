@@ -1,0 +1,14 @@
+function mt(key) {
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
+}
+
+function setMerchantLang(lang) {
+  _merchantLang = lang;
+  safeLS.set('loyalbrew_merchant_lang', lang);
+  document.documentElement.lang = lang;
+  // Also sync customer language to keep consistent
+  currentLang = lang;
+  safeLS.set('loyalbrew_lang', lang);
+  applyMerchantLang();
+  // Also apply customer language for data-i18n elements on merchant page
+  // BUT s

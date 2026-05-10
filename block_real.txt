@@ -1,0 +1,27 @@
+MERCHANT_LANGS at: 297920
+en block starts at: 297952
+zh block starts at: 305971
+ms block starts at: 312166
+ta block starts at: 320283
+en block ends at: 305971
+en block size: 8019
+zh block ends at: 312166, size: 6195
+ms block ends at: 320283, size: 8117
+ta block ends at: 329869, size: 9586
+
+=== Key existence check ===
+mNiLaunch: en=Y zh=Y ms=Y ta=Y
+mNiEnds: en=Y zh=Y ms=Y ta=Y
+mNiDeactivate: en=Y zh=Y ms=Y ta=Y
+mNiDelete: en=Y zh=Y ms=Y ta=Y
+mNiNoEndDate: en=Y zh=Y ms=Y ta=Y
+mNiSpecial: en=Y zh=Y ms=Y ta=Y
+mNiWas: en=Y zh=Y ms=Y ta=Y
+mChooseAnItem: en=Y zh=Y ms=Y ta=Y
+mSelectMenuItem: en=Y zh=Y ms=Y ta=Y
+promoEngineTitle: en=N zh=N ms=N ta=N
+promoEngineDesc: en=N zh=N ms=N ta=N
+enablePromo: en=N zh=N ms=N ta=N
+busyThreshold: en=N zh=N ms=N ta=N
+promoHideHint: en=N zh=N ms=N ta=N
+shopInfo: en=N zh=N ms=N ta=N

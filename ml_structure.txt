@@ -1,0 +1,9 @@
+MERCHANT_LANGS: 297920
+en: 297947 - content: en: {
+    mCatHotDrinks: 'Hot Drinks', mCatColdDri
+ms: 299057 - content: ms: 'New Items', mTabStamp: 'Stamp Cards',
+    mTa
+zh: 305717 - content: zh: {
+    mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮
+ta: 319583 - content: ta: {
+    mCatHotDrinks: 'சூடான பானங்கள்', mCatCol

@@ -1,0 +1,26 @@
+function loadPromoSettings() {
+  const s = getMerchantPromoSettings() || { enabled: false, promoStartTime: '09:00', promoEndTime: '17:00', promoDays: [1,2,3,4,5], busyThreshold: 10 };
+  const el = document.getElementById('promo-enabled');
+  if (el) el.checked = !!s.enabled;
+  const stEl = document.getElementById('promo-start-time');
+  if (stEl) stEl.value = s.promoStartTime || '09:00';
+  const etEl = document.getElementById('promo-end-time');
+  if (etEl) etEl.value = s.promoEndTime || '17:00';
+  const thEl = document.getElementById('promo-busy-threshold');
+  if (thEl) thEl.value = s.busyThreshold || 10;
+  document.querySelectorAll('.promo-day').forEach(cb => {
+    cb.checked = !!(s.promoDays && s.promoDays.includes(parseInt(cb.value)));
+  });
+  refreshPromoStatusUI();
+}
+
+function savePromoSettings() {
+  const enabled = !!document.getElementById('promo-enabled')?.checked;
+  const promoStartTime = document.getElementById('promo-start-time')?.value || '09:00';
+  const promoEndTime   = document.getElementById('promo-end-time')?.value || '17:00';
+  const busyThreshold  = parseInt(document.getElementById('promo-busy-threshold')?.value) || 10;
+  const promoDays = Array.from(document.querySelectorAll('.promo-day:checked')).map(cb => parseInt(cb.value));
+  saveMerchantPromoSettings({ enabled, promoStartTime, promoEndTime, promoDays, busyThreshold });
+  refreshPromoStatusUI();
+  renderMenu(); // re-render customer menu with new price
+  showToast(enabled ? '🔥 Promo engine enabled!' : 'P

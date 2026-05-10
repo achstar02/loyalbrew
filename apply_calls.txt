@@ -1,0 +1,17 @@
+Found 5 calls to applyMerchantLang()
+  at 130195: ...') { loadMerchantDashboard(); applyMerchantLang(); initSuperAdminMode(); }
+  if...
+  at 130278: ... === 'page-merchant-login') { applyMerchantLang(); initMerchantSavedPassword();...
+  at 328663: ...et('loyalbrew_lang', lang);
+  applyMerchantLang();
+  // Also apply customer lan...
+  at 329134: ...lang][key];
+  });
+}
+
+function applyMerchantLang() {
+  document.querySelectorAll...
+  at 363196: ...page
+  setTimeout(() => {
+    applyMerchantLang();
+    initMerchantSavedPasswor...

@@ -1,0 +1,8 @@
+zh block: 305717 to 311510 (5793 chars)
+
+promoEngineTitle: 促销引擎
+promoEngineDesc: 根据时间/天自动应用促销
+enablePromo: 启用促销
+busyThreshold: 繁忙阈值
+promoHideHint: （关闭时隐藏）
+shopInfo: 店铺信息

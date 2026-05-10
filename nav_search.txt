@@ -1,0 +1,25 @@
+=== catNewItems (5 matches) ===
+  @9076: "id table number',\n    // Menu categories\n    catAll: 'All', catNewItems: '✨ New Items',\n    catHotDrinks: 'Hot Drinks', catColdDrinks: 'Cold Drinks',\n "
+  @33509: "dTable: '请输入有效桌号',\n    // Menu categories\n    catAll: '全部', catNewItems: '✨ 新品',\n    catHotDrinks: '热饮', catColdDrinks: '冷饮',\n    catFood: '食物', catDes"
+  @51990: "meja yang sah',\n    // Menu categories\n    catAll: 'Semua', catNewItems: '✨ Item Baru',\n    catHotDrinks: 'Minuman Panas', catColdDrinks: 'Minuman Seju"
+  @79363: "ள்ளிடவும்',\n    // Menu categories\n    catAll: 'அனைத்தும்', catNewItems: '✨ புதிய பொருட்கள்',\n    catHotDrinks: 'சூடான பானங்கள்', catColdDrinks: 'குளிர"
+  @140069: " keys\nconst CAT_I18N = {\n  'All': 'catAll', '✨ New Items': 'catNewItems',\n  'Hot Drinks': 'catHotDrinks', 'Cold Drinks': 'catColdDrinks',\n  'Food': 'ca"
+
+=== mTabNewItems (4 matches) ===
+  @299047: "rs: 'Orders', mTabMenu: 'Menu',\n    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',\n    mTabTopup: 'Top Up', mTabComplaints"
+  @306306: "', mTabOrders: '订单', mTabMenu: '菜单',\n    mTabMembers: '会员', mTabNewItems: '新品', mTabStamp: '印章卡',\n    mTabTopup: '充值', mTabComplaints: '投诉', mTabCommiss"
+  @312300: "ders: 'Pesanan', mTabMenu: 'Menu',\n    mTabMembers: 'Ahli', mTabNewItems: 'Item Baru', mTabStamp: 'Kad Setem',\n    mTabTopup: 'Tambah Nilai', mTabCompla"
+  @320180: "ர்கள்', mTabMenu: 'மெனு',\n    mTabMembers: 'உறுப்பினர்கள்', mTabNewItems: 'புதிய பொருட்கள்', mTabStamp: 'ஸ்டாம்ப் கார்டு',\n    mTabTopup: 'டாப் அப்', mT"
+
+=== mNiLaunch|new.?item.*tab|\u2728 (21 matches) ===
+  @9090: "r',\n    // Menu categories\n    catAll: 'All', catNewItems: '✨ New Items',\n    catHotDrinks: 'Hot Drinks', catColdDrinks: 'Cold Drinks',\n    c"
+  @29885: "Yet: 'No stamp cards yet.',\n    // Merchant - New Items\n    mNiLaunch: 'Launch', mNiWas: 'was', mNiSpecial: 'Special:',\n    mNiEnds: 'Ends:', mNiNoEn"
+  @33523: "桌号',\n    // Menu categories\n    catAll: '全部', catNewItems: '✨ 新品',\n    catHotDrinks: '热饮', catColdDrinks: '冷饮',\n    catFood: '食物', catDessert"
+  @48869: "',\n    mStampsLabel: '印章数', mNoStampCardsYet: '暂无印章卡。',\n    mNiLaunch: '发布', mNiWas: '原价', mNiSpecial: '特价：',\n    mNiEnds: '截止：', mNiNoEndDate: '无截止日"
+  @52004: ",\n    // Menu categories\n    catAll: 'Semua', catNewItems: '✨ Item Baru',\n    catHotDrinks: 'Minuman Panas', catColdDrinks: 'Minuman Sejuk',\n"
+
+=== Searching for Tamil in nav generation ===
+  Found 23 matches
+  @77451: "min',\n    menu: 'மெனு',\n    new_items: 'புதிய பொருட்கள்',\n    bill_amount: 'பில் தொகை"
+  @78208: "!',\n    whats_new_title: 'LoyalBrew இல் புதியது!',\n    invite_friends_title: 'நண்பர்க"
+  @79379: "   catAll: 'அனைத்தும்', catNewItems: '✨ புதிய பொருட்கள்',\n    catHotDrinks: 'சூடான பா"

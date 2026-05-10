@@ -1,0 +1,58 @@
+﻿function loadPointsSettings() {
+  const settings = getPointsSettings();
+  const rateEl = document.getElementById('m-points-rate');
+  const previewEl = document.getElementById('points-rate-preview');
+  if (rateEl) rateEl.value = settings.rate || 1;
+  if (previewEl) previewEl.textContent = settings.rate || 1;
+  // Update preview on input change
+  if (rateEl && !rateEl._hasListener) {
+    rateEl.addEventListener('input', () => {
+      if (previewEl) previewEl.textContent = rateEl.value || 1;
+    });
+    rateEl._hasListener = true;
+  }
+}
+
+// ===== ADVERTISING SYSTEM =====
+const AD_KEY = 'loyalbrew_ads';
+const AD_STATS_KEY = 'loyalbrew_ad_stats';
+let adCarouselTimer = null;
+let adCurrentSlide = 0;
+// Timer used by the customer promos carousel (referenced by showPage)
+let promosCarouselTimer = null;
+
+function getAds() { return safeLS.json(AD_KEY, []); }
+function saveAds(ads) { safeLS.setJSON(AD_KEY, ads); }
+function getAdStats() { return safeLS.json(AD_STATS_KEY, {}); }
+function saveAdStats(s) { safeLS.setJSON(AD_STATS_KEY, s); }
+
+function getActiveAds() {
+  const now = new Date();
+  return getAds().filter(a => {
+    if (!a.active) return false;
+    const start = new Date(a.startDate);
+    if (now < start) return false;
+    if (a.endDate) { const end = new Date(a.endDate); if (now > end) return false; }
+    return true;
+  }).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+}
+
+function trackAdImpression(adId) {
+  const stats = getAdStats();
+  if (!stats[adId]) stats[adId] = { impressions: 0, clicks: 0 };
+  stats[adId].impressions++;
+  saveAdStats(stats);
+}
+
+function trackAdClick(adId) {
+  const stats = getAdStats();
+  if (!stats[adId]) stats[adId] = { impressions: 0, clicks: 0 };
+  stats[adId].clicks++;
+  saveAdStats(stats);
+}
+
+function renderAdCarousel() {
+  const carousel = document.getElementById('ad-banner-carousel');
+  const wrapper = document.getElementById('ad-slides-wrapper');
+  const dotsEl = document.getElementById('ad-dots');
+  if (!carousel || !wrapper) r

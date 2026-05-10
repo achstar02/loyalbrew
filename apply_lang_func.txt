@@ -1,0 +1,16 @@
+function applyMerchantLang() {
+  document.querySelectorAll('[data-mi18n]').forEach(el => {
+    const key = el.getAttribute('data-mi18n');
+    el.textContent = mt(key);
+  });
+  // Translate <option> elements with data-mi18n-opt
+  document.querySelectorAll('[data-mi18n-opt]').forEach(el => {
+    const key = el.getAttribute('data-mi18n-opt');
+    el.textContent = mt(key);
+  });
+  // Translate placeholder with data-mi18n-ph
+  document.querySelectorAll('[data-mi18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-mi18n-ph');
+    el.placeholder = mt(key);
+  });
+  // Highlight active lang 

@@ -1,0 +1,15 @@
+mNiLaunch: en=Y zh=N ms=N ta=N
+mNiEnds: en=Y zh=N ms=N ta=N
+mNiDeactivate: en=Y zh=N ms=N ta=N
+mNiDelete: en=Y zh=N ms=N ta=N
+mNiNoEndDate: en=Y zh=N ms=N ta=N
+mNiSpecial: en=Y zh=N ms=N ta=N
+mNiWas: en=Y zh=N ms=N ta=N
+mChooseAnItem: en=Y zh=N ms=N ta=N
+mSelectMenuItem: en=Y zh=N ms=N ta=N
+promoEngineTitle: en=N zh=N ms=N ta=N
+promoEngineDesc: en=N zh=N ms=N ta=N
+enablePromo: en=N zh=N ms=N ta=N
+busyThreshold: en=N zh=N ms=N ta=N
+promoHideHint: en=N zh=N ms=N ta=N
+shopInfo: en=N zh=N ms=N ta=Y

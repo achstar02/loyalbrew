@@ -1,0 +1,37 @@
+
+=== .type at 10360 ===
+e...',
+    placeOrder: 'Place Order',
+    // Order type display in cart
+    cartDineIn: 'Dine In', c
+
+=== .type at 34461 ===
+ '例：少糖、不要冰...',
+    placeOrder: '下单',
+    // Order type display in cart
+    cartDineIn: '堂食', cartTa
+
+=== .type at 45946 ===
+oto: '移除图片',
+    revenue_today: '今日营收',
+    reward_type: '奖励类型',
+    save_password: '保存密码',
+    sele
+
+=== .status at 20826 ===
+Touch & Go',
+    paymentBank: 'Bank Transfer',
+    statusPending: 'Pending',
+    statusPreparing: 'P
+
+=== .status at 20856 ===
+'Bank Transfer',
+    statusPending: 'Pending',
+    statusPreparing: 'Preparing',
+    statusDone: 'Do
+
+=== .status at 20890 ===
+: 'Pending',
+    statusPreparing: 'Preparing',
+    statusDone: 'Done',
+    stampRedeemTitle: 'Congra

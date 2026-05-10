@@ -1,0 +1,66 @@
+=== mTabNewItems (4 matches) ===
+  @299047:
+,
+    mTabOverview: 'Overview', mTabOrders: 'Orders', mTabMenu: 'Menu',
+    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',
+    mTabTopup: 'Top Up', mTabComplaints: 'Complaints', mTab
+---
+  @306306:
+oadAd: '点击上传广告图片',
+    mTabOverview: '概览', mTabOrders: '订单', mTabMenu: '菜单',
+    mTabMembers: '会员', mTabNewItems: '新品', mTabStamp: '印章卡',
+    mTabTopup: '充值', mTabComplaints: '投诉', mTabCommissions: '佣金', mTabQR: 
+---
+  @312300:
+',
+    mTabOverview: 'Ringkasan', mTabOrders: 'Pesanan', mTabMenu: 'Menu',
+    mTabMembers: 'Ahli', mTabNewItems: 'Item Baru', mTabStamp: 'Kad Setem',
+    mTabTopup: 'Tambah Nilai', mTabComplaints: 'Aduan', mTabC
+---
+  @320180:
+Overview: 'மேலோட்டம்', mTabOrders: 'ஆர்டர்கள்', mTabMenu: 'மெனு',
+    mTabMembers: 'உறுப்பினர்கள்', mTabNewItems: 'புதிய பொருட்கள்', mTabStamp: 'ஸ்டாம்ப் கார்டு',
+    mTabTopup: 'டாப் அப்', mTabComplaints: 'புகார
+---
+
+=== tab.*new.*item (5 matches) ===
+  @299024:
+ick to upload ad image',
+    mTabOverview: 'Overview', mTabOrders: 'Orders', mTabMenu: 'Menu',
+    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',
+    mTabTopup: 'Top Up', mTabComplaints: 'Complaints', mTabCommissions
+---
+  @306288:
+广告统计', mClickToUploadAd: '点击上传广告图片',
+    mTabOverview: '概览', mTabOrders: '订单', mTabMenu: '菜单',
+    mTabMembers: '会员', mTabNewItems: '新品', mTabStamp: '印章卡',
+    mTabTopup: '充值', mTabComplaints: '投诉', mTabCommissions: '佣金', mTabQR:
+---
+  @312280:
+muat naik imej iklan',
+    mTabOverview: 'Ringkasan', mTabOrders: 'Pesanan', mTabMenu: 'Menu',
+    mTabMembers: 'Ahli', mTabNewItems: 'Item Baru', mTabStamp: 'Kad Setem',
+    mTabTopup: 'Tambah Nilai', mTabComplaints: 'Aduan', mTabCommissi
+---
+  @320151:
+ற கிளிக் செய்யவும்',
+    mTabOverview: 'மேலோட்டம்', mTabOrders: 'ஆர்டர்கள்', mTabMenu: 'மெனு',
+    mTabMembers: 'உறுப்பினர்கள்', mTabNewItems: 'புதிய பொருட்கள்', mTabStamp: 'ஸ்டாம்ப் கார்டு',
+    mTabTopup: 'டாப் அப்', mTabComplaints: 'புகா
+---
+  @338155:
+d('active');
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  if (tabId === 'tab-new-items')   { populateNewItemSelect(); renderNewItemsMgmt(); }
+  if (tabId === 'tab-stamp-mgmt')  { initStampMgmtTab(); }
+  if (tabId === 'tab-topup-mgm
+---
+
+=== Context around first mTabNewItems ===
+ Ads', mNoAds: 'No ads yet', mAdStats: 'Ad Statistics', mClickToUploadAd: 'Click to upload ad image',
+    mTabOverview: 'Overview', mTabOrders: 'Orders', mTabMenu: 'Menu',
+    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',
+    mTabTopup: 'Top Up', mTabComplaints: 'Complaints', mTabCommissions: 'Commissions', mTabQR: 'QR Codes',
+    mAddNewItem: 'Add New Item', mItemNa
+
+=== Looking for nav tab HTML generation with mt() or data-mi18n ===

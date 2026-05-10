@@ -1,0 +1,43 @@
+function renderNewItemsMgmt() {
+  const newItems = DB.getNewItems() || [];
+  const menu     = DB.getMenu() || DEFAULT_MENU;
+  const today    = new Date().toISOString().split('T')[0];
+
+  const active = newItems.filter(n => {
+    if (!n.active) return false;
+    if (n.endDate && n.endDate < today) return false;
+    return true;
+  });
+  const past = newItems.filter(n => !active.includes(n));
+
+  function renderCard(n, isPast) {
+    const m = menu.find(i => i.id === n.menuItemId);
+    if (!m) return '';
+    const priceText = n.specialPrice ? `${mt('mNiSpecial')}${n.specialPrice.toFixed(2)} (${mt('mNiWas')}${m.price.toFixed(2)})` : `RM${m.price.toFixed(2)}`;
+    return `
+      <div class="new-item-mgmt-card ${isPast ? 'expired' : ''}">
+        <div class="new-item-mgmt-header">
+          <div class="new-item-mgmt-emoji">${m.emoji}</div>
+          <div class="new-item-mgmt-info">
+            <strong>${m.name}</strong>
+            <small>${n.announcement || m.desc}</small>
+          </div>
+        </div>
+        <div class="new-item-mgmt-badges">
+          <span class="nimb red">✨ NEW</span>
+          <span class="nimb orange">${priceText}</span>
+          <span class="nimb green">${mt('mNiLaunch')} ${n.launchDate}</span>
+          ${n.endDate ? `<span class="nimb grey">${mt('mNiEnds')} ${n.endDate}</span>` : `<span class="nimb grey">${mt('mNiNoEndDate')}</span>`}
+        </div>
+        <div class="ni-mgmt-actions">
+          ${!isPast ? `<button class="ni-mgmt-btn deactivate" onclick="deactivateNewItem('${n.id}')"><i class="fas fa-times"></i> ${mt('mNiDeactivate')}</button>` : ''}
+          <button class="ni-mgmt-btn delete" onclick="deleteNewItem('${n.id}')"><i class="fas fa-trash"></i> ${mt('mNiDelete')}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const activeEl = document.getElementById('active-new-items-list');
+  activeEl.innerHTML = active.length
+    ? active.map(n => renderCard(n, false)).join('')
+    : `<p style="color:#aaa;text-align:center;padding:16px">${m

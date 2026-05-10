@@ -1,0 +1,32 @@
+
+=== Position 113562 ===
+loadShopSettings() {
+  const settings = getShopSettings();
+  const nameEl = document.getElementById('m-shop-name');
+  const announceEl = document.getElementById('m-shop-announce');
+  const bannerEl = document.getElementById('m-shop-banner');
+  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || '';
+  if (announceEl) announceEl.value = settings.announce || '';
+  if (bannerEl) bannerEl.value = settings.banner || '';
+}
+
+// ===== POINTS SETTINGS =====
+const POINTS_SETTINGS_KEY = 'loyalbrew_points_settings';
+
+function getPointsSettings() {
+  return safeLS.json(_getMerchantSto
+
+=== Position 340549 ===
+loadShopSettings(); loadPointsSettings(); }
+}
+
+// --- Orders tab ---
+function renderMerchantOrders(orders) {
+  const filtered = orderFilterStatus === 'all' ? orders : orders.filter(o => o.status === orderFilterStatus);
+  const list = document.getElementById('merchant-orders-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoOrdersFound')}</p>`;
+    return;
+  }
+  list.innerHTML = filtered.map(order => {
+    const time = new Date(order.createdAt).toLocaleString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minu

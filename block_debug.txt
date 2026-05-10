@@ -1,0 +1,48 @@
+File length: 386192
+MERCHANT_LANGS at: 297920
+
+en matches:
+  at 297947: ...en: {    mTitleQuickActions: 'Quick Actions',
+    ...
+ms matches:
+  at 312161: ...ms: {
+    mCatHotDrinks: 'Minuman Panas', mCatCold...
+zh matches:
+  at 305966: ...zh: {    mTitleQuickActions: 'Tindakan Pantas',
+  ...
+ta matches:
+  at 305966: ...zh: {    mTitleQuickActions: 'Tindakan Pantas',
+  ...
+
+Position 297920: ====\nconst MERCHANT_LANGS = {\n  en: {    mTitleQuickAct
+
+Position 297950:   en: {    mTitleQuickActions: 'Quick Actions',\n    mBt
+
+Position 305962: ts',},\n  zh: {    mTitleQuickActions: 'Tindakan Pantas'
+
+Position 307157: tems: '新品', mTabStamp: '印章卡',\n    mTabTopup: '充值', mTab
+
+=== First 2000 chars after MERCHANT_LANGS ===
+const MERCHANT_LANGS = {
+  en: {    mTitleQuickActions: 'Quick Actions',
+    mBtnViewOrders2: 'View Orders',
+    mBtnMenuMgmt2: 'Menu Management',
+    mBtnShopSettings2: 'Shop Settings',
+    mBtnKitchenDisplay2: 'Kitchen Display',
+
+    mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
+    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional — for off-peak special',
+    mUsername: 'Username', mPassword: 'Password', mSavePassword: 'Save Password',
+    mLoginBtn: 'Login to Dashboard', mKitchen: 'Kitchen', mKitchenDisplay: 'Kitchen Display', mRefresh: 'Refresh', mKitchenNew: 'New', mKitchenPreparing: 'Preparing', mKitchenDone: 'Done', mTabSettings: 'Settings',
+    mTabAds: 'Ads',
+    mCreateAd: 'Create New Ad', mAdTitle: 'Ad Title', mAdLink: 'Link URL (optional)', mAdStart: 'Start Date', mAdEnd: 'End Date', mAdImage: 'Ad Image', mAdPosition: 'Display Position', mAdPriority: 'Priority', mAdPriorityHint: 'Higher number = shown first', mActiveAds: 'Active Ads', mNoActiveAds: 'No active ads', mAllAds: 'All Ads', mNoAds: 'No ads yet', mAdStats: 'Ad Statistics', mClickToUploadAd: 'Click to upload ad image',
+    mTabOverview: 'Overview', mTabOrders: 'Orders', mTabMenu: 'Menu',
+    mTabMembers: 'Members', mTabNewItems: 'New Items', mTabStamp: 'Stamp Cards',
+    mTabTopup: 'Top Up', mTabComplaints: 'Complaints', mTabCommissions: 'Commissions', mTabQR: 'QR Codes',
+    mAddNewItem: 'Add New Item', mItemName: 'Item Name', mItemPrice: 'Price (RM)',
+    mItemCat: 'Category', mItemEmoji: 'Emoji Icon', mItemDesc: 'Description',
+    mItemPhoto: 'Item Photo', mItemPhotoOpt: '(optional)', mClickToUpload: 'Click to upload photo',
+    mRemovePhoto: 'Remove Photo', mAddToMenu: 'Add to Menu', mMenuItems: 'Menu Items',
+    mAllMembers: 'All Members', mRecentTxns: 'Recent Transactions',
+    mDeactivateMember: 'Deactivate Member', mConfirmDeactivate: 'Confirm Deactivate',
+    mActivat

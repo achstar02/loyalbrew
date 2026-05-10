@@ -1,0 +1,80 @@
+--- en ---
+  welcomeBack: MISSING
+  drinkToday: MISSING
+  firebaseNote: MISSING
+  myAccount: MISSING
+  orderNow: MISSING
+  myStampCard: MISSING
+  topUp: MISSING
+  loyalbrew_brand: MISSING
+  noMembersYet: MISSING
+  noTransactionsYet: MISSING
+--- zh ---
+  welcomeBack: MISSING
+  drinkToday: MISSING
+  firebaseNote: MISSING
+  myAccount: MISSING
+  orderNow: MISSING
+  myStampCard: MISSING
+  topUp: MISSING
+  loyalbrew_brand: MISSING
+  noMembersYet: MISSING
+  noTransactionsYet: MISSING
+--- ms ---
+  welcomeBack: MISSING
+  drinkToday: MISSING
+  firebaseNote: MISSING
+  myAccount: MISSING
+  orderNow: MISSING
+  myStampCard: MISSING
+  topUp: MISSING
+  loyalbrew_brand: MISSING
+  noMembersYet: MISSING
+  noTransactionsYet: MISSING
+--- ta ---
+  welcomeBack: MISSING
+  drinkToday: MISSING
+  firebaseNote: MISSING
+  myAccount: MISSING
+  orderNow: MISSING
+  myStampCard: MISSING
+  topUp: MISSING
+  loyalbrew_brand: MISSING
+  noMembersYet: MISSING
+  noTransactionsYet: MISSING
+
+--- Looking for landing page HTML generation ---
+  welcomeBack at 27196: mos available right now. Check back soon!',
+ 
+    welcomeBack: 'Welcome Back',
+    drinkToday: 'What\'s your drink today?',
+    fi
+
+  welcomeBack at 46997: : '所有优惠',
+    noPromosNow: '暂无优惠活动，请稍后再来！',
+ 
+    welcomeBack: '欢迎回来',
+    drinkToday: '今天想喝点什么？',
+    firebaseNote: '主按钮会在后续接 Fir
+
+  welcomeBack at 70814: mosi buat masa ini. Sila datang kemudian!',
+ 
+    welcomeBack: 'Selamat Kembali',
+    drinkToday: 'Minum apa hari ini?',
+    fireb
+
+  welcomeBack at 71628: RM',
+    savePoints2: 'Simpan Tetapan Mata', 
+    welcomeBack: 'Selamat Kembali',
+    drinkToday: 'Minum apa hari ini?',
+    fireb
+
+  welcomeBack at 99344: ்போது சலுகைகள் இல்லை. மீண்டும் வாருங்கள்!',
+ 
+    welcomeBack: 'மீண்டும் வரவேற்கிறோம்',
+    drinkToday: 'இன்று என்ன குடிக்கிறீர்கள
+
+  welcomeBack at 100260:  savePoints2: 'புள்ளிகள் அமைப்புகளைச் சேமி', 
+    welcomeBack: 'மீண்டும் வரவேற்கிறோம்',
+    drinkToday: 'இன்று என்ன குடிக்கிறீர்கள
+

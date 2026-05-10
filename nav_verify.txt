@@ -1,0 +1,11 @@
+merchant-nav">
+    <button class="mnav active" onclick="switchMerchantTab('tab-overview')"><i class="fas fa-chart-bar"></i> <span data-mi18n="mTabOverview">Overview</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-orders')"><i class="fas fa-receipt"></i> <span data-mi18n="mTabOrders">Orders</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-menu-mgmt')"><i class="fas fa-utensils"></i> <span data-mi18n="mTabMenu">Menu</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-members')"><i class="fas fa-users"></i> <span data-mi18n="mStatMembers">Members</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-new-items')"><i class="fas fa-star"></i> <span data-mi18n="mTabNewItems">新项目</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-stamp-mgmt')"><i class="fas fa-stamp"></i> <span data-mi18n="mTabStamp">Stamp Cards</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-topup-mgmt')"><i class="fas fa-wallet"></i> <span data-mi18n="mTabTopup">Top Up</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-complaints')"><i class="fas fa-exclamation-circle"></i> <span data-mi18n="mTabComplaints">Complaints</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-commissions')"><i class="fas fa-hand-holding-usd"></i> <span data-mi18n="mTabCommissions">Commissions</span></button>
+    <button class="mnav" onclick="switchMerchantTab('ta

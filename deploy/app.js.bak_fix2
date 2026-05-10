@@ -771,28 +771,6 @@ const LANGS = {
     selectTable: '选择桌号', enterTable: '请输入桌号以开始点餐',
     confirmTable: '确认桌号', invalidTable: '请输入有效桌号',
     // Menu categories
-  create_stamp_card: '创建印章卡',
-  card_name: '卡片名称',
-  card_emoji_icon: '卡片表情/图标',
-  stamps_required_to_complete: '完成所需印章数',
-  stamp_rule: '印章规则',
-  reward_type: '奖励类型',
-  card_color_theme: '卡片颜色主题',
-  add_new_item: '添加新项目',
-  item_name: '项目名称',
-  price_label: '价格',
-  category: '分类',
-  all_orders: '全部订单',
-  bill_amount: '账单金额',
-  will_earn: '将获得',
-  points: '积分',
-  cancel: '取消',
-  overview: '概览',
-  hot_drinks: '热饮',
-  cold_drinks: '冷饮',
-  food: '食品',
-  desserts: '甜品',
-  snacks: '小吃',
     catAll: '全部', catNewItems: '✨ 新品',
     catHotDrinks: '热饮', catColdDrinks: '冷饮',
     catFood: '食物', catDesserts: '甜点', catSnacks: '小食',
@@ -2341,21 +2319,8 @@ loyalbrew_brand: 'LoyalBrew',
 let currentLang = safeLS.get('loyalbrew_lang') || 'en';
 
 function t(key) {
-  if (LANGS[_lang] && LANGS[_lang][key]) return LANGS[_lang][key];
-  if (LANGS.en && LANGS.en[key]) return LANGS.en[key];
-  if (!key.startsWith('m') && key.includes('_')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^([a-z])/, (_, c) => c.toUpperCase());
-    if (LANGS[_lang] && LANGS[_lang][camel]) return LANGS[_lang][camel];
-    if (LANGS.en && LANGS.en[camel]) return LANGS.en[camel];
-  }
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (LANGS[_lang] && LANGS[_lang][withoutM]) return LANGS[_lang][withoutM];
-    if (LANGS.en && LANGS.en[withoutM]) return LANGS.en[withoutM];
-  }
-  return key;
+  return (LANGS[currentLang] && LANGS[currentLang][key]) ? LANGS[currentLang][key] : (LANGS['en'][key] || key);
 }
-
 
 function setLang(lang) {
   currentLang = lang;
@@ -6900,7 +6865,12 @@ async function _saOpenTopup(merchantId, currentCredits) {
 
 // ===== MERCHANT LANGUAGE SYSTEM =====
 const MERCHANT_LANGS = {
-  en: {
+  en: {    mTitleQuickActions: 'Quick Actions',
+    mBtnViewOrders2: 'View Orders',
+    mBtnMenuMgmt2: 'Menu Management',
+    mBtnShopSettings2: 'Shop Settings',
+    mBtnKitchenDisplay2: 'Kitchen Display',
+
     mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
     mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional — for off-peak special',
     mUsername: 'Username', mPassword: 'Password', mSavePassword: 'Save Password',
@@ -6991,8 +6961,24 @@ const MERCHANT_LANGS = {
     mQRTable: 'Table', mQRPrint: 'Print',
     mNoActiveItems: 'No active new items', mNoPastLaunches: 'No past launches',
     mPhComplaintDesc: 'Please describe your issue in detail...', mPhComplaintOrderId: 'e.g. ORD123456',
-  },
-  zh: {
+  
+    mRulePerOrderOpt: 'Every purchase = 1 stamp',
+    mRulePerAmountOpt: 'Every RM X spent = 1 stamp',
+    mRulePerItemOpt: 'Buy specific item = 1 stamp',
+    mRewardFreeItemOpt: 'Free Menu Item',
+    mRewardFlatDiscountOpt: 'Flat Discount (RM)',
+    mRewardBonusPointsOpt: 'Bonus Points',},
+  zh: {    mTitleQuickActions: 'Tindakan Pantas',
+    mBtnViewOrders2: 'Lihat Pesanan',
+    mBtnMenuMgmt2: 'Urusan Menu',
+    mBtnShopSettings2: 'Tetapan Kedai',
+    mBtnKitchenDisplay2: 'Paparan Dapur',
+    mTitleQuickActions: '快捷操作',
+    mBtnViewOrders2: '查看订单',
+    mBtnMenuMgmt2: '菜单管理',
+    mBtnShopSettings2: '店铺设置',
+    mBtnKitchenDisplay2: '厨房显示',
+
     mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮', mCatFood: '食品', mCatDesserts: '甜品', mCatSnacks: '小吃', mCatPromotions: '促销',
     mPromoPrice: '促销价 (RM)', mPromoPriceDesc: '可选 — 非高峰特惠',
     mUsername: '用户名', mPassword: '密码', mSavePassword: '保存密码',
@@ -7083,7 +7069,13 @@ const MERCHANT_LANGS = {
     mQRTable: '桌号', mQRPrint: '打印',
     mNoActiveItems: '没有活跃新品', mNoPastLaunches: '没有过期发布记录',
     mPhComplaintDesc: '请详细描述您的问题...', mPhComplaintOrderId: '例如：ORD123456',
-  },
+  
+    mRulePerOrderOpt: '每消费1次=1印章',
+    mRulePerAmountOpt: '每消费RM X=1印章',
+    mRulePerItemOpt: '购买指定商品=1印章',
+    mRewardFreeItemOpt: '免费菜单商品',
+    mRewardFlatDiscountOpt: '固定折扣 (RM)',
+    mRewardBonusPointsOpt: '奖励积分',},
     ms: {
     mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
     mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan — untuk promosi off-peak',
@@ -7175,8 +7167,19 @@ const MERCHANT_LANGS = {
     mQRTable: 'Meja', mQRPrint: 'Cetak',
     mNoActiveItems: 'Tiada item baru aktif', mNoPastLaunches: 'Tiada pelancaran lepas',
     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...', mPhComplaintOrderId: 'cth. ORD123456',
-  },
-    ta: {
+  
+    mRulePerOrderOpt: 'Setiap pembelian = 1 setem',
+    mRulePerAmountOpt: 'Setiap RM X dibelanjakan = 1 setem',
+    mRulePerItemOpt: 'Beli item tertentu = 1 setem',
+    mRewardFreeItemOpt: 'Item Menu Percuma',
+    mRewardFlatDiscountOpt: 'Diskaun Tetap (RM)',
+    mRewardBonusPointsOpt: 'Mata Bonus',},
+    ta: {    mTitleQuickActions: 'சுட்ட செயல்கள்',
+    mBtnViewOrders2: 'ஆய்டர்கள் பaார்',
+    mBtnMenuMgmt2: 'பeெனு பரத்துவ',
+    mBtnShopSettings2: 'கடை அமைப்புடுத்துகள்',
+    mBtnKitchenDisplay2: 'சமைப்பட்ட காட்சி',
+
     mCatHotDrinks: 'சூடான பானங்கள்', mCatColdDrinks: 'குளிர் பானங்கள்', mCatFood: 'உணவு', mCatDesserts: 'இனிப்புகள்', mCatSnacks: 'சிற்றுண்டி', mCatPromotions: 'விளம்பரங்கள்',
     mPromoPrice: 'விளம்பர விலை (RM)', mPromoPriceDesc: 'விருப்பமானது — off-peak சிறப்பு',
     mUsername: 'பயனர் பெயர்', mPassword: 'கடவுச்சொல்', mSavePassword: 'கடவுச்சொல் சேமி',
@@ -7267,28 +7270,19 @@ const MERCHANT_LANGS = {
     mQRTable: 'மேசை', mQRPrint: 'அச்சிடு',
     mNoActiveItems: 'செயலில் புதிய பொருட்கள் இல்லை', mNoPastLaunches: 'கடந்த வெளியீடுகள் இல்லை',
     mPhComplaintDesc: 'உங்கள் பிரச்சனையை விரிவாக விவரிக்கவும்...', mPhComplaintOrderId: 'எ.கா. ORD123456',
-  },
+  
+    mRulePerOrderOpt: 'ஒவ்வொரு கொள்முதலும் = 1 முத்திரை',
+    mRulePerAmountOpt: 'ஒவ்வொரு RM X செலவிட்டால் = 1 முத்திரை',
+    mRulePerItemOpt: 'குறிப்பிட்ட பொருள் வாங்க = 1 முத்திரை',
+    mRewardFreeItemOpt: 'இலவச மெனு பொருள்',
+    mRewardFlatDiscountOpt: 'நிலையான தள்ளுபடி (RM)',
+    mRewardBonusPointsOpt: 'போனஸ் புள்ளிகள்',},
 };
 let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
 
 function mt(key) {
-  if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) return MERCHANT_LANGS[_merchantLang][key];
-  if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[key]) return MERCHANT_LANGS.en[key];
-  // Auto-conversion: snake_case or lowercase → mCamelCase
-  if (!key.startsWith('m')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^m([a-z])/, (_, c) => c.toUpperCase());
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][camel]) return MERCHANT_LANGS[_merchantLang][camel];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[camel]) return MERCHANT_LANGS.en[camel];
-  }
-  // Also try removing 'm' prefix (e.g., mConfirmPoints → confirmPoints)
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][withoutM]) return MERCHANT_LANGS[_merchantLang][withoutM];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[withoutM]) return MERCHANT_LANGS.en[withoutM];
-  }
-  return key;
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
 }
-
 
 function setMerchantLang(lang) {
   _merchantLang = lang;

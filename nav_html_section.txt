@@ -1,0 +1,30 @@
+Merchant Nav Tabs -->
+  <div class="merchant-nav">
+    <button class="mnav active" onclick="switchMerchantTab('tab-overview')"><i class="fas fa-chart-bar"></i> <span data-i18n="overview">Overview</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-orders')"><i class="fas fa-receipt"></i> <span data-i18n="orders">Orders</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-menu-mgmt')"><i class="fas fa-utensils"></i> <span data-i18n="menu_items">Menu</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-members')"><i class="fas fa-users"></i> <span data-i18n="members">Members</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-new-items')"><i class="fas fa-star"></i> <span data-i18n="new_items">新项目</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-stamp-mgmt')"><i class="fas fa-stamp"></i> <span data-i18n="stamp_cards">Stamp Cards</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-topup-mgmt')"><i class="fas fa-wallet"></i> <span data-i18n="top_up">Top Up</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-complaints')"><i class="fas fa-exclamation-circle"></i> <span data-i18n="complaints">Complaints</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-commissions')"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="commissions">Commissions</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-qr')"><i class="fas fa-qrcode"></i> <span data-i18n="qr_codes">QR Codes</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-settings')"><i class="fas fa-cog"></i> <span data-i18n="settings">Settings</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-ads')"><i class="fas fa-bullhorn"></i> <span data-i18n="ads">Ads</span></button>
+  </div>
+
+  <div class="container">
+    <!-- Overview Tab -->
+    <div id="tab-overview" class="mtab active">
+      <div class="stats-grid">
+        <div class="stat-card blue"><i class="fas fa-users"></i><div><h2 id="stat-members">0</h2><p data-i18n="members">Members</p></div></div>
+        <div class="stat-card green"><i class="fas fa-star"></i><div><h2 id="stat-points">0</h2><p data-i18n="points_issued">Points Issued</p></div></div>
+        <div class="stat-card orange"><i class="fas fa-receipt"></i><div><h2 id="stat-orders">0</h2><p data-i18n="orders_today">Orders Today</p></div></div>
+        <div class="stat-card purple"><i class="fas fa-dollar-sign"></i><div><h2 id="stat-revenue">RM0</h2><p data-i18n="revenue_today">Revenue Today</p></div></div>
+      </div>
+      <!-- Quick Action Buttons -->
+      <div class="section-card" style="padding:16px">
+        <h3 style="margin:0 0 12px;font-size:0.95rem"><i class="fas fa-bolt" style="color:#ff9800"></i> <span data-i18n="quickActions">Quick Actions</span></h3>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <bu

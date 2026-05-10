@@ -1,0 +1,33 @@
+MERCHANT_LANGS at: 297920
+en: 297947, zh: 305717, ms: 299057, ta: 319583
+
+=== promoEngineTitle ===
+  EN: Promo Engine
+  ZH: 促销引擎
+  MS: Promo Engine
+  TA: ப்ரோமோ இயந்திரம்
+=== promoEngineDesc ===
+  EN: Auto-apply promotions based on time/day
+  ZH: 根据时间/天自动应用促销
+  MS: Auto-apply promotions based on time/day
+  TA: நேரம்/நாள் அடிப்படையில் தானாக விளம்பரங்க
+=== enablePromo ===
+  EN: Enable Promo
+  ZH: 启用促销
+  MS: Enable Promo
+  TA: விளம்பரங்களை இயக்கு
+=== busyThreshold ===
+  EN: Busy Threshold
+  ZH: 繁忙阈值
+  MS: Busy Threshold
+  TA: சிக்கல் வரம்பு
+=== promoHideHint ===
+  EN: (hidden when off)
+  ZH: （关闭时隐藏）
+  MS: (hidden when off)
+  TA: (அணையில் மறைக்கப்பட்டது)
+=== shopInfo ===
+  EN: Shop Info
+  ZH: 店铺信息
+  MS: Shop Info
+  TA: கடை தகவல்

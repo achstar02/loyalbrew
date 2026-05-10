@@ -1,0 +1,5 @@
+Content around zh: start (305717):
+  shopInfo: 'Shop Info',
+},
+  zh: {
+    mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮

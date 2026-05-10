@@ -1,0 +1,8 @@
+ML:297920
+TA:319583
+Close:328197
+் மறைக்கப்பட்டது)',
+    shopInfo: 'கடை தகவல்',
+},
+};
+let _merchantLang = safeLS.get('loyalbrew_merch

@@ -1,0 +1,13 @@
+=== mnav\b (1 matches) ===
+  @337898:
+ntOrders(orders);
+}
+
+function switchMerchantTab(tabId) {
+  document.querySelectorAll('.mtab').forEach(t => { t.classList.remove('active'); t.classList.add('hidden'); });
+  document.querySelectorAll('.mnav').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.remove('hidden');
+  document.getElementById(tabId).classList.add('active');
+  if (event && event.currentTarget
+=== END ===
+

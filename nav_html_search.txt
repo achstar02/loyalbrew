@@ -1,0 +1,28 @@
+=== tab-new-items (1 matches) ===
+  @338166:
+ment.getElementById(tabId).classList.add('active');
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  if (tabId === 'tab-new-items')   { populateNewItemSelect(); renderNewItemsMgmt(); }
+  if (tabId === 'tab-stamp-mgmt')  { initStampMgmtTab(); }
+  if (tabId === 'tab-topup-mgmt')  
+=== END ===
+
+=== Wide context around "tab-new-items" (@338166) ===
+renderMenuMgmt();
+  renderMerchantOrders(orders);
+}
+
+function switchMerchantTab(tabId) {
+  document.querySelectorAll('.mtab').forEach(t => { t.classList.remove('active'); t.classList.add('hidden'); });
+  document.querySelectorAll('.mnav').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.remove('hidden');
+  document.getElementById(tabId).classList.add('active');
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  if (tabId === 'tab-new-items')   { populateNewItemSelect(); renderNewItemsMgmt(); }
+  if (tabId === 'tab-stamp-mgmt')  { initStampMgmtTab(); }
+  if (tabId === 'tab-topup-mgmt')  { initTopupMgmtTab(); }
+  if (tabId === 'tab-complaints')  { initComplaintsMgmtTab(); }
+  if (tabId === 'tab-commissions') { initCommissionsTab(); }
+  if (tabId === 'tab-ads')        { renderMerchantAds(); }
+  if (tabId === 'tab-qr')         { initMerchantShopQR(); }
+  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSett

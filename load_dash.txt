@@ -1,0 +1,17 @@
+function loadMerchantDashboard() {
+  const members = DB.getMembers();
+  const txns    = DB.getTxns();
+  const orders  = DB.getOrders();
+  const today   = new Date().toISOString().split('T')[0];
+
+  const todayOrders  = orders.filter(o => o.createdAt.startsWith(today));
+  const totalRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
+  const totalPoints  = txns.filter(t => t.type === 'earn').reduce((s, t) => s + t.points, 0);
+
+  document.getElementById('stat-members').textContent = members.length;
+  document.getElementById('stat-points').textContent  = totalPoints.toLocaleString();
+  document.getElementById('stat-orders').textContent  = todayOrders.length;
+  document.getElementById('stat-revenue').textContent = 'RM' + totalRevenue.toFixed(0);
+
+  // Update merchant name in header
+  const 

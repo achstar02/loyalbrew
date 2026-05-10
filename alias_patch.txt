@@ -1,0 +1,220 @@
+ActivateBtn: Activate  <- from mActivateBtn
+ActivateMember: Activate Member  <- from mActivateMember
+ActiveAds: Active Ads  <- from mActiveAds
+ActiveNewLaunches: Active New Launches  <- from mActiveNewLaunches
+ActiveStampCards: Active Stamp Cards  <- from mActiveStampCards
+AdEnd: End Date  <- from mAdEnd
+AdImage: Ad Image  <- from mAdImage
+AdLink: Link URL (optional)  <- from mAdLink
+AdPosition: Display Position  <- from mAdPosition
+AdPriority: Priority  <- from mAdPriority
+AdPriorityHint: Higher number = shown first  <- from mAdPriorityHint
+AdStart: Start Date  <- from mAdStart
+AdStats: Ad Statistics  <- from mAdStats
+AdTitle: Ad Title  <- from mAdTitle
+AddBonusRule: Add Bonus Rule  <- from mAddBonusRule
+AddNewItem: Add New Item  <- from mAddNewItem
+AddPoints: Add Points  <- from mAddPoints
+AddPointsManually: Add Points Manually  <- from mAddPointsManually
+AddRule: Add Rule  <- from mAddRule
+AddToMenu: Add to Menu  <- from mAddToMenu
+AllAds: All Ads  <- from mAllAds
+AllMembers: All Members  <- from mAllMembers
+AllOrders: All Orders  <- from mAllOrders
+AnnouncementText: Announcement Text  <- from mAnnouncementText
+Approve: Approve  <- from mApprove
+Balance: balance  <- from mBalance
+BillAmount: Bill Amount (RM)  <- from mBillAmount
+BonusExpiry: Expiry Date  <- from mBonusExpiry
+BonusPct: Bonus  <- from mBonusPct
+BonusPercent: Bonus (%)  <- from mBonusPercent
+BonusPtsLabel: pts  <- from mBonusPtsLabel
+CardColorTheme: Card Color Theme  <- from mCardColorTheme
+CardEmoji: Card Emoji / Icon  <- from mCardEmoji
+CardName: Card Name  <- from mCardName
+CatColdDrinks: Cold Drinks  <- from mCatColdDrinks
+CatDesserts: Desserts  <- from mCatDesserts
+CatFood: Food  <- from mCatFood
+CatHotDrinks: Hot Drinks  <- from mCatHotDrinks
+CatPromotions: Promotions  <- from mCatPromotions
+CatSnacks: Snacks  <- from mCatSnacks
+ChooseAnItem: -- Choose an item --  <- from mChooseAnItem
+ClickToUpload: Click to upload photo  <- from mClickToUpload
+ClickToUploadAd: Click to upload ad image  <- from mClickToUploadAd
+CommissionCredited: credited to referrer's wallet after first order.  <- from mCommissionCredited
+CommissionDesc: Referrer earns % of referee's first order total  <- from mCommissionDesc
+CommissionRecords: Commission Records  <- from mCommissionRecords
+CommissionSettings: Commission Settings  <- from mCommissionSettings
+ComplaintInProgress: In Progress  <- from mComplaintInProgress
+ComplaintNoPhoto: Photo attached  <- from mComplaintNoPhoto
+ComplaintOpen: Open  <- from mComplaintOpen
+ComplaintResolved: Resolved  <- from mComplaintResolved
+ConfirmActivate: Confirm Activate  <- from mConfirmActivate
+ConfirmDeactivate: Confirm Deactivate  <- from mConfirmDeactivate
+CreateAd: Create New Ad  <- from mCreateAd
+CreateStampCard: Create Stamp Card  <- from mCreateStampCard
+CurrentRate: Current rate:  <- from mCurrentRate
+CustomerComplaints: Customer Complaints  <- from mCustomerComplaints
+DeactivateBtn: Deactivate  <- from mDeactivateBtn
+DeactivateMember: Deactivate Member  <- from mDeactivateMember
+DeleteRule: Delete  <- from mDeleteRule
+DetailCategory: Category  <- from mDetailCategory
+DetailCustomer: Customer  <- from mDetailCustomer
+DetailDate: Date  <- from mDetailDate
+DetailOrder: Order  <- from mDetailOrder
+DetailPrevResponse: Previous response  <- from mDetailPrevResponse
+DetailStatus: Status  <- from mDetailStatus
+EndDate: End Date  <- from mEndDate
+Expired: Expired  <- from mExpired
+FilterAll: All  <- from mFilterAll
+FilterDone: Done  <- from mFilterDone
+FilterPending: Pending  <- from mFilterPending
+FilterPreparing: Preparing  <- from mFilterPreparing
+FirstOrderDone: ✅ First order done  <- from mFirstOrderDone
+FreeCoffee: Free Coffee  <- from mFreeCoffee
+FreeItem: Free Item  <- from mFreeItem
+FreePrefix: Free  <- from mFreePrefix
+GenerateQR: Generate Table QR Codes  <- from mGenerateQR
+ItemCat: Category  <- from mItemCat
+ItemDesc: Description  <- from mItemDesc
+ItemEmoji: Emoji Icon  <- from mItemEmoji
+ItemName: Item Name  <- from mItemName
+ItemPhoto: Item Photo  <- from mItemPhoto
+ItemPhotoOpt: (optional)  <- from mItemPhotoOpt
+ItemPrice: Price (RM)  <- from mItemPrice
+Kitchen: Kitchen  <- from mKitchen
+KitchenDisplay: Kitchen Display  <- from mKitchenDisplay
+KitchenDone: Done  <- from mKitchenDone
+KitchenNew: New  <- from mKitchenNew
+KitchenPreparing: Preparing  <- from mKitchenPreparing
+LaunchDate: Launch Date  <- from mLaunchDate
+LaunchNewItem: Launch New Item  <- from mLaunchNewItem
+LoginBtn: Login to Dashboard  <- from mLoginBtn
+MemberActive: Active  <- from mMemberActive
+MemberInactive: Inactive  <- from mMemberInactive
+MemberStampProgress: Member Stamp Progress  <- from mMemberStampProgress
+MemberWalletBalances: Member Wallet Balances  <- from mMemberWalletBalances
+MenuItems: Menu Items  <- from mMenuItems
+MinAmt: Min RM  <- from mMinAmt
+MinTopupAmount: Min Amount (RM)  <- from mMinTopupAmount
+NiDeactivate: Deactivate  <- from mNiDeactivate
+NiDelete: Delete  <- from mNiDelete
+NiEnds: Ends:  <- from mNiEnds
+NiLaunch: Launch:  <- from mNiLaunch
+NiNoEndDate: No end date  <- from mNiNoEndDate
+NiSpecial: Special: RM  <- from mNiSpecial
+NiWas: was RM  <- from mNiWas
+NoActiveAds: No active ads  <- from mNoActiveAds
+NoActiveItems: No active new items  <- from mNoActiveItems
+NoAds: No ads yet  <- from mNoAds
+NoCommissions: No commission records found  <- from mNoCommissions
+NoComplaintsFound: No complaints found  <- from mNoComplaintsFound
+NoExpiry: No expiry  <- from mNoExpiry
+NoMembersFound: No members found  <- from mNoMembersFound
+NoMembersYet: No members yet  <- from mNoMembersYet
+NoOrdersFound: No orders found  <- from mNoOrdersFound
+NoPastLaunches: No past launches  <- from mNoPastLaunches
+NoPaymentProofs: No pending payment proofs  <- from mNoPaymentProofs
+NoPendingRequests: No pending requests  <- from mNoPendingRequests
+NoStampCards: No stamp cards yet  <- from mNoStampCards
+NoStampCardsYet: No stamp cards yet  <- from mNoStampCardsYet
+NoTopupHistory: No top up history  <- from mNoTopupHistory
+NoTransactions: No transactions  <- from mNoTransactions
+NotOrderedYet: ⏳ Not ordered yet  <- from mNotOrderedYet
+NumberOfTables: Number of Tables  <- from mNumberOfTables
+Optional: optional  <- from mOptional
+OrderCompleted: Order completed! ✅  <- from mOrderCompleted
+OrderDone: Done  <- from mOrderDone
+OrderMovedPreparing: Moved to preparing!  <- from mOrderMovedPreparing
+OrderPickup: Pickup  <- from mOrderPickup
+OrderPrepare: Prepare  <- from mOrderPrepare
+OrderTable: Table  <- from mOrderTable
+OrderTakeaway: Takeaway  <- from mOrderTakeaway
+Password: Password  <- from mPassword
+PastLaunches: Past Launches  <- from mPastLaunches
+PaymentRejected: Payment proof rejected.  <- from mPaymentRejected
+PaymentVerified: Payment verified ✅  <- from mPaymentVerified
+PctOff: Off  <- from mPctOff
+PendingPaymentProofs: Pending Payment Proofs  <- from mPendingPaymentProofs
+PendingTopupRequests: Pending Top Up Requests  <- from mPendingTopupRequests
+PhAnnounce: e.g. Try our new Rose Latte! Limited time only 🌹  <- from mPhAnnounce
+PhBillAmount: e.g. 25.50  <- from mPhBillAmount
+PhCardName: e.g. Coffee Lover Card  <- from mPhCardName
+PhComplaintDesc: Please describe your issue in detail...  <- from mPhComplaintDesc
+PhComplaintOrderId: e.g. ORD123456  <- from mPhComplaintOrderId
+PhItemDesc: Short description...  <- from mPhItemDesc
+PhItemName: e.g. Caramel Latte  <- from mPhItemName
+PhPromoPrice: e.g. 3.50  <- from mPhPromoPrice
+PhSearchMember: Search by name or phone...  <- from mPhSearchMember
+PhSpecialPrice: e.g. 9.90  <- from mPhSpecialPrice
+PhoneNumber: Phone Number  <- from mPhoneNumber
+Points: points  <- from mPoints
+PromoPrice: Promo Price (RM)  <- from mPromoPrice
+PromoPriceDesc: optional — for off-peak special  <- from mPromoPriceDesc
+Purchase: purchase  <- from mPurchase
+QRHint: Each table gets a unique QR code. Customers scan to order directly.  <- from mQRHint
+QRPrint: Print  <- from mQRPrint
+QRTable: Table  <- from mQRTable
+RecentTxns: Recent Transactions  <- from mRecentTxns
+ReferralCommissionRate: Referral Commission Rate  <- from mReferralCommissionRate
+Refresh: Refresh  <- from mRefresh
+Reject: Reject  <- from mReject
+RemovePhoto: Remove Photo  <- from mRemovePhoto
+RewardBonusPoints: Bonus Points  <- from mRewardBonusPoints
+RewardBonusPointsOpt: Bonus Points  <- from mRewardBonusPointsOpt
+RewardFlatDiscount: Flat Discount (RM off)  <- from mRewardFlatDiscount
+RewardFlatDiscountOpt: Flat Discount (RM)  <- from mRewardFlatDiscountOpt
+RewardFreeItem: Free Menu Item  <- from mRewardFreeItem
+RewardFreeItemOpt: Free Menu Item  <- from mRewardFreeItemOpt
+RewardPctDiscount: Percentage Discount (% off)  <- from mRewardPctDiscount
+RewardType: Reward Type  <- from mRewardType
+RmOff: Off  <- from mRmOff
+RulePerAmount: Every RM X spent = 1 stamp  <- from mRulePerAmount
+RulePerAmountOpt: Every RM X spent = 1 stamp  <- from mRulePerAmountOpt
+RulePerItem: Purchase specific item = 1 stamp  <- from mRulePerItem
+RulePerItemOpt: Purchase specific item = 1 stamp  <- from mRulePerItemOpt
+RulePerOrder: Every purchase = 1 stamp  <- from mRulePerOrder
+RulePerOrderOpt: Every purchase = 1 stamp  <- from mRulePerOrderOpt
+SavePassword: Save Password  <- from mSavePassword
+ScreenshotUploaded: Screenshot uploaded. Pending merchant verification.  <- from mScreenshotUploaded
+ScreenshotUploaded2: Screenshot uploaded  <- from mScreenshotUploaded2
+SearchForMember: Search for a member  <- from mSearchForMember
+SelectMenuItem: Select Menu Item  <- from mSelectMenuItem
+SpecialPrice: Special Price (RM)  <- from mSpecialPrice
+StampActivate: Activate  <- from mStampActivate
+StampActive: Active  <- from mStampActive
+StampDelete: Delete  <- from mStampDelete
+StampMembers: members  <- from mStampMembers
+StampPause: Pause  <- from mStampPause
+StampPaused: Paused  <- from mStampPaused
+StampPerItem: 1 stamp / item  <- from mStampPerItem
+StampPerPurchase: 1 stamp / purchase  <- from mStampPerPurchase
+StampPerRM: 1 stamp / RM  <- from mStampPerRM
+StampRule: Stamp Rule  <- from mStampRule
+StampsLabel: stamps  <- from mStampsLabel
+StampsRequired: Stamps Required to Complete  <- from mStampsRequired
+StatMembers: Members  <- from mStatMembers
+StatOrders: Orders Today  <- from mStatOrders
+StatPoints: Points Issued  <- from mStatPoints
+StatRevenue: Revenue Today  <- from mStatRevenue
+TabAds: Ads  <- from mTabAds
+TabCommissions: Commissions  <- from mTabCommissions
+TabComplaints: Complaints  <- from mTabComplaints
+TabMembers: Members  <- from mTabMembers
+TabMenu: Menu  <- from mTabMenu
+TabNewItems: New Items  <- from mTabNewItems
+TabOrders: Orders  <- from mTabOrders
+TabOverview: Overview  <- from mTabOverview
+TabQR: QR Codes  <- from mTabQR
+TabSettings: Settings  <- from mTabSettings
+TabStamp: Stamp Cards  <- from mTabStamp
+TabTopup: Top Up  <- from mTabTopup
+TapToChange: Tap to change  <- from mTapToChange
+TopupApproved: Approved! credited to  <- from mTopupApproved
+TopupBonusSettings: Top Up Bonus Settings  <- from mTopupBonusSettings
+TopupHistory: Top Up History  <- from mTopupHistory
+TopupRejected: Request rejected.  <- from mTopupRejected
+TopupSubmitted: ✅ Top up request submitted! Pending merchant approval.  <- from mTopupSubmitted
+Username: Username  <- from mUsername
+Verify: Verify  <- from mVerify
+WillEarn: Will earn  <- from mWillEarn

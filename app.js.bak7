@@ -771,28 +771,6 @@ const LANGS = {
     selectTable: '选择桌号', enterTable: '请输入桌号以开始点餐',
     confirmTable: '确认桌号', invalidTable: '请输入有效桌号',
     // Menu categories
-  create_stamp_card: '创建印章卡',
-  card_name: '卡片名称',
-  card_emoji_icon: '卡片表情/图标',
-  stamps_required_to_complete: '完成所需印章数',
-  stamp_rule: '印章规则',
-  reward_type: '奖励类型',
-  card_color_theme: '卡片颜色主题',
-  add_new_item: '添加新项目',
-  item_name: '项目名称',
-  price_label: '价格',
-  category: '分类',
-  all_orders: '全部订单',
-  bill_amount: '账单金额',
-  will_earn: '将获得',
-  points: '积分',
-  cancel: '取消',
-  overview: '概览',
-  hot_drinks: '热饮',
-  cold_drinks: '冷饮',
-  food: '食品',
-  desserts: '甜品',
-  snacks: '小吃',
     catAll: '全部', catNewItems: '✨ 新品',
     catHotDrinks: '热饮', catColdDrinks: '冷饮',
     catFood: '食物', catDesserts: '甜点', catSnacks: '小食',
@@ -2341,21 +2319,8 @@ loyalbrew_brand: 'LoyalBrew',
 let currentLang = safeLS.get('loyalbrew_lang') || 'en';
 
 function t(key) {
-  if (LANGS[_lang] && LANGS[_lang][key]) return LANGS[_lang][key];
-  if (LANGS.en && LANGS.en[key]) return LANGS.en[key];
-  if (!key.startsWith('m') && key.includes('_')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^([a-z])/, (_, c) => c.toUpperCase());
-    if (LANGS[_lang] && LANGS[_lang][camel]) return LANGS[_lang][camel];
-    if (LANGS.en && LANGS.en[camel]) return LANGS.en[camel];
-  }
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (LANGS[_lang] && LANGS[_lang][withoutM]) return LANGS[_lang][withoutM];
-    if (LANGS.en && LANGS.en[withoutM]) return LANGS.en[withoutM];
-  }
-  return key;
+  return (LANGS[currentLang] && LANGS[currentLang][key]) ? LANGS[currentLang][key] : (LANGS['en'][key] || key);
 }
-
 
 function setLang(lang) {
   currentLang = lang;
@@ -7272,23 +7237,8 @@ const MERCHANT_LANGS = {
 let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
 
 function mt(key) {
-  if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) return MERCHANT_LANGS[_merchantLang][key];
-  if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[key]) return MERCHANT_LANGS.en[key];
-  // Auto-conversion: snake_case or lowercase → mCamelCase
-  if (!key.startsWith('m')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^m([a-z])/, (_, c) => c.toUpperCase());
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][camel]) return MERCHANT_LANGS[_merchantLang][camel];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[camel]) return MERCHANT_LANGS.en[camel];
-  }
-  // Also try removing 'm' prefix (e.g., mConfirmPoints → confirmPoints)
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][withoutM]) return MERCHANT_LANGS[_merchantLang][withoutM];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[withoutM]) return MERCHANT_LANGS.en[withoutM];
-  }
-  return key;
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
 }
-
 
 function setMerchantLang(lang) {
   _merchantLang = lang;

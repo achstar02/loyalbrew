@@ -1,0 +1,4 @@
+let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
+
+function mt(key) {
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key

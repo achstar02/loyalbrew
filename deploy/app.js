@@ -771,28 +771,6 @@ const LANGS = {
     selectTable: '选择桌号', enterTable: '请输入桌号以开始点餐',
     confirmTable: '确认桌号', invalidTable: '请输入有效桌号',
     // Menu categories
-  create_stamp_card: '创建印章卡',
-  card_name: '卡片名称',
-  card_emoji_icon: '卡片表情/图标',
-  stamps_required_to_complete: '完成所需印章数',
-  stamp_rule: '印章规则',
-  reward_type: '奖励类型',
-  card_color_theme: '卡片颜色主题',
-  add_new_item: '添加新项目',
-  item_name: '项目名称',
-  price_label: '价格',
-  category: '分类',
-  all_orders: '全部订单',
-  bill_amount: '账单金额',
-  will_earn: '将获得',
-  points: '积分',
-  cancel: '取消',
-  overview: '概览',
-  hot_drinks: '热饮',
-  cold_drinks: '冷饮',
-  food: '食品',
-  desserts: '甜品',
-  snacks: '小吃',
     catAll: '全部', catNewItems: '✨ 新品',
     catHotDrinks: '热饮', catColdDrinks: '冷饮',
     catFood: '食物', catDesserts: '甜点', catSnacks: '小食',
@@ -2341,21 +2319,8 @@ loyalbrew_brand: 'LoyalBrew',
 let currentLang = safeLS.get('loyalbrew_lang') || 'en';
 
 function t(key) {
-  if (LANGS[_lang] && LANGS[_lang][key]) return LANGS[_lang][key];
-  if (LANGS.en && LANGS.en[key]) return LANGS.en[key];
-  if (!key.startsWith('m') && key.includes('_')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^([a-z])/, (_, c) => c.toUpperCase());
-    if (LANGS[_lang] && LANGS[_lang][camel]) return LANGS[_lang][camel];
-    if (LANGS.en && LANGS.en[camel]) return LANGS.en[camel];
-  }
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (LANGS[_lang] && LANGS[_lang][withoutM]) return LANGS[_lang][withoutM];
-    if (LANGS.en && LANGS.en[withoutM]) return LANGS.en[withoutM];
-  }
-  return key;
+  return (LANGS[currentLang] && LANGS[currentLang][key]) ? LANGS[currentLang][key] : (LANGS['en'][key] || key);
 }
-
 
 function setLang(lang) {
   currentLang = lang;
@@ -6991,7 +6956,14 @@ const MERCHANT_LANGS = {
     mQRTable: 'Table', mQRPrint: 'Print',
     mNoActiveItems: 'No active new items', mNoPastLaunches: 'No past launches',
     mPhComplaintDesc: 'Please describe your issue in detail...', mPhComplaintOrderId: 'e.g. ORD123456',
-  },
+  
+    promoEngineTitle: 'Promo Engine',
+    promoEngineDesc: 'Auto-apply promotions based on time/day',
+    enablePromo: 'Enable Promo',
+    busyThreshold: 'Busy Threshold',
+    promoHideHint: '(hidden when off)',
+    shopInfo: 'Shop Info',
+},
   zh: {
     mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮', mCatFood: '食品', mCatDesserts: '甜品', mCatSnacks: '小吃', mCatPromotions: '促销',
     mPromoPrice: '促销价 (RM)', mPromoPriceDesc: '可选 — 非高峰特惠',
@@ -7083,7 +7055,14 @@ const MERCHANT_LANGS = {
     mQRTable: '桌号', mQRPrint: '打印',
     mNoActiveItems: '没有活跃新品', mNoPastLaunches: '没有过期发布记录',
     mPhComplaintDesc: '请详细描述您的问题...', mPhComplaintOrderId: '例如：ORD123456',
-  },
+  
+    promoEngineTitle: '促销引擎',
+    promoEngineDesc: '根据时间/天自动应用促销',
+    enablePromo: '启用促销',
+    busyThreshold: '繁忙阈值',
+    promoHideHint: '（关闭时隐藏）',
+    shopInfo: '店铺信息',
+},
     ms: {
     mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
     mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan — untuk promosi off-peak',
@@ -7175,7 +7154,14 @@ const MERCHANT_LANGS = {
     mQRTable: 'Meja', mQRPrint: 'Cetak',
     mNoActiveItems: 'Tiada item baru aktif', mNoPastLaunches: 'Tiada pelancaran lepas',
     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...', mPhComplaintOrderId: 'cth. ORD123456',
-  },
+  
+    promoEngineTitle: 'Enjin Promo',
+    promoEngineDesc: 'Guna promosi auto berdasarkan masa/hari',
+    enablePromo: 'Aktifkan Promo',
+    busyThreshold: 'Ambang Sibuk',
+    promoHideHint: '(tersembunyi bila tutup)',
+    shopInfo: 'Maklumat Kedai',
+},
     ta: {
     mCatHotDrinks: 'சூடான பானங்கள்', mCatColdDrinks: 'குளிர் பானங்கள்', mCatFood: 'உணவு', mCatDesserts: 'இனிப்புகள்', mCatSnacks: 'சிற்றுண்டி', mCatPromotions: 'விளம்பரங்கள்',
     mPromoPrice: 'விளம்பர விலை (RM)', mPromoPriceDesc: 'விருப்பமானது — off-peak சிறப்பு',
@@ -7267,28 +7253,20 @@ const MERCHANT_LANGS = {
     mQRTable: 'மேசை', mQRPrint: 'அச்சிடு',
     mNoActiveItems: 'செயலில் புதிய பொருட்கள் இல்லை', mNoPastLaunches: 'கடந்த வெளியீடுகள் இல்லை',
     mPhComplaintDesc: 'உங்கள் பிரச்சனையை விரிவாக விவரிக்கவும்...', mPhComplaintOrderId: 'எ.கா. ORD123456',
-  },
+  
+    promoEngineTitle: 'ப்ரோமோ இயந்திரம்',
+    promoEngineDesc: 'நேரம்/நாள் அடிப்படையில் தானாக விளம்பரங்களைபயன்படுத்து',
+    enablePromo: 'விளம்பரங்களை இயக்கு',
+    busyThreshold: 'சிக்கல் வரம்பு',
+    promoHideHint: '(அணையில் மறைக்கப்பட்டது)',
+    shopInfo: 'கடை தகவல்',
+},
 };
 let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
 
 function mt(key) {
-  if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) return MERCHANT_LANGS[_merchantLang][key];
-  if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[key]) return MERCHANT_LANGS.en[key];
-  // Auto-conversion: snake_case or lowercase → mCamelCase
-  if (!key.startsWith('m')) {
-    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^m([a-z])/, (_, c) => c.toUpperCase());
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][camel]) return MERCHANT_LANGS[_merchantLang][camel];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[camel]) return MERCHANT_LANGS.en[camel];
-  }
-  // Also try removing 'm' prefix (e.g., mConfirmPoints → confirmPoints)
-  if (key.startsWith('m')) {
-    const withoutM = key.substring(1);
-    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][withoutM]) return MERCHANT_LANGS[_merchantLang][withoutM];
-    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[withoutM]) return MERCHANT_LANGS.en[withoutM];
-  }
-  return key;
+  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
 }
-
 
 function setMerchantLang(lang) {
   _merchantLang = lang;
@@ -7571,7 +7549,7 @@ function switchMerchantTab(tabId) {
   if (tabId === 'tab-commissions') { initCommissionsTab(); }
   if (tabId === 'tab-ads')        { renderMerchantAds(); }
   if (tabId === 'tab-qr')         { initMerchantShopQR(); }
-  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSettings(); loadPointsSettings(); }
+  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSettings(); loadPointsSettings(); applyMerchantLang(); }
 }
 
 // --- Orders tab ---

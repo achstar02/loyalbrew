@@ -1,0 +1,26 @@
+mNiLaunch: Launch:
+mNiEnds: Ends:
+mNiDeactivate: Deactivate
+mNiDelete: Delete
+mNiNoEndDate: No end date
+mNiSpecial: Special: RM
+mNiWas: was RM
+mChooseAnItem: -- Choose an item --
+mSelectMenuItem: Select Menu Item
+
+=== promoEngine keys ===
+promoEngineTitle: NOT FOUND
+promoEngineDesc: NOT FOUND
+enablePromo: NOT FOUND
+startTime: NOT FOUND
+endTime: NOT FOUND
+activeDays: NOT FOUND
+busyThreshold: | 10)) {
+    renderMenu();
+  }
+}
+
+// --- Points tab ---
+asyn
+promoHideHint: NOT FOUND
+shopInfo: NOT FOUND
