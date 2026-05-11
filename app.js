@@ -241,9 +241,9 @@ function _getMerchantStorageKey(baseKey) {
 const LANGS = {
   en: {
     mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
-    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional — for off-peak special',
+    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional â€” for off-peak special',
     // Landing
-    tagline: 'Order • Earn Points • Get Rewards',
+    tagline: 'Order â€¢ Earn Points â€¢ Get Rewards',
     loginLabel: 'Member Login', myAccount: 'My Account', orderNow: 'Order Now', myStampCard: 'My Stamp Card',
     topUp: 'Top Up', merchant: 'Merchant',
     feat1Title: 'Scan & Order', feat1Desc: 'Scan table QR, order in seconds',
@@ -290,7 +290,7 @@ const LANGS = {
     confirmTypeDineIn: '?? Dine In', confirmTypeTakeaway: '??? Takeaway',
     // Cash pay confirm
     cashPayCounter: 'Please pay at the counter, then tap the button below.',
-    cashPaidBtn: "I've Paid — Notify Kitchen",
+    cashPaidBtn: "I've Paid â€” Notify Kitchen",
     cashPaidDone: 'Payment confirmed! Kitchen is preparing your order.',
     confirmReceivedBtn: 'Confirm Received / Complete Order',
     orderCompletedMsg: '?? Order completed! Thank you for your order.',
@@ -371,7 +371,7 @@ const LANGS = {
     noComplaintsYet: 'No complaints submitted yet',
     mPhComplaintDesc: 'Please describe your issue in detail...',
     mPhComplaintOrderId: 'e.g. ORD123456',
-    enterValidRate: 'Enter a valid rate (1–100)',
+    enterValidRate: 'Enter a valid rate (1â€“100)',
     T: 'T',
     div: 'div',
     input: 'input',
@@ -757,9 +757,9 @@ const LANGS = {
   },
   zh: {
     mCatHotDrinks: '??', mCatColdDrinks: '??', mCatFood: '??', mCatDesserts: '??', mCatSnacks: '??', mCatPromotions: '??',
-    mPromoPrice: '??? (RM)', mPromoPriceDesc: '?? — ?????',
+    mPromoPrice: '??? (RM)', mPromoPriceDesc: '?? â€” ?????',
     // Landing
-    tagline: '?? • ??? • ???',
+    tagline: '?? â€¢ ??? â€¢ ???',
     loginLabel: 'Member Login', myAccount: '????', orderNow: '????', myStampCard: '???',
     topUp: '??', merchant: '??',
     feat1Title: '????', feat1Desc: '??????,????',
@@ -828,7 +828,7 @@ const LANGS = {
     confirmTypeDineIn: '?? ??', confirmTypeTakeaway: '??? ??',
     // Cash pay confirm
     cashPayCounter: '??????,?????????',
-    cashPaidBtn: '???? — ????',
+    cashPaidBtn: '???? â€” ????',
     cashPaidDone: '?????!???????????',
     confirmReceivedBtn: '???? / ????',
     orderCompletedMsg: '?? ?????!???????',
@@ -907,7 +907,7 @@ const LANGS = {
     noComplaintsYet: '??????',
     mPhComplaintDesc: '?????????...',
     mPhComplaintOrderId: '??:ORD123456',
-    enterValidRate: '???????(1–100)',
+    enterValidRate: '???????(1â€“100)',
     T: 'T',
     div: 'div',
     input: 'input',
@@ -1298,9 +1298,9 @@ const LANGS = {
   },
   ms: {
     mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
-    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan — untuk promosi off-peak',
+    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan â€” untuk promosi off-peak',
     // Landing
-    tagline: 'Pesan • Kumpul Mata • Dapatkan Hadiah',
+    tagline: 'Pesan â€¢ Kumpul Mata â€¢ Dapatkan Hadiah',
     loginLabel: 'Log Masuk Ahli', myAccount: 'Akaun Saya', orderNow: 'Pesan Sekarang', myStampCard: 'Kad Setem',
     topUp: 'Tambah Nilai', merchant: 'Peniaga',
     feat1Title: 'Imbas & Pesan', feat1Desc: 'Imbas QR meja, pesan dalam saat',
@@ -1347,7 +1347,7 @@ const LANGS = {
     confirmTypeDineIn: '?? Makan Di Sini', confirmTypeTakeaway: '??? Bawa Balik',
     // Cash pay confirm
     cashPayCounter: 'Sila bayar di kaunter, kemudian tekan butang di bawah.',
-    cashPaidBtn: 'Saya Sudah Bayar — Beritahu Dapur',
+    cashPaidBtn: 'Saya Sudah Bayar â€” Beritahu Dapur',
     cashPaidDone: 'Bayaran disahkan! Dapur sedang menyediakan pesanan anda.',
     confirmReceivedBtn: 'Sahkan Terima / Lengkapkan Pesanan',
     orderCompletedMsg: '?? Pesanan selesai! Terima kasih atas pesanan anda.',
@@ -1425,7 +1425,7 @@ const LANGS = {
     noComplaintsYet: 'Tiada aduan dihantar lagi',
     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...',
     mPhComplaintOrderId: 'cth. ORD123456',
-    enterValidRate: 'Masukkan kadar yang sah (1–100)',
+    enterValidRate: 'Masukkan kadar yang sah (1â€“100)',
     T: 'T',
     div: 'div',
     input: 'input',
@@ -1837,7 +1837,7 @@ const LANGS = {
   },
   ta: {
     mCatHotDrinks: '????? ????????', mCatColdDrinks: '?????? ????????', mCatFood: '????', mCatDesserts: '??????????', mCatSnacks: '??????????', mCatPromotions: '????????????',
-    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? — off-peak ???????',
+    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? â€” off-peak ???????',
 loyalbrew_brand: 'LoyalBrew',
     merchant_name_default: 'LoyalBrew Cafe Sdn Bhd',
     demo_label: '????:',
@@ -1870,7 +1870,7 @@ loyalbrew_brand: 'LoyalBrew',
     order_id_optional: '?????? ??? (????????????)',
     response_action_taken: '????? / ??????????????? ?????????',
     // Landing
-    tagline: '?????? • ????????? ??????? • ????? ????',
+    tagline: '?????? â€¢ ????????? ??????? â€¢ ????? ????',
     loginLabel: '?????????? ?????????', myAccount: '??? ??????', orderNow: '??????? ??????', myStampCard: '???????? ??????',
     topUp: '???? ???', merchant: '??????',
     feat1Title: '?????? & ??????', feat1Desc: 'QR ?????? ?????? ???? ??????',
@@ -1917,7 +1917,7 @@ loyalbrew_brand: 'LoyalBrew',
     confirmTypeDineIn: '?? ????? ???????', confirmTypeTakeaway: '??? ?????? ??????',
     // Cash pay confirm
     cashPayCounter: '?????????? ???? ???????????, ????? ???? ???? ???????? ??????????.',
-    cashPaidBtn: '???? ???????????? — ????????? ?????????????',
+    cashPaidBtn: '???? ???????????? â€” ????????? ?????????????',
     cashPaidDone: '???? ?????????????????????! ??????? ?????? ?????? ????????????.',
     confirmReceivedBtn: '??????? ????????? / ?????? ???????????',
     orderCompletedMsg: '?? ?????? ?????????! ?????? ?????????? ?????.',
@@ -1997,7 +1997,7 @@ loyalbrew_brand: 'LoyalBrew',
     noComplaintsYet: '??????? ????????? ?????????????????????',
     mPhComplaintDesc: '?????? ?????????? ??????? ????????????...',
     mPhComplaintOrderId: '?.??. ORD123456',
-    enterValidRate: '?????? ??????? ?????????? (1–100)',
+    enterValidRate: '?????? ??????? ?????????? (1â€“100)',
     T: 'T',
     div: 'div',
     input: 'input',
@@ -2366,7 +2366,7 @@ function setLang(lang) {
   document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.textContent.trim() === { en:'EN', zh:'??', ms:'BM', ta:'?????' }[lang]);
   });
-  // Apply static data-i18n translations — only on active page for perf
+  // Apply static data-i18n translations â€” only on active page for perf
   const activePage = document.querySelector('.page.active');
   const root = activePage || document;
   root.querySelectorAll('[data-i18n]').forEach(el => {
@@ -2447,7 +2447,7 @@ function getTier(points) {
 }
 function getTierClass(tier) { return 'tier-' + tier.toLowerCase(); }
 
-// ===== PROMO ENGINE — Non-Busy-Hour Special Pricing =====
+// ===== PROMO ENGINE â€” Non-Busy-Hour Special Pricing =====
 // Shape: { enabled, promoStartTime, promoEndTime, promoDays, busyThreshold }
 // Stored in localStorage key: loyalbrew_merchant_promo_settings
 
@@ -2547,13 +2547,13 @@ function refreshPromoStatusUI() {
     return;
   }
   if (status.active) {
-    badge.textContent = '?? ACTIVE — Quiet mode'; badge.style.color = '#2e7d32';
+    badge.textContent = '?? ACTIVE â€” Quiet mode'; badge.style.color = '#2e7d32';
     live.innerHTML = `<b style="color:#2e7d32">?? Promo active!</b> · ${getActiveOrderCount()} in-progress orders (<b>${status.threshold}</b> limit)`;
   } else {
-    badge.textContent = '?? INACTIVE — ' + (status.reason === 'busy' ? 'Shop is busy' : status.reason === 'wrong_day' ? 'Wrong day' : status.reason === 'outside_hours' ? 'Outside hours' : 'Unknown');
+    badge.textContent = '?? INACTIVE â€” ' + (status.reason === 'busy' ? 'Shop is busy' : status.reason === 'wrong_day' ? 'Wrong day' : status.reason === 'outside_hours' ? 'Outside hours' : 'Unknown');
     badge.style.color = '#c62828';
     live.innerHTML = status.reason === 'busy'
-      ? `<b style="color:#c62828">Shop is busy</b> — ${status.count} in-progress orders (threshold: ${status.threshold})`
+      ? `<b style="color:#c62828">Shop is busy</b> â€” ${status.count} in-progress orders (threshold: ${status.threshold})`
       : `<b style="color:#888">Promo not active right now</b>`;
   }
 }
@@ -3272,7 +3272,7 @@ function confirmTakeaway() {
 
 function cancelTakeaway() {
   document.getElementById('takeaway-modal').classList.add('hidden');
-  // revert to dine in — do NOT auto-pop table modal
+  // revert to dine in â€” do NOT auto-pop table modal
   orderType = 'dinein';
   document.getElementById('btn-dinein').className   = 'order-type-btn active dinein';
   document.getElementById('btn-takeaway').className = 'order-type-btn';
@@ -3442,7 +3442,7 @@ function changeTable() {
 function closeTableModal() {
   document.getElementById('table-modal').classList.add('hidden');
   // If dine-in was triggered but user closed without selecting table, revert to takeaway button inactive state
-  // (don't force any type change — just close)
+  // (don't force any type change â€” just close)
 }
 
 function confirmTable() {
@@ -3675,7 +3675,7 @@ function placeOrder() {
         memberName: cartMember.name,
         type: 'earn',
         points: pts,
-        note: `Order ${orderId} — RM${total.toFixed(2)}`,
+        note: `Order ${orderId} â€” RM${total.toFixed(2)}`,
         date: new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
       });
@@ -4432,7 +4432,7 @@ function awardStampsForOrder(order) {
           <span style="font-size:1.4rem">${card.emoji}</span>
           <div>
             <strong>Stamp collected!</strong>
-            <small>${card.name} — view your card to claim rewards</small>
+            <small>${card.name} â€” view your card to claim rewards</small>
           </div>
           <span style="font-size:1.2rem">?</span>
         </div>
@@ -5176,7 +5176,7 @@ function confirmTopup() {
   const member = DB.getMembers().find(m => m.phone === phone);
   if (!member) { showToast(t('memberNotFoundShort'), 'error'); return; }
 
-  // Submit pending request — merchant must approve before balance is credited
+  // Submit pending request â€” merchant must approve before balance is credited
   const requests = DB.getTopupRequests();
   requests.unshift({
     id: 'tr' + Date.now(),
@@ -5325,7 +5325,7 @@ function approveTopup(requestId) {
   DB.saveTopupRequests(requests);
   // Credit the wallet
   topupWallet(req.memberId, req.payAmount, req.creditAmount);
-  showToast(`? ${mt('mTopupApproved')} RM${req.creditAmount.toFixed(2)} — ${req.memberName}`, 'success');
+  showToast(`? ${mt('mTopupApproved')} RM${req.creditAmount.toFixed(2)} â€” ${req.memberName}`, 'success');
   initTopupMgmtTab();
 }
 
@@ -5336,7 +5336,7 @@ function rejectTopup(requestId) {
   req.status = 'rejected';
   req.rejectedDate = new Date().toISOString();
   DB.saveTopupRequests(requests);
-  showToast(`${mt('mTopupRejected')} — ${req.memberName}`, 'info');
+  showToast(`${mt('mTopupRejected')} â€” ${req.memberName}`, 'info');
   initTopupMgmtTab();
 }
 
@@ -5383,7 +5383,7 @@ function renderTopupHistory() {
       <div class="txn-item">
         <div class="txn-icon earn"><i class="fas fa-wallet"></i></div>
         <div class="txn-details">
-          <strong>${m ? m.name : 'Unknown'} — Top Up RM${t.payAmount.toFixed(2)}</strong>
+          <strong>${m ? m.name : 'Unknown'} â€” Top Up RM${t.payAmount.toFixed(2)}</strong>
           <span>${d}${t.bonus > 0 ? ` · Bonus: +RM${t.bonus.toFixed(2)}` : ''}</span>
         </div>
         <div class="txn-pts earn">+RM${t.creditAmount.toFixed(2)}</div>
@@ -6378,7 +6378,7 @@ function _showSuperAdminBtn() {
   }
 }
 
-// ===== renderSuperAdminMerchantsList — ??????? #sa-list =====
+// ===== renderSuperAdminMerchantsList â€” ??????? #sa-list =====
 async function renderSuperAdminMerchantsList() {
 
   // ???:?? sa-summary ? sa-list ????
@@ -6392,7 +6392,7 @@ async function renderSuperAdminMerchantsList() {
       mainContent.innerHTML = `
         <div style="padding:20px;max-width:1000px;margin:0 auto">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-            <h2 style="margin:0">?? ????? — ?? Credits ??</h2>
+            <h2 style="margin:0">?? ????? â€” ?? Credits ??</h2>
             <button onclick="showPage('page-customer')" style="padding:8px 16px;border:none;background:#eee;border-radius:8px;cursor:pointer">????</button>
           </div>
           <div id="sa-summary" style="color:#666;margin-bottom:16px;font-size:0.9rem">???...</div>
@@ -6474,7 +6474,7 @@ async function renderSuperAdminMerchantsList() {
           <div style="display:grid;grid-template-columns:1.5fr 1fr 0.5fr 0.6fr 2fr;padding:12px 16px;border-bottom:1px solid #f1f1f1;align-items:center;${i % 2 === 1 ? 'background:#fff5f5;' : 'background:#fff8f8;'}">
             <div style="font-weight:600;color:#888;text-decoration:line-through">${escHtml(m.name)}</div>
             <div style="font-family:ui-monospace,monospace;font-size:0.75rem;color:#888;word-break:break-all">${m.id}</div>
-            <div style="text-align:center"><span style="color:#ccc;font-size:0.7rem">—</span></div>
+            <div style="text-align:center"><span style="color:#ccc;font-size:0.7rem">â€”</span></div>
             <div style="text-align:right;font-weight:700;color:#c62828;font-size:1rem">${m.credits}</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">
               <a href="https://loyalbrew-app-2f8c7.web.app/?m=${m.id}" target="_blank" style="color:#1976d2;text-decoration:none;font-size:0.75rem;background:#e3f2fd;padding:4px 10px;border-radius:6px;border:1px solid #bbdefb;display:inline-block">?? ????</a>
@@ -6523,7 +6523,7 @@ function escHtml(str) {
   // ?? listener(Firebase ???????,??????)
   initFirebaseAuthListener();
 
-  // ????????? — Firebase SDK ???? localStorage ??
+  // ????????? â€” Firebase SDK ???? localStorage ??
   const _u = fb.auth().currentUser;
   if (_u && String(_u.email || '').toLowerCase() !== SUPER_ADMIN_EMAIL) {
     // ?????? ? ????
@@ -6636,7 +6636,7 @@ window.showSuperAdminPage = async function() {
   };
 
   // ------------------------------------------------------
-  // ???:????? — ?? signOut ????????
+  // ???:????? â€” ?? signOut ????????
   // ------------------------------------------------------
   const currentEmail = fb.auth().currentUser?.email || null;
   if (currentEmail && currentEmail.toLowerCase() !== SUPER_ADMIN_EMAIL) {
@@ -6903,7 +6903,7 @@ async function _saOpenTopup(merchantId, currentCredits) {
 const MERCHANT_LANGS = {
   en: {
     mCatHotDrinks: 'Hot Drinks', mCatColdDrinks: 'Cold Drinks', mCatFood: 'Food', mCatDesserts: 'Desserts', mCatSnacks: 'Snacks', mCatPromotions: 'Promotions',
-    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional — for off-peak special',
+    mPromoPrice: 'Promo Price (RM)', mPromoPriceDesc: 'optional â€” for off-peak special',
     mUsername: 'Username', mPassword: 'Password', mSavePassword: 'Save Password',
     mLoginBtn: 'Login to Dashboard', mKitchen: 'Kitchen', mKitchenDisplay: 'Kitchen Display', mRefresh: 'Refresh', mKitchenNew: 'New', mKitchenPreparing: 'Preparing', mKitchenDone: 'Done', mTabSettings: 'Settings',
     mTabAds: 'Ads',
@@ -6995,7 +6995,7 @@ const MERCHANT_LANGS = {
   },
   zh: {
     mCatHotDrinks: '??', mCatColdDrinks: '??', mCatFood: '??', mCatDesserts: '??', mCatSnacks: '??', mCatPromotions: '??',
-    mPromoPrice: '??? (RM)', mPromoPriceDesc: '?? — ?????',
+    mPromoPrice: '??? (RM)', mPromoPriceDesc: '?? â€” ?????',
     mUsername: '???', mPassword: '??', mSavePassword: '????',
     mLoginBtn: '????', mKitchen: '??', mKitchenDisplay: '????', mRefresh: '??', mKitchenNew: '???', mKitchenPreparing: '???', mKitchenDone: '???', mTabSettings: '??',
     mTabAds: '??',
@@ -7087,7 +7087,7 @@ const MERCHANT_LANGS = {
   },
     ms: {
     mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
-    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan — untuk promosi off-peak',
+    mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan â€” untuk promosi off-peak',
     mUsername: 'Nama Pengguna', mPassword: 'Kata Laluan', mSavePassword: 'Simpan Kata Laluan',
     mLoginBtn: 'Log Masuk Dashboard', mKitchen: 'Dapur', mKitchenDisplay: 'Paparan Dapur', mRefresh: 'Segarkan', mKitchenNew: 'Baru', mKitchenPreparing: 'Sedang Disediakan', mKitchenDone: 'Selesai', mTabSettings: 'Tetapan',
     mTabAds: 'Iklan',
@@ -7179,7 +7179,7 @@ const MERCHANT_LANGS = {
   },
     ta: {
     mCatHotDrinks: '????? ????????', mCatColdDrinks: '?????? ????????', mCatFood: '????', mCatDesserts: '??????????', mCatSnacks: '??????????', mCatPromotions: '????????????',
-    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? — off-peak ???????',
+    mPromoPrice: '??????? ???? (RM)', mPromoPriceDesc: '???????????? â€” off-peak ???????',
     mUsername: '????? ?????', mPassword: '??????????', mSavePassword: '?????????? ????',
     mLoginBtn: '?????????????? ???????', mKitchen: '???????', mKitchenDisplay: '??????? ??????', mRefresh: '????????', mKitchenNew: '???????', mKitchenPreparing: '??????????', mKitchenDone: '?????????', mTabSettings: '??????????',
     mTabAds: '????????????',
@@ -7625,7 +7625,7 @@ function merchantUpdateOrder(orderId, newStatus) {
   showToast(newStatus === 'done' ? mt('mOrderCompleted') : mt('mOrderMovedPreparing'));
   renderMerchantOrders(DB.getOrders());
   loadMerchantDashboard();
-  // Re-render customer menu — promo prices may flip on/off based on new order count
+  // Re-render customer menu â€” promo prices may flip on/off based on new order count
   if (isPromoActive() || getActiveOrderCount() < (parseInt(getMerchantPromoSettings()?.busyThreshold) || 10)) {
     renderMenu();
   }
@@ -7664,7 +7664,7 @@ async function searchMember() {
   }
 
   document.getElementById('found-name').textContent   = foundMember.name;
-  document.getElementById('found-points').textContent = foundMember.points + ' pts — ' + getTier(foundMember.points);
+  document.getElementById('found-points').textContent = foundMember.points + ' pts â€” ' + getTier(foundMember.points);
   document.getElementById('found-tier').textContent   = foundMember.exists ? getTier(foundMember.points) : 'New';
   box.classList.remove('hidden');
 
@@ -7701,7 +7701,7 @@ function addPoints() {
       loadMerchantCredits();
       // Real-time refresh member points in UI before clearing inputs
       foundMember.points = Number(nextPoints) || ((Number(foundMember.points) || 0) + pts);
-      document.getElementById('found-points').textContent = foundMember.points + ' pts — ' + getTier(foundMember.points);
+      document.getElementById('found-points').textContent = foundMember.points + ' pts â€” ' + getTier(foundMember.points);
       document.getElementById('found-tier').textContent = getTier(foundMember.points);
 
       alert('????');
@@ -7747,7 +7747,7 @@ async function createMemberFromSearch() {
     foundMember.points = 0;
     foundMember.exists = true;
     document.getElementById('found-name').textContent = foundMember.name;
-    document.getElementById('found-points').textContent = foundMember.points + ' pts — ' + getTier(foundMember.points);
+    document.getElementById('found-points').textContent = foundMember.points + ' pts â€” ' + getTier(foundMember.points);
     document.getElementById('found-tier').textContent = getTier(foundMember.points);
     showToast('??????', 'success');
   } catch (e) {
@@ -7928,7 +7928,7 @@ function renderAllTxns(txns) {
   list.innerHTML = txns.map(t => `
     <div class="txn-item">
       <div class="txn-icon ${t.type}"><i class="fas ${t.type === 'earn' ? 'fa-plus' : 'fa-minus'}"></i></div>
-      <div class="txn-details"><strong>${t.memberName} — ${translateTxnNote(t.note)}</strong><span>${t.date}</span></div>
+      <div class="txn-details"><strong>${t.memberName} â€” ${translateTxnNote(t.note)}</strong><span>${t.date}</span></div>
       <div class="txn-pts ${t.type}">${t.type === 'earn' ? '+' : ''}${t.points} ${mt('mPoints')}</div>
     </div>
   `).join('');
@@ -7973,7 +7973,7 @@ function printQR(tableNo) {
     <html><head><title>Table ${tableNo} QR</title>
     <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif}
     img{width:200px;height:200px}h2{margin-bottom:8px}p{color:#666;font-size:14px;margin-top:8px}</style></head>
-    <body><h2>?? LoyalBrew</h2><img src="${imgSrc}"/><p>Scan to order — Table ${tableNo}</p></body></html>
+    <body><h2>?? LoyalBrew</h2><img src="${imgSrc}"/><p>Scan to order â€” Table ${tableNo}</p></body></html>
   `);
   win.print();
 }
@@ -8502,7 +8502,7 @@ window._saSubmitReg = async function() {
 };
 
 // ------------------------------------------------------
-// ?????? — ???? + Firestore ??
+// ?????? â€” ???? + Firestore ??
 // ------------------------------------------------------
 window._saDeactivateMerchant = function(merchantId, merchantName) {
   var fb = window.__lbFirebase;
