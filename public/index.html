@@ -20,7 +20,7 @@
   <script src="tailwindcdn.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Sans+Tamil:wght@300;400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Sans+Tamil:wght@300;400;500;700&family=Noto+Sans+Devanagari:wght@300;400;500;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" media="print" onload="this.media='all'"/>
   <!-- QR Code library - load async with SRI -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
@@ -994,45 +994,45 @@
     <div id="tab-stamp-mgmt" class="mtab hidden">
       <!-- Create Stamp Card -->
       <div class="section-card">
-        <h3><i class="fas fa-plus-circle"></i> <span data-mi18n="create_stamp_card">Create Stamp Card</span></h3>
+        <h3><i class="fas fa-plus-circle"></i> <span data-mi18n="mCreateStampCard">Create Stamp Card</span></h3>
         <div class="form-group">
-          <label data-mi18n="card_name">Card Name</label>
-          <input type="text" id="sc-name" placeholder="例如：咖啡爱好者卡" />
+          <label data-mi18n="mCardName">Card Name</label>
+          <input type="text" id="sc-name" placeholder="" data-mi18n-ph="mPhCardName" />
         </div>
         <div class="form-group">
-          <label data-mi18n="card_emoji_icon">Card Emoji / Icon</label>
-          <input type="text" id="sc-emoji" placeholder="例如：☕️" maxlength="2" />
+          <label data-mi18n="mCardEmoji">Card Emoji / Icon</label>
+          <input type="text" id="sc-emoji" placeholder="" data-mi18n-ph="mPhCardEmoji" maxlength="2" />
         </div>
         <div class="form-group">
-          <label data-mi18n="stamps_required_to_complete">Stamps Required to Complete</label>
-          <input type="number" id="sc-total" placeholder="例如：10" min="2" max="20" value="10" />
+          <label data-mi18n="mStampsRequired">Stamps Required to Complete</label>
+          <input type="number" id="sc-total" placeholder="" data-mi18n-ph="mPhStamps" min="2" max="20" value="10" />
         </div>
         <div class="form-group">
-          <label data-mi18n="stamp_rule">Stamp Rule</label>
+          <label data-mi18n="mStampRule">Stamp Rule</label>
           <select id="sc-rule">
-            <option value="per_order" data-mi18n="mRulePerOrderOpt">Every purchase = 1 stamp</option>
-            <option value="per_amount" data-mi18n="mRulePerAmountOpt">Every RM X spent = 1 stamp</option>
-            <option value="per_item" data-mi18n="mRulePerItemOpt">Buy specific item = 1 stamp</option>
+            <option value="per_order" data-mi18n-opt="mRulePerOrder">Every purchase = 1 stamp</option>
+            <option value="per_amount" data-mi18n-opt="mRulePerAmount">Every RM X spent = 1 stamp</option>
+            <option value="per_item" data-mi18n-opt="mRulePerItem">Purchase specific item = 1 stamp</option>
           </select>
         </div>
         <div id="sc-rule-extra" class="form-group hidden">
           <!-- filled by JS based on rule -->
         </div>
         <div class="form-group">
-          <label data-mi18n="reward_type">Reward Type</label>
+          <label data-mi18n="mRewardType">Reward Type</label>
           <select id="sc-reward-type" onchange="onRewardTypeChange()">
-            <option value="free_item" free_menu_item data-mi18n="mRewardFreeItemOpt">Free Menu Item</option>
-            <option value="discount_flat" flat_discount data-mi18n="mRewardFlatDiscountOpt">Flat Discount (RM)</option>
-            <option value="discount_pct">百分比折扣(%)</option>
-            <option value="points" bonus_points data-mi18n="mRewardBonusPointsOpt">Bonus Points</option>
+            <option value="free_item" free_menu_item data-mi18n-opt="mRewardFreeItem">Free Menu Item</option>
+            <option value="discount_flat" flat_discount data-mi18n-opt="mRewardFlatDiscount">Flat Discount (RM)</option>
+            <option value="discount_pct" data-mi18n-opt="mRewardPctDiscount">Percentage Discount (%)</option>
+            <option value="points" bonus_points data-mi18n-opt="mRewardBonusPoints">Bonus Points</option>
           </select>
         </div>
         <div id="sc-reward-detail" class="form-group">
-          <label id="sc-reward-detail-label" free_item data-mi18n="mFreeItemLabel">Free Item</label>
+          <label id="sc-reward-detail-label" free_item data-mi18n="mFreeItem">Free Item</label>
           <select id="sc-reward-item"></select>
         </div>
         <div class="form-group">
-          <label data-mi18n="card_color_theme">Card Color Theme</label>
+          <label data-mi18n="mCardColorTheme">Card Color Theme</label>
           <div id="sc-color-picker" class="sc-color-picker">
             <span class="sc-color-opt selected" data-color="#8B4513" style="background:#8B4513"></span>
             <span class="sc-color-opt" data-color="#1a237e" style="background:#1a237e"></span>
@@ -1043,13 +1043,13 @@
           </div>
         </div>
         <button class="btn-merchant full" onclick="createStampCard()">
-          <i class="fas fa-plus"></i> <span data-mi18n="create_stamp_card">Create Stamp Card</span></button>
+          <i class="fas fa-plus"></i> <span data-mi18n="mCreateStampCard">Create Stamp Card</span></button>
       </div>
       <!-- Active Stamp Cards -->
       <div class="section-card">
-        <h3><i class="fas fa-layer-group"></i> <span data-mi18n="active_stamp_cards">Active Stamp Cards</span></h3>
+        <h3><i class="fas fa-layer-group"></i> <span data-mi18n="mActiveStampCards">Active Stamp Cards</span></h3>
         <div id="merchant-stamp-cards-list">
-          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="noStampCardsYet">No stamp cards yet</p>
+          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="mNoStampCards">No stamp cards yet</p>
         </div>
       </div>
       <!-- Member Stamp Progress -->

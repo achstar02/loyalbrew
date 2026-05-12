@@ -771,6 +771,28 @@ const LANGS = {
     selectTable: '选择桌号', enterTable: '请输入桌号以开始点餐',
     confirmTable: '确认桌号', invalidTable: '请输入有效桌号',
     // Menu categories
+  create_stamp_card: '创建印章卡',
+  card_name: '卡片名称',
+  card_emoji_icon: '卡片表情/图标',
+  stamps_required_to_complete: '完成所需印章数',
+  stamp_rule: '印章规则',
+  reward_type: '奖励类型',
+  card_color_theme: '卡片颜色主题',
+  add_new_item: '添加新项目',
+  item_name: '项目名称',
+  price_label: '价格',
+  category: '分类',
+  all_orders: '全部订单',
+  bill_amount: '账单金额',
+  will_earn: '将获得',
+  points: '积分',
+  cancel: '取消',
+  overview: '概览',
+  hot_drinks: '热饮',
+  cold_drinks: '冷饮',
+  food: '食品',
+  desserts: '甜品',
+  snacks: '小吃',
     catAll: '全部', catNewItems: '✨ 新品',
     catHotDrinks: '热饮', catColdDrinks: '冷饮',
     catFood: '食物', catDesserts: '甜点', catSnacks: '小食',
@@ -2319,8 +2341,21 @@ loyalbrew_brand: 'LoyalBrew',
 let currentLang = safeLS.get('loyalbrew_lang') || 'en';
 
 function t(key) {
-  return (LANGS[currentLang] && LANGS[currentLang][key]) ? LANGS[currentLang][key] : (LANGS['en'][key] || key);
+  if (LANGS[_lang] && LANGS[_lang][key]) return LANGS[_lang][key];
+  if (LANGS.en && LANGS.en[key]) return LANGS.en[key];
+  if (!key.startsWith('m') && key.includes('_')) {
+    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^([a-z])/, (_, c) => c.toUpperCase());
+    if (LANGS[_lang] && LANGS[_lang][camel]) return LANGS[_lang][camel];
+    if (LANGS.en && LANGS.en[camel]) return LANGS.en[camel];
+  }
+  if (key.startsWith('m')) {
+    const withoutM = key.substring(1);
+    if (LANGS[_lang] && LANGS[_lang][withoutM]) return LANGS[_lang][withoutM];
+    if (LANGS.en && LANGS.en[withoutM]) return LANGS.en[withoutM];
+  }
+  return key;
 }
+
 
 function setLang(lang) {
   currentLang = lang;
@@ -6936,7 +6971,7 @@ const MERCHANT_LANGS = {
     mScreenshotUploaded2: 'Screenshot uploaded', mTapToChange: 'Tap to change',
     cancelBtn: 'Cancel',
     mPhBillAmount: 'e.g. 25.50', mPhItemName: 'e.g. Caramel Latte', mPhItemDesc: 'Short description...', mPhSpecialPrice: 'e.g. 9.90', mPhPromoPrice: 'e.g. 3.50',
-    mPhAnnounce: 'e.g. Try our new Rose Latte! Limited time only 🌹', mPhSearchMember: 'Search by name or phone...', mPhCardName: 'e.g. Coffee Lover Card',
+    mPhAnnounce: 'e.g. Try our new Rose Latte! Limited time only 🌹', mPhSearchMember: 'Search by name or phone...', mPhCardName: 'e.g. Coffee Lover Card', mPhCardEmoji: 'e.g. ☕️', mPhStamps: 'e.g. 10',
     // Dynamic render keys
     mStampActive: 'Active', mStampPaused: 'Paused', mStampPause: 'Pause', mStampActivate: 'Activate', mStampDelete: 'Delete',
     mStampMembers: 'members', mFreePrefix: 'Free', mRmOff: 'Off', mPctOff: 'Off', mBonusPtsLabel: 'pts',
@@ -6956,14 +6991,22 @@ const MERCHANT_LANGS = {
     mQRTable: 'Table', mQRPrint: 'Print',
     mNoActiveItems: 'No active new items', mNoPastLaunches: 'No past launches',
     mPhComplaintDesc: 'Please describe your issue in detail...', mPhComplaintOrderId: 'e.g. ORD123456',
-  
-    promoEngineTitle: 'Promo Engine',
-    promoEngineDesc: 'Auto-apply promotions based on time/day',
-    enablePromo: 'Enable Promo',
-    busyThreshold: 'Busy Threshold',
-    promoHideHint: '(hidden when off)',
-    shopInfo: 'Shop Info',
-},
+    mPhPhone: 'e.g. 0123456789', mPhPassword: 'Enter password...', mPhItemEmoji: 'e.g. \u2615\uFE0F',
+    mPhRegName: 'Your name', mPhRegEmail: 'your@email.com',
+    mPhTableNum: 'e.g. 5', mPhTopupAmount: 'e.g. 150',
+    mPhMinTopup: 'e.g. 100', mPhBonusPctInput: 'e.g. 20',
+    mPhShopName: 'Your shop name', mPhShopAnnounce: "e.g. Welcome! Today's specials...", mPhShopBanner: 'https://example.com/banner.jpg',
+    mPhShopWelcome: 'e.g. Welcome back', mPhShopTitle: 'e.g. What would you like today?',
+    mPhAdTitle: 'e.g. Weekend Special Promo', mPhAdLink: 'https://example.com/promo',
+    mPhComplaintResponse: 'Type your response...',
+    mPhPointsRate: 'e.g. 1 / 0.5 / 10',
+    mStampMemberSearch: 'Search by name or phone...', mTopupMemberSearch: 'Search member...',
+    mCommissionSearch: 'Search by name or phone...',
+    mBonusPctLabel: 'Bonus (%)', mLandingWelcomeLabel: 'Landing Page - Welcome Text', mLandingTitleLabel: 'Landing Page - Main Title',
+    mPointsRateHint: 'Per RM1 spent = <span id="points-rate-preview">1</span> point',
+    mCreditHint: 'Credit balance can only be adjusted by top-up requests.',
+    mQRStep1: 'Customer scans QR \u2192 automatically enters your shop', mQRStep2: 'They register \u2192 become your member',
+  },
   zh: {
     mCatHotDrinks: '热饮', mCatColdDrinks: '冷饮', mCatFood: '食品', mCatDesserts: '甜品', mCatSnacks: '小吃', mCatPromotions: '促销',
     mPromoPrice: '促销价 (RM)', mPromoPriceDesc: '可选 — 非高峰特惠',
@@ -7035,7 +7078,7 @@ const MERCHANT_LANGS = {
     mScreenshotUploaded2: '截图已上传', mTapToChange: '点击更换',
     cancelBtn: '取消',
     mPhBillAmount: '例：25.50', mPhItemName: '例：焦糖拿铁', mPhItemDesc: '简短描述...', mPhSpecialPrice: '例：9.90', mPhPromoPrice: '例：3.50',
-    mPhAnnounce: '例：试试我们的新品玫瑰拿铁！限时优惠 🌹', mPhSearchMember: '按姓名或手机号搜索...', mPhCardName: '例：咖啡爱好者卡',
+    mPhAnnounce: '例：试试我们的新品玫瑰拿铁！限时优惠 🌹', mPhSearchMember: '按姓名或手机号搜索...', mPhCardName: '例：咖啡爱好者卡', mPhCardEmoji: '例：☕️', mPhStamps: '例：10',
     // Dynamic render keys
     mStampActive: '进行中', mStampPaused: '已暂停', mStampPause: '暂停', mStampActivate: '启用', mStampDelete: '删除',
     mStampMembers: '位会员', mFreePrefix: '免费', mRmOff: '折扣', mPctOff: '折扣', mBonusPtsLabel: '积分',
@@ -7055,14 +7098,22 @@ const MERCHANT_LANGS = {
     mQRTable: '桌号', mQRPrint: '打印',
     mNoActiveItems: '没有活跃新品', mNoPastLaunches: '没有过期发布记录',
     mPhComplaintDesc: '请详细描述您的问题...', mPhComplaintOrderId: '例如：ORD123456',
-  
-    promoEngineTitle: '促销引擎',
-    promoEngineDesc: '根据时间/天自动应用促销',
-    enablePromo: '启用促销',
-    busyThreshold: '繁忙阈值',
-    promoHideHint: '（关闭时隐藏）',
-    shopInfo: '店铺信息',
-},
+    mPhPhone: '例如：0123456789', mPhPassword: '输入密码...', mPhItemEmoji: '例如：\u2615\uFE0F',
+    mPhRegName: '您的姓名', mPhRegEmail: '您的邮箱@example.com',
+    mPhTableNum: '例如：5', mPhTopupAmount: '例如：150',
+    mPhMinTopup: '例如：100', mPhBonusPctInput: '例如：20',
+    mPhShopName: '您的店铺名称', mPhShopAnnounce: '例如：欢迎光临！今日特价...', mPhShopBanner: 'https://example.com/横幅图片.jpg',
+    mPhShopWelcome: '例如：欢迎回来', mPhShopTitle: '例如：今天想喝什么？',
+    mPhAdTitle: '例如：周末特别促销', mPhAdLink: 'https://example.com/促销链接',
+    mPhComplaintResponse: '输入您的回复...',
+    mPhPointsRate: '例如：1 / 0.5 / 10',
+    mStampMemberSearch: '按姓名或电话搜索会员...', mTopupMemberSearch: '搜索会员...',
+    mCommissionSearch: '按姓名或电话搜索...',
+    mBonusPctLabel: '赠额 (%)', mLandingWelcomeLabel: '落地页 - 欢迎文字', mLandingTitleLabel: '落地页 - 主标题',
+    mPointsRateHint: '每消费RM1 = <span id="points-rate-preview">1</span>积分',
+    mCreditHint: '信用余额只能由充值请求调整。',
+    mQRStep1: '顾客扫码 → 自动进入您的店铺', mQRStep2: '他们注册 → 成为您的会员',
+  },
     ms: {
     mCatHotDrinks: 'Minuman Panas', mCatColdDrinks: 'Minuman Sejuk', mCatFood: 'Makanan', mCatDesserts: 'Pencuci Mulut', mCatSnacks: 'Makanan Ringan', mCatPromotions: 'Promosi',
     mPromoPrice: 'Harga Promo (RM)', mPromoPriceDesc: 'pilihan — untuk promosi off-peak',
@@ -7134,7 +7185,7 @@ const MERCHANT_LANGS = {
     mScreenshotUploaded2: 'Tangkapan skrin dimuat naik', mTapToChange: 'Ketik untuk tukar',
     cancelBtn: 'Batal',
     mPhBillAmount: 'cth. 25.50', mPhItemName: 'cth. Caramel Latte', mPhItemDesc: 'Penerangan ringkas...', mPhSpecialPrice: 'cth. 9.90', mPhPromoPrice: 'cth. 9.90',
-    mPhAnnounce: 'cth. Cuba Rose Latte baru kami! Masa terhad 🌹', mPhSearchMember: 'Cari nama atau telefon...', mPhCardName: 'cth. Kad Pencinta Kopi',
+    mPhAnnounce: 'cth. Cuba Rose Latte baru kami! Masa terhad 🌹', mPhSearchMember: 'Cari nama atau telefon...', mPhCardName: 'cth. Kad Pencinta Kopi', mPhCardEmoji: 'cth. ☕️', mPhStamps: 'cth. 10',
     // Dynamic render keys
     mStampActive: 'Aktif', mStampPaused: 'Dijeda', mStampPause: 'Jeda', mStampActivate: 'Aktifkan', mStampDelete: 'Padam',
     mStampMembers: 'ahli', mFreePrefix: 'Percuma', mRmOff: 'diskaun', mPctOff: 'diskaun', mBonusPtsLabel: 'mata',
@@ -7154,14 +7205,22 @@ const MERCHANT_LANGS = {
     mQRTable: 'Meja', mQRPrint: 'Cetak',
     mNoActiveItems: 'Tiada item baru aktif', mNoPastLaunches: 'Tiada pelancaran lepas',
     mPhComplaintDesc: 'Sila terangkan masalah anda dengan terperinci...', mPhComplaintOrderId: 'cth. ORD123456',
-  
-    promoEngineTitle: 'Enjin Promo',
-    promoEngineDesc: 'Guna promosi auto berdasarkan masa/hari',
-    enablePromo: 'Aktifkan Promo',
-    busyThreshold: 'Ambang Sibuk',
-    promoHideHint: '(tersembunyi bila tutup)',
-    shopInfo: 'Maklumat Kedai',
-},
+    mPhPhone: 'cth. 0123456789', mPhPassword: 'Masukkan kata laluan...', mPhItemEmoji: 'cth. \u2615\uFE0F',
+    mPhRegName: 'Nama anda', mPhRegEmail: 'emel@anda.com',
+    mPhTableNum: 'cth. 5', mPhTopupAmount: 'cth. 150',
+    mPhMinTopup: 'cth. 100', mPhBonusPctInput: 'cth. 20',
+    mPhShopName: 'Nama kedai anda', mPhShopAnnounce: 'cth. Selamat datang! Harga istimewa hari ini...', mPhShopBanner: 'https://example.com/banner.jpg',
+    mPhShopWelcome: 'cth. Selamat kembali', mPhShopTitle: 'cth. Apa yang anda mahu hari ini?',
+    mPhAdTitle: 'cth. Promosi Hujung Minggu', mPhAdLink: 'https://example.com/promo',
+    mPhComplaintResponse: 'Taip respons anda...',
+    mPhPointsRate: 'cth. 1 / 0.5 / 10',
+    mStampMemberSearch: 'Cari nama atau telefon ahli...', mTopupMemberSearch: 'Cari ahli...',
+    mCommissionSearch: 'Cari nama atau telefon...',
+    mBonusPctLabel: 'Bonus (%)', mLandingWelcomeLabel: 'Laman Muka - Teks Aluan', mLandingTitleLabel: 'Laman Muka - Tajuk Utama',
+    mPointsRateHint: 'Setiap RM1 dibelanjakan = <span id="points-rate-preview">1</span> mata',
+    mCreditHint: 'Baki kredit hanya boleh ditambah melalui permintaan top-up.',
+    mQRStep1: 'Pelanggan imbas QR \u2192 secara automatik masuk kedai anda', mQRStep2: 'Mereka daftar \u2192 menjadi ahli anda',
+  },
     ta: {
     mCatHotDrinks: 'சூடான பானங்கள்', mCatColdDrinks: 'குளிர் பானங்கள்', mCatFood: 'உணவு', mCatDesserts: 'இனிப்புகள்', mCatSnacks: 'சிற்றுண்டி', mCatPromotions: 'விளம்பரங்கள்',
     mPromoPrice: 'விளம்பர விலை (RM)', mPromoPriceDesc: 'விருப்பமானது — off-peak சிறப்பு',
@@ -7233,7 +7292,7 @@ const MERCHANT_LANGS = {
     mScreenshotUploaded2: 'ஸ்கிரீன்ஷாட் பதிவேற்றப்பட்டது', mTapToChange: 'மாற்ற தொடவும்',
     cancelBtn: 'ரத்து செய்',
     mPhBillAmount: 'எ.கா. 25.50', mPhItemName: 'எ.கா. கேரமல் லட்டே', mPhItemDesc: 'சுருக்கமான விளக்கம்...', mPhSpecialPrice: 'எ.கா. 9.90', mPhPromoPrice: 'எ.கா. 9.90',
-    mPhAnnounce: 'எ.கா. புதிய ரோஸ் லட்டே முயற்சியுங்கள்! 🌹', mPhSearchMember: 'பெயர் அல்லது தொலைபேசியில் தேடுங்கள்...', mPhCardName: 'எ.கா. காபி கார்டு',
+    mPhAnnounce: 'எ.கா. புதிய ரோஸ் லட்டே முயற்சியுங்கள்! 🌹', mPhSearchMember: 'பெயர் அல்லது தொலைபேசியில் தேடுங்கள்...', mPhCardName: 'எ.கா. காபி கார்டு', mPhCardEmoji: 'எ.கா. ☕️', mPhStamps: 'எ.கா. 10',
     // Dynamic render keys
     mStampActive: 'செயலில்', mStampPaused: 'இடைநிறுத்தப்பட்டது', mStampPause: 'நிறுத்து', mStampActivate: 'செயல்படுத்து', mStampDelete: 'நீக்கு',
     mStampMembers: 'உறுப்பினர்கள்', mFreePrefix: 'இலவசம்', mRmOff: 'தள்ளுபடி', mPctOff: 'தள்ளுபடி', mBonusPtsLabel: 'புள்ளிகள்',
@@ -7253,20 +7312,42 @@ const MERCHANT_LANGS = {
     mQRTable: 'மேசை', mQRPrint: 'அச்சிடு',
     mNoActiveItems: 'செயலில் புதிய பொருட்கள் இல்லை', mNoPastLaunches: 'கடந்த வெளியீடுகள் இல்லை',
     mPhComplaintDesc: 'உங்கள் பிரச்சனையை விரிவாக விவரிக்கவும்...', mPhComplaintOrderId: 'எ.கா. ORD123456',
-  
-    promoEngineTitle: 'ப்ரோமோ இயந்திரம்',
-    promoEngineDesc: 'நேரம்/நாள் அடிப்படையில் தானாக விளம்பரங்களைபயன்படுத்து',
-    enablePromo: 'விளம்பரங்களை இயக்கு',
-    busyThreshold: 'சிக்கல் வரம்பு',
-    promoHideHint: '(அணையில் மறைக்கப்பட்டது)',
-    shopInfo: 'கடை தகவல்',
-},
+    mPhPhone: 'எ.கா. 0123456789', mPhPassword: 'கடவுச்சொல்லை உள்ளிடவும்...', mPhItemEmoji: 'எ.கா. ☕️',
+    mPhRegName: 'உங்கள் பெயர்', mPhRegEmail: 'உங்கள்@மின்னஞ்சல்.com',
+    mPhTableNum: 'எ.கா. 5', mPhTopupAmount: 'எ.கா. 150',
+    mPhMinTopup: 'எ.கா. 100', mPhBonusPctInput: 'எ.கா. 20',
+    mPhShopName: 'உங்கள் கடை பெயர்', mPhShopAnnounce: 'எ.கா. வரவேற்கிறோம்! இன்றைய சிறப்பு...', mPhShopBanner: 'https://example.com/banner.jpg',
+    mPhShopWelcome: 'எ.கா. மீண்டும் வரவேற்கிறோம்', mPhShopTitle: 'எ.கா. இன்று என்ன வேண்டும்?',
+    mPhAdTitle: 'எ.கா. வாராந்திர சிறப்பு சலுகை', mPhAdLink: 'https://example.com/promo',
+    mPhComplaintResponse: 'உங்கள் பதிலை தட்டச்சு செய்யவும்...',
+    mStampMemberSearch: 'பெயர் அல்லது தொலைபேசி மூலம் தேடவும்...', mTopupMemberSearch: 'உறுப்பினரை தேடவும்...',
+    mCommissionSearch: 'பெயர் அல்லது தொலைபேசி மூலம் தேடவும்...',
+    mBonusPctLabel: 'போனஸ் (%)', mLandingWelcomeLabel: 'முகப்புப் பக்கம் - வரவேற்பு உரை', mLandingTitleLabel: 'முகப்புப் பக்கம் - முதன்மை தலைப்பு',
+    mPointsRateHint: 'ஒவ்வொரு RM1 செலவுக்கும் = <span id="points-rate-preview">1</span> புள்ளி',
+    mCreditHint: 'கடன் இருப்பை top-up கோரிக்கை மூலம் மட்டுமே மாற்ற முடியும்.',
+    mQRStep1: 'வாடிக்கையாளர் QR ஸ்கேன் → தானாக உங்கள் கடைக்குள் நுழைகிறார்', mQRStep2: 'அவர்கள் பதிவு செய்கிறார்கள் → உங்கள் உறுப்பினராகிறார்கள்',
+  },
 };
 let _merchantLang = safeLS.get('loyalbrew_merchant_lang') || 'en';
 
 function mt(key) {
-  return (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) || (MERCHANT_LANGS.en[key]) || key;
+  if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][key]) return MERCHANT_LANGS[_merchantLang][key];
+  if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[key]) return MERCHANT_LANGS.en[key];
+  // Auto-conversion: snake_case or lowercase → mCamelCase
+  if (!key.startsWith('m')) {
+    const camel = 'm' + key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()).replace(/^m([a-z])/, (_, c) => c.toUpperCase());
+    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][camel]) return MERCHANT_LANGS[_merchantLang][camel];
+    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[camel]) return MERCHANT_LANGS.en[camel];
+  }
+  // Also try removing 'm' prefix (e.g., mConfirmPoints → confirmPoints)
+  if (key.startsWith('m')) {
+    const withoutM = key.substring(1);
+    if (MERCHANT_LANGS[_merchantLang] && MERCHANT_LANGS[_merchantLang][withoutM]) return MERCHANT_LANGS[_merchantLang][withoutM];
+    if (MERCHANT_LANGS.en && MERCHANT_LANGS.en[withoutM]) return MERCHANT_LANGS.en[withoutM];
+  }
+  return key;
 }
+
 
 function setMerchantLang(lang) {
   _merchantLang = lang;
@@ -7549,7 +7630,7 @@ function switchMerchantTab(tabId) {
   if (tabId === 'tab-commissions') { initCommissionsTab(); }
   if (tabId === 'tab-ads')        { renderMerchantAds(); }
   if (tabId === 'tab-qr')         { initMerchantShopQR(); }
-  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSettings(); loadPointsSettings(); applyMerchantLang(); }
+  if (tabId === 'tab-settings')   { loadPromoSettings(); loadShopSettings(); loadPointsSettings(); }
 }
 
 // --- Orders tab ---

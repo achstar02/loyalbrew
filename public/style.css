@@ -3,6 +3,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC
 /* Language-specific font overrides — keep consistent look */
 :lang(zh), [lang="zh"] { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
 :lang(ta), [lang="ta"] { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', sans-serif; }
+:lang(hi), [lang="hi"] { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Devanagari', sans-serif; }
 :lang(ms), [lang="ms"] { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .page { display: none; min-height: 100vh; }
 .page.active { display: block; }

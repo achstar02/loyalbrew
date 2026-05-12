@@ -210,7 +210,9 @@
           <button id="login-status-btn" class="lb-btn-hover lb-animate-in lb-d3 flex items-center gap-2 rounded-full bg-white/12 px-3 py-2 ring-1 ring-white/20 backdrop-blur hover:bg-white/18" onclick="handleLoginStatusClick()" title="Member Login">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/18 text-xs font-bold">
               <i id="login-status-icon" class="fas fa-user-circle"></i>
-            <span id="login-status-text" class="text-sm font-semibold">ang</span></button>
+            </span>
+            <span id="login-status-text" class="text-sm font-semibold">ang</span>
+          </button>
         </div>
       </header>
 
@@ -305,9 +307,9 @@
             <i class="fas fa-tags"></i> <span data-i18n="promosAndDeals">Promos & Deals</span></button>
           <button class="rounded-full bg-white/12 px-3 py-2 ring-1 ring-white/20 hover:bg-white/18" onclick="showPage('page-merchant-login')">
             <i class="fas fa-store"></i> <span data-i18n="merchant">Merchant</span></button>
-          <button id="super-admin-nav" class="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#fde68a] to-[#f59e0b] px-3 py-2 ring-1 ring-[#ffd700]/40 backdrop-blur hover:brightness-110 transition" onclick="showSuperAdminPage()" title="Super Admin"><i class="fas fa-crown text-[#2a1a10] text-sm"></i><span class="text-xs font-bold text-[#2a1a10]"><span data-i18n="superAdmin">Super Admin</span></button>
-          <span id="super-admin-email" class="text-xs text-yellow-400 ml-2 hidden" style="display:none">
-        </div>
+          <button id="super-admin-nav" class="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#fde68a] to-[#f59e0b] px-3 py-2 ring-1 ring-[#ffd700]/40 backdrop-blur hover:brightness-110 transition" onclick="showSuperAdminPage()" title="Super Admin"><i class="fas fa-crown text-[#2a1a10] text-sm"></i><span class="text-xs font-bold text-[#2a1a10]"><span data-i18n="superAdmin">Super Admin</span></span></button>
+          <span id="super-admin-email" class="text-xs text-yellow-400 ml-2 hidden" style="display:none"></span>
+      </div>
       </section>
 
       <div class="mt-auto pt-4 text-center text-[11px] text-white/40">· LoyalBrew</div>
@@ -336,7 +338,7 @@
   <!-- Table Info Bar (Dine In) -->
   <div class="table-info-bar" id="table-info-bar">
     <i class="fas fa-chair"></i>
-    <span><span data-i18n="table">Table</span>: <strong id="menu-table-display">-</strong>
+    <span><span data-i18n="table">Table</span>: <strong id="menu-table-display">-</strong></span>
     <button class="change-table-btn" onclick="changeTable()" data-i18n="change">Change</button>
   </div>
 
@@ -424,8 +426,9 @@
       <div class="wallet-pay-toggle">
         <label class="wallet-toggle-label">
           <input type="checkbox" id="use-wallet-checkbox" onchange="toggleWalletPay()" />
-          <span class="wallet-toggle-slider">
-          <span data-i18n="useWallet">Use wallet balance to pay</span></label>
+          <span class="wallet-toggle-slider"></span>
+          <span data-i18n="useWallet">Use wallet balance to pay</span>
+        </label>
       </div>
     </div>
 
@@ -562,7 +565,7 @@
 <div id="page-customer" class="page">
   <div class="app-header customer-header">
     <button class="back-btn" onclick="showPage('page-landing')"><i class="fas fa-arrow-left"></i></button>
-    <h2><i class="fas fa-coffee">" data-i18n="loyalbrew_brand"></i> LoyalBrew</h2>
+    <h2><i class="fas fa-coffee" data-i18n="loyalbrew_brand"></i> LoyalBrew</h2>
     <div></div>
   </div>
   <div id="customer-auth" class="container">
@@ -600,7 +603,7 @@
         <input type="tel" id="reg-phone" placeholder="例如：0123456789" />
       </div>
       <div class="form-group">
-        <label><i class="fas fa-envelope"></i> <span data-i18n="email_optional">Email (可选)</span></label>
+        <label><i class="fas fa-envelope"></i> <span data-i18n="email_optional">Email (optional)</span></label>
         <input type="email" id="reg-email" placeholder="您的邮箱@example.com" />
       </div>
       <div class="form-group">
@@ -734,11 +737,11 @@
       </div>
       <div class="form-group">
         <label><i class="fas fa-user-tie"></i> <span data-i18n="username">Merchant ID</span></label>
-        <input type="text" id="m-user" placeholder="例如：0123456789" autocomplete="username" />
+        <input type="text" id="m-user" placeholder="" data-mi18n-ph="mPhPhone" autocomplete="username" />
       </div>
       <div class="form-group">
         <label><i class="fas fa-lock"></i> <span data-i18n="password">Password</span></label>
-        <input type="password" id="m-pass" placeholder="输入密码..." autocomplete="current-password" maxlength="64" style="background:#fafafa;color:#333" />
+        <input type="password" id="m-pass" placeholder="" data-mi18n-ph="mPhPassword" autocomplete="current-password" maxlength="64" style="background:#fafafa;color:#333" />
       </div>
       <!-- Save Password Option -->
       <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-top:-4px">
@@ -777,7 +780,7 @@
     <button class="mnav" onclick="switchMerchantTab('tab-orders')"><i class="fas fa-receipt"></i> <span data-mi18n="mTabOrders">Orders</span></button>
     <button class="mnav" onclick="switchMerchantTab('tab-menu-mgmt')"><i class="fas fa-utensils"></i> <span data-mi18n="mTabMenu">Menu</span></button>
     <button class="mnav" onclick="switchMerchantTab('tab-members')"><i class="fas fa-users"></i> <span data-mi18n="mStatMembers">Members</span></button>
-    <button class="mnav" onclick="switchMerchantTab('tab-new-items')"><i class="fas fa-star"></i> <span data-mi18n="mTabNewItems">新项目</span></button>
+    <button class="mnav" onclick="switchMerchantTab('tab-new-items')"><i class="fas fa-star"></i> <span data-mi18n="mTabNewItems">New Items</span></button>
     <button class="mnav" onclick="switchMerchantTab('tab-stamp-mgmt')"><i class="fas fa-stamp"></i> <span data-mi18n="mTabStamp">Stamp Cards</span></button>
     <button class="mnav" onclick="switchMerchantTab('tab-topup-mgmt')"><i class="fas fa-wallet"></i> <span data-mi18n="mTabTopup">Top Up</span></button>
     <button class="mnav" onclick="switchMerchantTab('tab-complaints')"><i class="fas fa-exclamation-circle"></i> <span data-mi18n="mTabComplaints">Complaints</span></button>
@@ -808,7 +811,7 @@
             <span style="font-size:0.8rem" data-mi18n="mBtnMenuMgmt2">Menu Management</span></button>
           <button class="btn-merchant" onclick="switchMerchantTab('tab-settings')" style="flex-direction:column;gap:6px;padding:16px 8px;background:#7e57c2">
             <i class="fas fa-cog" style="font-size:1.5rem"></i>
-            <span style="font-size:0.8rem" data-mi18n="mBtnShopSettings2">店铺设置</span></button>
+            <span style="font-size:0.8rem" data-mi18n="mBtnShopSettings2">Shop Settings</span></button>
           <button class="btn-merchant" onclick="showPage('page-kitchen')" style="flex-direction:column;gap:6px;padding:16px 8px;background:#e65100">
             <i class="fas fa-fire" style="font-size:1.5rem"></i>
             <span style="font-size:0.8rem" data-mi18n="mBtnKitchenDisplay2">Kitchen Display</span></button>
@@ -831,7 +834,7 @@
           </div>
           <div class="form-group">
             <label data-mi18n="mBillAmount">Bill Amount (RM)</label>
-            <input type="number" id="bill-amount" placeholder="例如：25.50" min="1" />
+            <input type="number" id="bill-amount" placeholder="" data-mi18n-ph="mPhBillAmount" min="1" />
           </div>
           <p class="hint"><span data-mi18n="mWillEarn">Will earn</span><strong id="earn-preview">0</strong> <span data-mi18n="mPoints">points</span></p>
           <button class="btn-merchant full" onclick="addPoints()"><i class="fas fa-check-circle"></i> <span data-mi18n="confirmPoints">Confirm Points</span></button>
@@ -845,7 +848,7 @@
       <div class="section-card">
         <h3><i class="fas fa-receipt"></i> <span data-mi18n="all_orders">All Orders</span></h3>
         <div class="order-filter">
-          <button class="filter-btn active" onclick="filterOrders('all', this)" all data-mi18n="filterAll">全部</button>
+          <button class="filter-btn active" onclick="filterOrders('all', this)" all data-mi18n="filterAll">All</button>
           <button class="filter-btn" onclick="filterOrders('pending', this)" pending data-mi18n="filterPending">Pending</button>
           <button class="filter-btn" onclick="filterOrders('preparing', this)" preparing data-mi18n="filterPreparing">Preparing</button>
           <button class="filter-btn" onclick="filterOrders('done', this)" done data-mi18n="filterDone">Done</button>
@@ -857,18 +860,18 @@
     <!-- Menu Management Tab -->
     <div id="tab-menu-mgmt" class="mtab hidden">
       <div class="section-card">
-        <h3><i class="fas fa-plus"></i> <span data-mi18n="add_new_item">添加新项目</span></h3>
+        <h3><i class="fas fa-plus"></i> <span data-mi18n="mAddNewItem">Add New Item</span></h3>
         <div class="form-group">
-          <label data-mi18n="item_name">Item Name</label>
-          <input type="text" id="new-item-name" placeholder="例如：焦糖拿铁" />
+          <label data-mi18n="mItemName">Item Name</label>
+          <input type="text" id="new-item-name" placeholder="" data-mi18n-ph="mPhItemName" />
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div class="form-group">
-            <label data-mi18n="price_label">价格 (RM)</label>
+            <label data-mi18n="mItemPrice">Price (RM)</label>
             <input type="number" id="new-item-price" placeholder="12.00" step="0.50" />
           </div>
           <div class="form-group">
-            <label data-mi18n="category">Category</label>
+            <label data-mi18n="mItemCat">Category</label>
             <select id="new-item-cat">
               <option data-mi18n="hot_drinks">Hot Drinks</option>
               <option data-mi18n="cold_drinks">Cold Drinks</option>
@@ -879,16 +882,16 @@
           </div>
         </div>
         <div class="form-group">
-          <label data-mi18n="emoji_icon">Emoji Icon</label>
-          <input type="text" id="new-item-emoji" placeholder="例如：☕️" maxlength="2" />
+          <label data-mi18n="mItemEmoji">Emoji Icon</label>
+          <input type="text" id="new-item-emoji" placeholder="" data-mi18n-ph="mPhItemEmoji" maxlength="2" />
         </div>
         <div class="form-group">
-          <label data-mi18n="description">Description</label>
-          <input type="text" id="new-item-desc" placeholder="简短描述..." />
+          <label data-mi18n="mItemDesc">Description</label>
+          <input type="text" id="new-item-desc" placeholder="" data-mi18n-ph="mPhItemDesc" />
         </div>
         <!-- Photo Upload -->
         <div class="form-group">
-          <label><i class="fas fa-camera"></i> <span data-mi18n="item_photo">Item Photo</span><span style="color:#888;font-size:0.72rem">(可选)</span></label>
+          <label><i class="fas fa-camera"></i> <span data-mi18n="item_photo">Item Photo</span><span style="color:#888;font-size:0.72rem" data-mi18n="mItemPhotoOpt">(optional)</span></label>
           <div class="item-photo-upload-area" id="item-photo-upload-area" onclick="document.getElementById('new-item-photo-input').click()">
             <img id="item-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px" />
             <div id="item-photo-placeholder" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#aaa">
@@ -900,8 +903,8 @@
             <i class="fas fa-times"></i> <span data-mi18n="remove_photo">Remove Photo</span></button>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-tag" style="color:#e65100"></i> <span data-i18n=data-mi18n="mPromoPriceLbl">Promo 价格 (RM)</span><span style="color:#888;font-size:0.72rem">(optional · for off-peak special)</span></label>
-          <input type="number" id="new-item-promo-price" placeholder="例如：3.50" step="0.10" min="0.1" />
+          <label><i class="fas fa-tag" style="color:#e65100"></i> <span data-mi18n="mPromoPriceLbl">Promo Price (RM)</span><span style="color:#888;font-size:0.72rem" data-mi18n="mPromoPriceDesc">optional · for off-peak special</span></label>
+          <input type="number" id="new-item-promo-price" placeholder="" data-mi18n-ph="mPhPromoPrice" step="0.10" min="0.1" />
         </div>
         <button class="btn-merchant full" onclick="addMenuItem()"><i class="fas fa-plus"></i> <span data-mi18n="add_to_menu">Add to Menu</span></button>
       </div>
@@ -916,7 +919,7 @@
       <div class="section-card">
         <h3><i class="fas fa-users"></i> <span data-mi18n="all_members">All Members</span></h3>
         <div class="search-bar">
-          <input type="text" id="member-search" placeholder="按姓名或电话搜索..." oninput="filterMembers()" />
+          <input type="text" id="member-search" placeholder="" data-mi18n-ph="mPhSearchMember" oninput="filterMembers()" />
         </div>
         <div id="member-table" class="member-table"></div>
       </div>
@@ -950,8 +953,8 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div class="form-group">
-            <label><i class="fas fa-tag"></i> <span data-mi18n="price_label">特价 (RM)</span><span style="color:#888;font-size:0.72rem" data-mi18n="optional">optional</span></label>
-            <input type="number" id="ni-special-price" placeholder="例如：9.90" step="0.50" min="0" />
+            <label><i class="fas fa-tag"></i> <span data-mi18n="mItemPrice">Special Price (RM)</span><span style="color:#888;font-size:0.72rem" data-mi18n="mOptional">optional</span></label>
+            <input type="number" id="ni-special-price" placeholder="" data-mi18n-ph="mPhSpecialPrice" step="0.50" min="0" />
           </div>
           <div class="form-group">
             <label><i class="fas fa-calendar-alt"></i> <span data-mi18n="launch_date">Launch Date</span></label>
@@ -959,12 +962,12 @@
           </div>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-calendar-times"></i> <span data-mi18n="end_date">End Date</span><span style="color:#888;font-size:0.72rem" data-mi18n="optional">optional</span></label>
+          <label><i class="fas fa-calendar-times"></i> <span data-mi18n="mEndDate">End Date</span><span style="color:#888;font-size:0.72rem" data-mi18n="mOptional">optional</span></label>
           <input type="date" id="ni-end-date" />
         </div>
         <div class="form-group">
           <label><i class="fas fa-comment-alt"></i> <span data-mi18n="announcement_text">Announcement Text</span></label>
-          <input type="text" id="ni-announce" placeholder="例如：尝尝我们的新品玫瑰拿铁！限时优惠??" />
+          <input type="text" id="ni-announce" placeholder="" data-mi18n-ph="mPhAnnounce" />
         </div>
         <button class="btn-merchant full" onclick="launchNewItem()">
           <i class="fas fa-rocket"></i> <span data-mi18n="launch_new_item">Launch New Item</span></button>
@@ -991,69 +994,69 @@
     <div id="tab-stamp-mgmt" class="mtab hidden">
       <!-- Create Stamp Card -->
       <div class="section-card">
-        <h3><i class="fas fa-plus-circle"></i> <span data-mi18n="create_stamp_card">Create Stamp Card</span></h3>
+        <h3><i class="fas fa-plus-circle"></i> <span data-mi18n="mCreateStampCard">Create Stamp Card</span></h3>
         <div class="form-group">
-          <label data-mi18n="card_name">Card Name</label>
-          <input type="text" id="sc-name" placeholder="例如：咖啡爱好者卡" />
+          <label data-mi18n="mCardName">Card Name</label>
+          <input type="text" id="sc-name" placeholder="" data-mi18n-ph="mPhCardName" />
         </div>
         <div class="form-group">
-          <label data-mi18n="card_emoji_icon">卡片Emoji/图标</label>
-          <input type="text" id="sc-emoji" placeholder="例如：☕️" maxlength="2" />
+          <label data-mi18n="mCardEmoji">Card Emoji / Icon</label>
+          <input type="text" id="sc-emoji" placeholder="" data-mi18n-ph="mPhCardEmoji" maxlength="2" />
         </div>
         <div class="form-group">
-          <label data-mi18n="stamps_required_to_complete">Stamps Required to Complete</label>
-          <input type="number" id="sc-total" placeholder="例如：10" min="2" max="20" value="10" />
+          <label data-mi18n="mStampsRequired">Stamps Required to Complete</label>
+          <input type="number" id="sc-total" placeholder="" data-mi18n-ph="mPhStamps" min="2" max="20" value="10" />
         </div>
         <div class="form-group">
-          <label data-i18n=data-mi18n="stamp_rule">印章规则</label>
+          <label data-mi18n="mStampRule">Stamp Rule</label>
           <select id="sc-rule">
-            <option value="per_order" data-mi18n="mRulePerOrderOpt">每消费1次=1印章</option>
-            <option value="per_amount" data-mi18n="mRulePerAmountOpt">每消费RM X=1印章</option>
-            <option value="per_item" data-mi18n="mRulePerItemOpt">购买指定商品=1印章</option>
+            <option value="per_order" data-mi18n-opt="mRulePerOrder">Every purchase = 1 stamp</option>
+            <option value="per_amount" data-mi18n-opt="mRulePerAmount">Every RM X spent = 1 stamp</option>
+            <option value="per_item" data-mi18n-opt="mRulePerItem">Purchase specific item = 1 stamp</option>
           </select>
         </div>
         <div id="sc-rule-extra" class="form-group hidden">
           <!-- filled by JS based on rule -->
         </div>
         <div class="form-group">
-          <label data-i18n=data-mi18n="reward_type">奖励类型</label>
+          <label data-mi18n="mRewardType">Reward Type</label>
           <select id="sc-reward-type" onchange="onRewardTypeChange()">
-            <option value="free_item" free_menu_item data-mi18n="mRewardFreeItemOpt">免费菜单商品</option>
-            <option value="discount_flat" flat_discount data-mi18n="mRewardFlatDiscountOpt">固定折扣(RM)</option>
-            <option value="discount_pct">百分比折扣(%)</option>
-            <option value="points" bonus_points data-mi18n="mRewardBonusPointsOpt">奖励积分</option>
+            <option value="free_item" free_menu_item data-mi18n-opt="mRewardFreeItem">Free Menu Item</option>
+            <option value="discount_flat" flat_discount data-mi18n-opt="mRewardFlatDiscount">Flat Discount (RM)</option>
+            <option value="discount_pct" data-mi18n-opt="mRewardPctDiscount">Percentage Discount (%)</option>
+            <option value="points" bonus_points data-mi18n-opt="mRewardBonusPoints">Bonus Points</option>
           </select>
         </div>
         <div id="sc-reward-detail" class="form-group">
-          <label id="sc-reward-detail-label" free_item data-mi18n="mFreeItemLabel">免费商品</label>
+          <label id="sc-reward-detail-label" free_item data-mi18n="mFreeItem">Free Item</label>
           <select id="sc-reward-item"></select>
         </div>
         <div class="form-group">
-          <label data-mi18n="card_color_theme">卡片颜色主题</label>
+          <label data-mi18n="mCardColorTheme">Card Color Theme</label>
           <div id="sc-color-picker" class="sc-color-picker">
-            <span class="sc-color-opt selected" data-color="#8B4513" style="background:#8B4513">
-            <span class="sc-color-opt" data-color="#1a237e" style="background:#1a237e">
-            <span class="sc-color-opt" data-color="#1b5e20" style="background:#1b5e20">
-            <span class="sc-color-opt" data-color="#b71c1c" style="background:#b71c1c">
-            <span class="sc-color-opt" data-color="#4a148c" style="background:#4a148c">
-            <span class="sc-color-opt" data-color="#e65100" style="background:#e65100">
+            <span class="sc-color-opt selected" data-color="#8B4513" style="background:#8B4513"></span>
+            <span class="sc-color-opt" data-color="#1a237e" style="background:#1a237e"></span>
+            <span class="sc-color-opt" data-color="#1b5e20" style="background:#1b5e20"></span>
+            <span class="sc-color-opt" data-color="#b71c1c" style="background:#b71c1c"></span>
+            <span class="sc-color-opt" data-color="#4a148c" style="background:#4a148c"></span>
+            <span class="sc-color-opt" data-color="#e65100" style="background:#e65100"></span>
           </div>
         </div>
         <button class="btn-merchant full" onclick="createStampCard()">
-          <i class="fas fa-plus"></i> <span data-mi18n="create_stamp_card">Create Stamp Card</span></button>
+          <i class="fas fa-plus"></i> <span data-mi18n="mCreateStampCard">Create Stamp Card</span></button>
       </div>
       <!-- Active Stamp Cards -->
       <div class="section-card">
-        <h3><i class="fas fa-layer-group"></i> <span data-mi18n="active_stamp_cards">Active Stamp Cards</span></h3>
+        <h3><i class="fas fa-layer-group"></i> <span data-mi18n="mActiveStampCards">Active Stamp Cards</span></h3>
         <div id="merchant-stamp-cards-list">
-          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="noStampCardsYet">No stamp cards yet</p>
+          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="mNoStampCards">No stamp cards yet</p>
         </div>
       </div>
       <!-- Member Stamp Progress -->
       <div class="section-card">
         <h3><i class="fas fa-users"></i> <span data-mi18n="member_stamp_progress">Member Stamp Progress</span></h3>
         <div class="search-bar">
-          <input type="text" id="stamp-member-search" placeholder="按姓名或电话搜索会员..." oninput="filterStampMembers()" />
+          <input type="text" id="stamp-member-search" placeholder="" data-mi18n-ph="mStampMemberSearch" oninput="filterStampMembers()" />
         </div>
         <div id="stamp-member-list">
           <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="searchForAMember">Search for a member</p>
@@ -1065,7 +1068,7 @@
     <div id="tab-topup-mgmt" class="mtab hidden">
       <!-- Pending Top Up Requests -->
       <div class="section-card">
-        <h3><i class="fas fa-clock" style="color:#e65100"></i> <span data-mi18n="pending_top_up_requests">Pending Top Up Requests</span><span id="topup-pending-badge" style="background:#e65100;color:white;font-size:0.72rem;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle"></h3>
+        <h3><i class="fas fa-clock" style="color:#e65100"></i> <span data-mi18n="pending_top_up_requests">Pending Top Up Requests</span><span id="topup-pending-badge" style="background:#e65100;color:white;font-size:0.72rem;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle"></span></h3>
         <div id="topup-pending-list"><p style="color:#aaa;text-align:center;padding:16px" data-mi18n="noPendingRequests">No pending requests</p></div>
       </div>
       <!-- Top Up Bonus Settings (Editable) -->
@@ -1076,15 +1079,15 @@
           <h4 style="font-size:0.9rem;margin-bottom:10px;color:#3949ab"><i class="fas fa-plus-circle"></i> <span data-mi18n="add_bonus_rule">Add Bonus Rule</span></h4>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             <div class="form-group" style="margin:0">
-              <label style="font-size:0.78rem" min_amount data-mi18n="minAmount">最低金额 (RM)</label>
-              <input type="number" id="bonus-rule-min" placeholder="例如：100" min="1" step="1" />
+              <label style="font-size:0.78rem" data-mi18n="minAmount">Min Amount (RM)</label>
+              <input type="number" id="bonus-rule-min" placeholder="" data-mi18n-ph="mPhMinTopup" min="1" step="1" />
             </div>
             <div class="form-group" style="margin:0">
-              <label style="font-size:0.78rem">赠额 (%)</label>
-              <input type="number" id="bonus-rule-pct" placeholder="例如：20" min="1" max="100" step="1" />
+              <label style="font-size:0.78rem" data-mi18n="mBonusPctLabel">Bonus (%)</label>
+              <input type="number" id="bonus-rule-pct" placeholder="" data-mi18n-ph="mPhBonusPctInput" min="1" max="100" step="1" />
             </div>
             <div class="form-group" style="margin:0">
-              <label style="font-size:0.78rem" expiry_date data-mi18n="expiryDate">Expiry Date<span style="color:#888">(可选)</span></label>
+              <label style="font-size:0.78rem" data-mi18n="expiryDate">Expiry Date<span style="color:#888">(可选)</span></label>
               <input type="date" id="bonus-rule-expiry" />
             </div>
           </div>
@@ -1095,7 +1098,7 @@
       <div class="section-card">
         <h3><i class="fas fa-users"></i> <span data-mi18n="member_wallet_balances">Member Wallet Balances</span></h3>
         <div class="search-bar">
-          <input type="text" id="topup-member-search" placeholder="搜索会员..." oninput="filterTopupMembers()" />
+          <input type="text" id="topup-member-search" placeholder="" data-mi18n-ph="mTopupMemberSearch" oninput="filterTopupMembers()" />
         </div>
         <div id="topup-member-list"></div>
       </div>
@@ -1110,10 +1113,10 @@
       <div class="section-card">
         <h3><i class="fas fa-exclamation-circle"></i> <span data-mi18n="customer_complaints">Customer Complaints</span></h3>
         <div class="order-filter">
-          <button class="filter-btn active" onclick="filterComplaints('all', this)" all data-mi18n="filterAllC">全部</button>
-          <button class="filter-btn" onclick="filterComplaints('open', this)" open data-mi18n="complaintOpenBtn">待处理</button>
-          <button class="filter-btn" onclick="filterComplaints('in_progress', this)" in_progress data-mi18n="complaintInProgressBtn">处理中</button>
-          <button class="filter-btn" onclick="filterComplaints('resolved', this)" resolved data-mi18n="complaintResolvedBtn">已解决</button>
+          <button class="filter-btn active" onclick="filterComplaints('all', this)" all data-mi18n="filterAllC">All</button>
+          <button class="filter-btn" onclick="filterComplaints('open', this)" open data-mi18n="complaintOpenBtn">Open</button>
+          <button class="filter-btn" onclick="filterComplaints('in_progress', this)" in_progress data-mi18n="complaintInProgressBtn">In Progress</button>
+          <button class="filter-btn" onclick="filterComplaints('resolved', this)" resolved data-mi18n="complaintResolvedBtn">Resolved</button>
         </div>
         <div id="merchant-complaints-list"></div>
       </div>
@@ -1123,26 +1126,26 @@
     <div id="tab-qr" class="mtab hidden">
       <!-- 会员注册 -->
       <div class="section-card" style="border:2px solid #667eea;background:linear-gradient(135deg,#f0f0ff 0%,#fff 100%)">
-        <h3><i class="fas fa-store"></i> <span data-mi18n="myShopLink">我的店铺链接</span></h3>
-        <p style="font-size:0.85rem;color:#666;margin-bottom:12px">data-mi18n="shopLinkDesc">与顾客分享此链接或二维码。他们可以扫码访问您的店铺并注册成为会员。</p>
+        <h3><i class="fas fa-store"></i> <span data-mi18n="myShopLink">My Shop Link</span></h3>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:12px" data-mi18n="shopLinkDesc">Share this link or QR code with customers. They can scan to visit your shop and register as a member.</p>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <input type="text" id="merchant-shop-url" readonly style="flex:1;padding:10px;border:1.5px solid #667eea;border-radius:8px;background:#fff;font-size:0.85rem;color:#333" />
-          <button class="btn-sm" onclick="copyMerchantLink()" style="white-space:nowrap"><i class="fas fa-copy"></i> <span data-mi18n="copyLinkBtn">复制</span></button>
+          <button class="btn-sm" onclick="copyMerchantLink()" style="white-space:nowrap"><i class="fas fa-copy"></i> <span data-mi18n="copyLinkBtn">Copy</span></button>
         </div>
         <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
           <div style="text-align:center">
             <div id="merchant-shop-qr" style="background:#fff;padding:8px;border-radius:8px;display:inline-block"></div>
-            <p style="font-size:0.78rem;color:#888;margin-top:6px" data-mi18n="shopQRCodeLabel">店铺二维码</p>
+            <p style="font-size:0.78rem;color:#888;margin-top:6px" data-mi18n="shopQRCodeLabel">Shop QR Code</p>
           </div>
           <div style="flex:1;min-width:200px">
-            <h4 style="margin:0 0 8px;font-size:0.9rem" data-mi18n="qrHowToUse">使用方法：</h4>
+            <h4 style="margin:0 0 8px;font-size:0.9rem" data-mi18n="qrHowToUse">How to use:</h4>
             <ol style="font-size:0.82rem;color:#555;padding-left:18px;margin:0;line-height:1.8">
-              <li data-mi18n="qrPrintHint">打印此二维码并放在收银台/入口处</li>
-              <li>顾客扫码 → 自动进入您的店铺</li>
-              <li>他们注册 → 成为您的会员</li>
-              <li data-mi18n="qrTableHint">使用下方桌号二维码进行点餐</li>
+              <li data-mi18n="qrPrintHint">Print this QR code and place it at the cashier or entrance</li>
+              <li data-mi18n="mQRStep1">Customer scans QR → automatically enters your shop</li>
+              <li data-mi18n="mQRStep2">They register → become your member</li>
+              <li data-mi18n="qrTableHint">Use the table QR codes below to order</li>
             </ol>
-            <button class="btn-merchant" onclick="printShopQR()" style="margin-top:10px;width:100%"><i class="fas fa-print"></i> <span data-mi18n="printShopQRBtn">打印店铺二维码</span></button>
+            <button class="btn-merchant" onclick="printShopQR()" style="margin-top:10px;width:100%"><i class="fas fa-print"></i> <span data-mi18n="printShopQRBtn">Print Shop QR Code</span></button>
           </div>
         </div>
       </div>
@@ -1150,7 +1153,7 @@
       <!-- 扫码QR -->
       <div class="section-card" style="margin-top:16px">
         <h3><i class="fas fa-qrcode"></i> <span data-mi18n="generate_table_qr_codes">Generate Table QR Codes</span></h3>
-        <p style="font-size:0.85rem;color:#666;margin-bottom:16px" data-mi18n="tableQrDesc">每张桌子都有唯一的二维码。顾客可直接扫码下单。</p>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:16px" data-mi18n="tableQrDesc">Each table has a unique QR code. Customers can scan directly to order.</p>
         <div class="form-group">
           <label data-mi18n="number_of_tables">Number of Tables</label>
           <input type="number" id="qr-table-count" value="10" min="1" max="50" />
@@ -1168,7 +1171,7 @@
         <div class="commission-rule-card">
           <div class="commission-rule-icon">💰</div>
           <div class="commission-rule-info">
-            <strong data-mi18n="referralCommissionRateLabel">推荐佣金比例</strong>
+            <strong data-mi18n="referralCommissionRateLabel">Referral Commission Rate</strong>
             <small>Referrer earns % of referee's first order total</small>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
@@ -1176,12 +1179,12 @@
             <span style="font-weight:700">%</span><button class="btn-sm" onclick="saveCommissionRate()"><i class="fas fa-save"></i></button>
           </div>
         </div>
-        <p class="hint" style="margin-top:8px"><span data-mi18n="currentRateLbl">当前比例：</span><strong id="commission-rate-display">5%</strong> · <span credited_to_referrer_s_wallet_after_first_order>首单完成后存入推荐人钱包。</span></p>
+        <p class="hint" style="margin-top:8px"><span data-mi18n="currentRateLbl">Current rate:</span><strong id="commission-rate-display">5%</strong> · <span data-mi18n="credited_to_referrer_s_wallet_after_first_order">First order completed, credited to referrer's wallet.</span></p>
       </div>
 
       <!-- Pending Payment Proofs -->
       <div class="section-card">
-        <h3><i class="fas fa-image" style="color:#1565c0"></i> <span data-mi18n="pending_payment_proofs">Pending Payment Proofs</span><span id="proof-pending-badge" style="background:#1565c0;color:white;font-size:0.72rem;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle"></h3>
+        <h3><i class="fas fa-image" style="color:#1565c0"></i> <span data-mi18n="pending_payment_proofs">Pending Payment Proofs</span><span id="proof-pending-badge" style="background:#1565c0;color:white;font-size:0.72rem;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle"></span></h3>
         <div id="payment-proofs-list"><p style="color:#aaa;text-align:center;padding:16px" data-mi18n="noPendingPaymentProofs">No pending payment proofs</p></div>
       </div>
 
@@ -1189,7 +1192,7 @@
       <div class="section-card">
         <h3><i class="fas fa-list"></i> <span data-mi18n="commission_records">Commission Records</span></h3>
         <div class="search-bar">
-          <input type="text" id="commission-search" placeholder="按姓名或电话搜索..." oninput="filterCommissions()" />
+          <input type="text" id="commission-search" placeholder="" data-mi18n-ph="mCommissionSearch" oninput="filterCommissions()" />
         </div>
         <div id="commission-records-list"></div>
       </div>
@@ -1198,28 +1201,28 @@
     <!-- Settings Tab -->
     <div id="tab-settings" class="mtab hidden">
       <div class="section-card" style="border-left:4px solid #e65100">
-        <h3><i class="fas fa-fire" style="color:#e65100"></i> <span data-mi18n="promoEngineTitle">非高峰特惠引擎</span></h3>
+        <h3><i class="fas fa-fire" style="color:#e65100"></i> <span data-mi18n="promoEngineTitle">Off-Peak Promo Engine</span></h3>
         <p style="color:#555;font-size:0.85rem;margin:0 0 14px"><span data-mi18n="promoEngineDesc">Auto-show <b>promo prices</b> to customers when your shop is quiet. Stops automatically when orders pile up.</span></p>
         <div class="form-group" style="display:flex;align-items:center;gap:10px">
-          <label style="margin:0;white-space:nowrap"><i class="fas fa-toggle-on"></i> <span data-mi18n="enablePromo">启用促销</span></label>
+          <label style="margin:0;white-space:nowrap"><i class="fas fa-toggle-on"></i> <span data-mi18n="enablePromo">Enable Promotion</span></label>
           <label class="switch">
             <input type="checkbox" id="promo-enabled" onchange="savePromoSettings()" />
             <span class="slider">
           </label>
-          <span id="promo-status-badge" style="font-size:0.78rem;font-weight:600">
+          <span id="promo-status-badge" style="font-size:0.78rem;font-weight:600"></span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
           <div class="form-group">
-            <label><i class="fas fa-clock"></i> <span data-mi18n="startTime">开始时间</span></label>
+            <label><i class="fas fa-clock"></i> <span data-mi18n="startTime">Start Time</span></label>
             <input type="time" id="promo-start-time" value="09:00" onchange="savePromoSettings()" />
           </div>
           <div class="form-group">
-            <label><i class="fas fa-clock"></i> <span data-mi18n="endTime">结束时间</span></label>
+            <label><i class="fas fa-clock"></i> <span data-mi18n="endTime">End Time</span></label>
             <input type="time" id="promo-end-time" value="17:00" onchange="savePromoSettings()" />
           </div>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-calendar-week"></i> <span data-mi18n="activeDays">生效日期</span></label>
+          <label><i class="fas fa-calendar-week"></i> <span data-mi18n="activeDays">Active Days</span></label>
           <div id="promo-days-picker" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             <label style="display:flex;align-items:center;gap:3px;font-size:0.82rem;background:#f5f5f5;padding:5px 9px;border-radius:8px;cursor:pointer"><input type="checkbox" class="promo-day" value="0" onchange="savePromoSettings()" /><span data-mi18n="sun">Sun</span></label>
             <label style="display:flex;align-items:center;gap:3px;font-size:0.82rem;background:#f5f5f5;padding:5px 9px;border-radius:8px;cursor:pointer"><input type="checkbox" class="promo-day" value="1" onchange="savePromoSettings()" /><span data-mi18n="mon">Mon</span></label>
@@ -1231,9 +1234,9 @@
           </div>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-users"></i> <span data-mi18n="busyThreshold">忙碌阈值（进行中订单）</span></label>
+          <label><i class="fas fa-users"></i> <span data-mi18n="busyThreshold">Busy Threshold (orders in progress)</span></label>
           <input type="number" id="promo-busy-threshold" value="10" min="1" max="100" onchange="savePromoSettings()" style="max-width:120px" />
-          <p class="hint"><span data-mi18n="promoHideHint">当活跃订单达到此数量时隐藏促销</span></p>
+          <p class="hint"><span data-mi18n="promoHideHint">Hide promotion when active orders reach this number</span></p>
         </div>
         <div id="promo-live-status" style="background:#f8f8f8;border-radius:10px;padding:12px;font-size:0.85rem;margin-top:4px"></div>
       </div>
@@ -1242,40 +1245,40 @@
         <h3><i class="fas fa-store"></i> <span data-mi18n="shopInfo">Shop Info</span></h3>
         <div class="form-group">
           <label><i class="fas fa-tag"></i> <span data-mi18n="shopName">Shop Name</span></label>
-          <input type="text" id="m-shop-name" placeholder="您的店铺名称" />
+          <input type="text" id="m-shop-name" placeholder="" data-mi18n-ph="mPhShopName" />
         </div>
         <div class="form-group">
           <label><i class="fas fa-bullhorn"></i> <span data-mi18n="announcement">Announcement</span></label>
-          <textarea id="m-shop-announce" rows="2" placeholder="例如：欢迎光临！今日特价..."></textarea>
+          <textarea id="m-shop-announce" rows="2" placeholder="" data-mi18n-ph="mPhShopAnnounce"></textarea>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-image"></i> <span data-mi18n="bannerUrl">横幅图片链接</span></label>
-          <input type="text" id="m-shop-banner" placeholder="https://example.com/横幅图片.jpg" />
-          <p class="hint">data-mi18n="leaveEmptyBanner">留空使用默认横幅</p>
+          <label><i class="fas fa-image"></i> <span data-mi18n="bannerUrl">Banner Image URL</span></label>
+          <input type="text" id="m-shop-banner" placeholder="" data-mi18n-ph="mPhShopBanner" />
+          <p class="hint" data-mi18n="leaveEmptyBanner">Leave empty to use default banner</p>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-home"></i> 落地页 - 欢迎文字</label>
-          <input type="text" id="m-shop-welcome" placeholder="例如：欢迎回来" maxlength="50" style="max-width:300px" />
-          <p class="hint">data-mi18n="smallTextHint">主标题上方的小字（例如"欢迎回来"）</p>
+          <label><i class="fas fa-home"></i> <span data-mi18n="mLandingWelcomeLabel">Landing Page - Welcome Text</span></label>
+          <input type="text" id="m-shop-welcome" placeholder="" data-mi18n-ph="mPhShopWelcome" maxlength="50" style="max-width:300px" />
+          <p class="hint" data-mi18n="smallTextHint">Small text above the main title (e.g. "Welcome back")</p>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-heading"></i> 落地页 - 主标题</label>
-          <input type="text" id="m-shop-title" placeholder="例如：今天想喝什么？" maxlength="80" style="max-width:400px" />
-          <p class="hint">data-mi18n="bigTitleHint">落地页的大标题（例如"今天想喝什么？"）</p>
+          <label><i class="fas fa-heading"></i> <span data-mi18n="mLandingTitleLabel">Landing Page - Main Title</span></label>
+          <input type="text" id="m-shop-title" placeholder="" data-mi18n-ph="mPhShopTitle" maxlength="80" style="max-width:400px" />
+          <p class="hint" data-mi18n="bigTitleHint">Large title on the landing page (e.g. "What would you like today?")</p>
         </div>
-        <button class="btn-merchant" onclick="saveShopSettings()"><i class="fas fa-save"></i> <span data-mi18n="saveShop">保存店铺信息</span></button>
+        <button class="btn-merchant" onclick="saveShopSettings()"><i class="fas fa-save"></i> <span data-mi18n="saveShop">Save Shop Info</span></button>
       </div>
 
       <!-- 积分设置 -->
       <div class="section-card">
-        <h3><i class="fas fa-star"></i> <span data-mi18n="pointsSettings">积分设置</span></h3>
+        <h3><i class="fas fa-star"></i> <span data-mi18n="pointsSettings">Points Settings</span></h3>
         <div class="form-group">
-          <label><i class="fas fa-calculator"></i> <span data-mi18n="pointsPerRM">每 RM 积分</span></label>
-          <input type="number" id="m-points-rate" value="1" min="0.01" step="0.01" style="max-width:140px" placeholder="例如：1 / 0.5 / 10" />
-          <p class="hint">每消费RM1 = <span id="points-rate-preview">1</span>积分</p>
+          <label><i class="fas fa-calculator"></i> <span data-mi18n="pointsPerRM">Points per RM</span></label>
+          <input type="number" id="m-points-rate" value="1" min="0.01" step="0.01" style="max-width:140px" placeholder="" data-mi18n-ph="mPhPointsRate" />
+          <p class="hint" data-mi18n="mPointsRateHint">Per RM1 spent = <span id="points-rate-preview">1</span> point</p>
         </div>
-        <button class="btn-merchant" onclick="savePointsSettings()"><i class="fas fa-save"></i> <span data-mi18n="savePoints2">Save 积分设置</span></button>
-        <p style="color:#888;font-size:0.8rem;margin-top:12px"><i class="fas fa-info-circle"></i> 信用余额只能由超级管理员修改。</p>
+        <button class="btn-merchant" onclick="savePointsSettings()"><i class="fas fa-save"></i> <span data-mi18n="savePoints2">Save Points Settings</span></button>
+        <p style="color:#888;font-size:0.8rem;margin-top:12px" data-mi18n="mCreditHint"><i class="fas fa-info-circle"></i> Credit balance can only be adjusted by top-up requests.</p>
       </div>
     </div>
 
@@ -1286,11 +1289,11 @@
         <h3><i class="fas fa-plus-circle"></i> <span data-mi18n="create_ad">Create New Ad</span></h3>
         <div class="form-group">
           <label><i class="fas fa-heading"></i> <span data-mi18n="ad_title">Ad Title</span></label>
-          <input type="text" id="ad-title" placeholder="例如：周末特别促销" />
+          <input type="text" id="ad-title" placeholder="" data-mi18n-ph="mPhAdTitle" />
         </div>
         <div class="form-group">
-          <label><i class="fas fa-link"></i> <span data-mi18n="ad_link">Link URL (可选)</span></label>
-          <input type="text" id="ad-link" placeholder="https://example.com/促销链接" />
+          <label><i class="fas fa-link"></i> <span data-mi18n="ad_link">Link URL (optional)</span></label>
+          <input type="text" id="ad-link" placeholder="" data-mi18n-ph="mPhAdLink" />
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div class="form-group">
@@ -1324,7 +1327,7 @@
         <div class="form-group">
           <label><i class="fas fa-sort-numeric-up"></i> <span data-mi18n="ad_priority">Priority</span></label>
           <input type="number" id="ad-priority" value="0" min="0" max="99" />
-          <p class="hint" data-mi18n="higherShowsFirst">数字越大越优先显示</p>
+          <p class="hint" data-mi18n="higherShowsFirst">Higher number = shown first</p>
         </div>
         <button class="btn-merchant full" onclick="createAd()">
           <i class="fas fa-plus"></i> <span data-mi18n="create_ad">Create Ad</span></button>
@@ -1334,7 +1337,7 @@
       <div class="section-card">
         <h3><i class="fas fa-bullhorn" style="color:#e65100"></i> <span data-mi18n="active_ads">Active Ads</span></h3>
         <div id="active-ads-list">
-          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="no_active_ads">暂无活跃广告</p>
+          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="no_active_ads">No active ads</p>
         </div>
       </div>
 
@@ -1342,7 +1345,7 @@
       <div class="section-card">
         <h3><i class="fas fa-list"></i> <span data-mi18n="all_ads">All Ads</span></h3>
         <div id="all-ads-list">
-          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="no_ads_yet">暂无广告</p>
+          <p style="color:#aaa;text-align:center;padding:16px" data-mi18n="no_ads_yet">No ads yet</p>
         </div>
       </div>
 
@@ -1445,7 +1448,7 @@
     <h3><i class="fas fa-chair"></i> <span data-mi18n="selectTable">Select Your Table</span></h3>
     <p data-mi18n="enterTable">Enter your table number to start ordering</p>
     <div class="form-group" style="margin-top:16px">
-      <input type="number" id="table-input" placeholder="例如：5" min="1" max="50" />
+      <input type="number" id="table-input" placeholder="" data-mi18n-ph="mPhTableNum" min="1" max="50" />
     </div>
     <button class="btn-primary full" onclick="confirmTable()" data-mi18n="confirmTable">Confirm Table</button>
   </div>
@@ -1459,7 +1462,7 @@
     <p style="margin-bottom:16px" data-mi18n="takeawayModalSubtitle">Enter your pickup details</p>
     <div class="form-group">
       <label><i class="fas fa-phone"></i> <span data-mi18n="phoneNumber">Phone Number</span><span style="color:#c62828">*</span></label>
-      <input type="tel" id="modal-takeaway-phone" placeholder="例如：0123456789" />
+      <input type="tel" id="modal-takeaway-phone" placeholder="" data-mi18n-ph="mPhPhone" />
     </div>
     <div class="form-group">
       <label><i class="fas fa-clock"></i> <span data-mi18n="pickupTime">Pickup Time</span><span style="color:#c62828">*</span></label>
@@ -1508,7 +1511,7 @@
         <div class="form-group" style="margin-top:14px">
           <label><i class="fas fa-keyboard"></i> <span data-mi18n="orCustomAmount">Or enter custom amount (RM)</span></label>
           <div class="input-row">
-            <input type="number" id="topup-custom-amount" placeholder="例如：150" min="10" step="10" />
+            <input type="number" id="topup-custom-amount" placeholder="" data-mi18n-ph="mPhTopupAmount" min="10" step="10" />
             <button class="btn-sm" onclick="applyCustomTopup()"><i class="fas fa-check"></i></button>
           </div>
           <p class="hint" id="topup-custom-hint" data-mi18n="topUpCustomHint">Min RM10. Bonus applies to RM100 and above.</p>
@@ -1546,9 +1549,9 @@
     <div class="section-card referral-hero-card">
       <div class="referral-hero-icon">🎁</div>
       <h3 data-mi18n="invite_friends_title">Invite Friends, Earn Commission!</h3>
-      <p style="font-size:0.85rem;color:#555;margin-bottom:12px">data-mi18n="referralProgramDescText">Share your phone number as a referral code. When your friend makes their first order, you earn a commission credited to your wallet!</p>
+      <p style="font-size:0.85rem;color:#555;margin-bottom:12px" data-mi18n="referralProgramDescText">Share your phone number as a referral code. When your friend makes their first order, you earn a commission credited to your wallet!</p>
       <div class="referral-code-box">
-        <span id="referral-my-phone">-</span><button class="btn-sm" onclick="copyReferralCode()"><i class="fas fa-copy"></i><span data-mi18n="copyReferralBtn">复制</span></button>
+        <span id="referral-my-phone">-</span><button class="btn-sm" onclick="copyReferralCode()"><i class="fas fa-copy"></i><span data-mi18n="copyReferralBtn">Copy</span></button>
       </div>
       <div class="referral-stats-row">
         <div class="referral-stat"><strong id="referral-total-referred">0</strong><small data-mi18n="friends_referred">Friends Referred</small></div>
@@ -1583,7 +1586,7 @@
         <div class="form-group">
           <label><i class="fas fa-tag"></i> <span data-mi18n="complaint_category">Complaint Category</span></label>
           <select id="complaint-category">
-            <option value="food_quality" data-mi18n="food_quality">食品质量</option>
+            <option value="food_quality" data-mi18n="food_quality">Food Quality</option>
             <option value="service" data-mi18n="service">Service</option>
             <option value="cleanliness" data-mi18n="cleanliness">Cleanliness</option>
             <option value="waiting_time" data-mi18n="waiting_time">Waiting Time</option>
@@ -1593,11 +1596,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-align-left"></i> <span data-mi18n="description">Description</span></label>
-          <textarea id="complaint-desc" placeholder="请详细描述您的问题..." data-i18n-placeholder="投诉描述" rows="4"></textarea>
+          <label><i class="fas fa-align-left"></i> <span data-mi18n="mItemDesc">Description</span></label>
+          <textarea id="complaint-desc" placeholder="" data-mi18n-ph="mPhComplaintDesc" rows="4"></textarea>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-camera"></i> <span data-mi18n="uploadPhoto可选">Upload Photo (可选)</span></label>
+          <label><i class="fas fa-camera"></i> <span data-mi18n="mItemPhotoOpt">Upload Photo</span></label>
           <div class="complaint-photo-upload" id="complaint-photo-drop" onclick="document.getElementById('complaint-photo-input').click()">
             <i class="fas fa-cloud-upload-alt"></i>
             <span data-mi18n="tap_to_upload_photo">Tap to upload photo</span><small data-mi18n="photo_upload_hint">JPG, PNG up to 5MB</small>
@@ -1606,8 +1609,8 @@
           <div id="complaint-photo-preview" class="complaint-photo-preview hidden"></div>
         </div>
         <div class="form-group">
-          <label><i class="fas fa-receipt"></i> <span data-mi18n="order_id_optional">Order ID (可选)</span></label>
-          <input type="text" id="complaint-order-id" placeholder="例如：ORD123456" data-i18n-placeholder="订单号" />
+          <label><i class="fas fa-receipt"></i> <span data-mi18n="order_id_optional">Order ID (optional)</span></label>
+          <input type="text" id="complaint-order-id" placeholder="" data-mi18n-ph="mPhComplaintOrderId" />
         </div>
         <button class="btn-complaint-submit full" onclick="submitComplaint()">
           <i class="fas fa-paper-plane"></i> <span data-mi18n="submitComplaintBtn">Submit Complaint</span></button>
@@ -1632,7 +1635,7 @@
   <div class="container">
     <div id="my-orders-content">
       <div class="order-filter" style="margin-bottom:14px">
-        <button class="filter-btn active" onclick="filterMyOrders('all', this)" data-mi18n="filterAll">全部</button>
+        <button class="filter-btn active" onclick="filterMyOrders('all', this)" data-mi18n="filterAll">All</button>
         <button class="filter-btn" onclick="filterMyOrders('pending', this)" data-mi18n="filterPending">Pending</button>
         <button class="filter-btn" onclick="filterMyOrders('preparing', this)" data-mi18n="filterPreparing">Preparing</button>
         <button class="filter-btn" onclick="filterMyOrders('done', this)" data-mi18n="filterDone">Done</button>
@@ -1650,7 +1653,7 @@
     <div id="complaint-detail-content"></div>
     <div class="form-group" style="margin-top:14px">
       <label data-mi18n="response_action_taken">Response / Action Taken</label>
-      <textarea id="complaint-response-text" rows="3" placeholder="输入您的回复..."></textarea>
+      <textarea id="complaint-response-text" rows="3" placeholder="" data-mi18n-ph="mPhComplaintResponse"></textarea>
     </div>
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn-merchant" style="flex:1" onclick="resolveComplaint()"><i class="fas fa-check"></i><span data-mi18n="markResolvedBtn">Mark Resolved</span></button>
