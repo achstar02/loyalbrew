@@ -743,15 +743,7 @@ const LANGS = {
     // Other missing keys
     points: 'Points', noStampCards: 'No stamp cards',
     'Item removed': 'Item removed',
-    'Points settings saved! / ???????': 'Points settings saved!',
-    'Shop info saved! / ???????': 'Shop info saved!',
     loyalbrew_lang: 'en',
-    loyalbrew_merchant_lang: 'en',
-    loyalbrew_merchant_phone: '',
-    loyalbrew_topup_bonus_rules: '',
-    mComplaintPhoto: 'Points added successfully!',
-    '?? Stamp collected! Check your stamp card!': '?? Stamp collected! Check your stamp card!',
-    '?? New item launched!': '?? New item launched!',
     mPhComplaintDesc: 'Please describe your issue in detail...',
     mPhComplaintOrderId: 'e.g. ORD123456',
   },
@@ -1288,8 +1280,8 @@ const LANGS = {
     'Shop info saved! / 店铺信息已保存': '店铺信息已保存！',
     loyalbrew_lang: 'zh',
     loyalbrew_merchant_lang: 'zh',
-    loyalbrew_merchant_phone: '',
-    loyalbrew_topup_bonus_rules: '',
+    loyalbrew_merchant_phone: ',
+    loyalbrew_topup_bonus_rules: ',
     '加分成功': '加分成功',
     '🎉 Stamp collected! Check your stamp card!': '🎉 印章已收集！查看印章卡！',
     '🚀 New item launched!': '🚀 新品已发布！',
@@ -1827,8 +1819,8 @@ const LANGS = {
     'Shop info saved! / 店铺信息已保存': 'Maklumat kedai disimpan!',
     loyalbrew_lang: 'ms',
     loyalbrew_merchant_lang: 'ms',
-    loyalbrew_merchant_phone: '',
-    loyalbrew_topup_bonus_rules: '',
+    loyalbrew_merchant_phone: ',
+    loyalbrew_topup_bonus_rules: ',
     '加分成功': 'Mata berjaya ditambah!',
     '🎉 Stamp collected! Check your stamp card!': '🎉 Setem dikumpul! Semak kad setem anda!',
     '🚀 New item launched!': '🚀 Item baharu dilancarkan!',
@@ -1849,7 +1841,7 @@ loyalbrew_brand: 'LoyalBrew',
     bill_amount: '???? ???? (RM)',
     all: '全部',
     pending: '待处理',
-    preparing: '准备中'',
+    preparing: '准备中',
     done: '完成',
     price_label: '???? (RM)',
     hot_drinks: '????? ????????',
@@ -2245,7 +2237,7 @@ loyalbrew_brand: 'LoyalBrew',
     phone_number: '???????? ???',
     points: '积分',
     points_issued: '??????????? ?????????',
-    preparing: '准备中'',
+    preparing: '准备中',
     qr_codes: 'QR ???????????',
     recent_transactions: '????????? ??????????????',
     referral_commission_rate: '????????? ?????? ???????',
@@ -2541,8 +2533,8 @@ function refreshPromoStatusUI() {
   const status = getPromoStatus();
   if (!badge || !live) return;
   if (!getMerchantPromoSettings()?.enabled) {
-    badge.textContent = '';
-    badge.style.color = '';
+    badge.textContent = ';
+    badge.style.color = ';
     live.innerHTML = '<b style="color:#888">Promo engine is OFF</b>';
     return;
   }
@@ -2566,9 +2558,9 @@ function getShopSettings() {
 }
 
 function saveShopSettings() {
-  const name = document.getElementById('m-shop-name')?.value?.trim() || '';
-  const announce = document.getElementById('m-shop-announce')?.value?.trim() || '';
-  const banner = document.getElementById('m-shop-banner')?.value?.trim() || '';
+  const name = document.getElementById('m-shop-name')?.value?.trim() || ';
+  const announce = document.getElementById('m-shop-announce')?.value?.trim() || ';
+  const banner = document.getElementById('m-shop-banner')?.value?.trim() || ';
   const settings = { name, announce, banner, updatedAt: new Date().toISOString() };
   safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), settings);
   // Update display name if changed
@@ -2596,9 +2588,9 @@ function loadShopSettings() {
   const nameEl = document.getElementById('m-shop-name');
   const announceEl = document.getElementById('m-shop-announce');
   const bannerEl = document.getElementById('m-shop-banner');
-  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || '';
-  if (announceEl) announceEl.value = settings.announce || '';
-  if (bannerEl) bannerEl.value = settings.banner || '';
+  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || ';
+  if (announceEl) announceEl.value = settings.announce || ';
+  if (bannerEl) bannerEl.value = settings.banner || ';
 }
 
 // ===== POINTS SETTINGS =====
@@ -2695,7 +2687,7 @@ function renderAdCarousel() {
 
   wrapper.innerHTML = ads.map(ad => {
     trackAdImpression(ad.id);
-    const ctaHtml = ad.link ? '<span class="ad-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : '';
+    const ctaHtml = ad.link ? '<span class="ad-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : ';
     const sponsorHtml = '<span class="ad-slide-sponsor"><i class="fas fa-bullhorn"></i> Ad</span>';
     return `<div class="ad-slide" data-ad-id="${ad.id}" onclick="onAdSlideClick('${ad.id}')">
       <img src="${ad.image}" alt="${ad.title}" />
@@ -2768,11 +2760,11 @@ function clearAdImage() {
   const placeholder = document.getElementById('ad-image-placeholder');
   const clearBtn = document.getElementById('ad-image-clear-btn');
   const fileInput = document.getElementById('ad-image-input');
-  preview.src = '';
+  preview.src = ';
   preview.style.display = 'none';
   placeholder.style.display = 'flex';
   clearBtn.style.display = 'none';
-  fileInput.value = '';
+  fileInput.value = ';
 }
 
 function createAd() {
@@ -2800,10 +2792,10 @@ function createAd() {
   saveAds(ads);
 
   // Reset form
-  document.getElementById('ad-title').value = '';
-  document.getElementById('ad-link').value = '';
-  document.getElementById('ad-start-date').value = '';
-  document.getElementById('ad-end-date').value = '';
+  document.getElementById('ad-title').value = ';
+  document.getElementById('ad-link').value = ';
+  document.getElementById('ad-start-date').value = ';
+  document.getElementById('ad-end-date').value = ';
   document.getElementById('ad-priority').value = '0';
   clearAdImage();
 
@@ -2884,9 +2876,9 @@ function renderAdCard(ad, stat, isActive) {
   const now = new Date();
   const isExpired = ad.endDate && now > new Date(ad.endDate);
   const isScheduled = now < new Date(ad.startDate);
-  const statusClass = !ad.active ? 'inactive' : isExpired ? 'expired' : '';
+  const statusClass = !ad.active ? 'inactive' : isExpired ? 'expired' : ';
 
-  let statusBadge = '';
+  let statusBadge = ';
   if (!ad.active) statusBadge = '<span class="nimb grey">Inactive</span>';
   else if (isExpired) statusBadge = '<span class="nimb red">Expired</span>';
   else if (isScheduled) statusBadge = '<span class="nimb orange">Scheduled</span>';
@@ -3230,8 +3222,8 @@ let cart = [];
 let currentTable = null;
 let activeCategory = 'All';
 let orderType = 'dinein';       // 'dinein' | 'takeaway'
-let takeawayPhone = '';
-let takeawayTime  = '';
+let takeawayPhone = ';
+let takeawayTime  = ';
 
 // --- Order type toggle ---
 function setOrderType(type) {
@@ -3245,8 +3237,8 @@ function setOrderType(type) {
   if (type === 'dinein') {
     tableBar.classList.remove('hidden');
     takeawayBar.classList.add('hidden');
-    takeawayPhone = '';
-    takeawayTime  = '';
+    takeawayPhone = ';
+    takeawayTime  = ';
     if (!currentTable) changeTable();
   } else {
     tableBar.classList.add('hidden');
@@ -3427,7 +3419,7 @@ function updateFloatCart() {
 }
 
 function changeTable() {
-  document.getElementById('table-input').value = currentTable || '';
+  document.getElementById('table-input').value = currentTable || ';
   // Update modal text to current language
   const modal = document.getElementById('table-modal');
   const h3 = modal.querySelector('[data-i18n="selectTable"]');
@@ -3594,8 +3586,8 @@ function lookupCartMember() {
 function placeOrder() {
   if (cart.length === 0) { showToast(t('cartEmpty'), 'error'); return; }
 
-  let finalPhone = '';
-  let finalPickupTime = '';
+  let finalPhone = ';
+  let finalPickupTime = ';
 
   if (orderType === 'dinein') {
     if (!currentTable) { showToast(t('selectTableFirst'), 'error'); showPage('page-menu'); changeTable(); return; }
@@ -3744,13 +3736,13 @@ function placeOrder() {
   cart = [];
   const prevMemberPhone = document.getElementById('cart-phone').value.trim();
   cartMember = null;
-  document.getElementById('cart-phone').value = '';
+  document.getElementById('cart-phone').value = ';
   document.getElementById('cart-member-info').classList.add('hidden');
   document.getElementById('wallet-pay-section').classList.add('hidden');
   const walletCb = document.getElementById('use-wallet-checkbox');
   if (walletCb) walletCb.checked = false;
   document.getElementById('wallet-deduct-row').classList.add('hidden');
-  document.getElementById('order-notes').value = '';
+  document.getElementById('order-notes').value = ';
   // Reset payment
   resetPaymentMethod();
   // Reset stamp earned area
@@ -3894,8 +3886,8 @@ function removePaymentProof(type) {
   _paymentProofData = null;
   const previewEl = document.getElementById(type + '-proof-preview');
   previewEl.classList.add('hidden');
-  previewEl.innerHTML = '';
-  document.getElementById(type + '-proof-input').value = '';
+  previewEl.innerHTML = ';
+  document.getElementById(type + '-proof-input').value = ';
   document.querySelector(`#payment-${type}-section .payment-upload-area`).innerHTML = `
     <i class="fas fa-cloud-upload-alt"></i>
     <span>${t('uploadScreenshot')}</span>
@@ -3915,7 +3907,7 @@ function resetPaymentMethod() {
     const prev = document.getElementById(type + '-proof-preview');
     if (prev) { prev.classList.add('hidden'); prev.innerHTML = ''; }
     const inp = document.getElementById(type + '-proof-input');
-    if (inp) inp.value = '';
+    if (inp) inp.value = ';
   });
 }
 
@@ -3994,7 +3986,7 @@ function renderPaymentProofsPending() {
   const el = document.getElementById('payment-proofs-list');
   const badge = document.getElementById('proof-pending-badge');
   if (!el) return;
-  if (badge) badge.textContent = proofs.length > 0 ? proofs.length : '';
+  if (badge) badge.textContent = proofs.length > 0 ? proofs.length : ';
   if (proofs.length === 0) { el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPaymentProofs')}</p>`; return; }
   const pmLabels = { tng: 'Touch & Go', bank: 'Bank Transfer' };
   el.innerHTML = proofs.map(p => {
@@ -4194,9 +4186,9 @@ function renderNewItemsBanner(newItems, menu) {
   banner.classList.remove('hidden');
   const items = newItems.map(n => {
     const m = menu.find(i => i.id === n.menuItemId);
-    if (!m) return '';
+    if (!m) return ';
     const announce = n.announcement || (m.name + ' is now available!');
-    const priceText = n.specialPrice ? `  RM${n.specialPrice.toFixed(2)}` : '';
+    const priceText = n.specialPrice ? `  RM${n.specialPrice.toFixed(2)}` : ';
     return `<span class="ni-banner-item"><span class="new-tag">NEW</span>${m.emoji} ${announce}${priceText}</span>`;
   }).join('  �  ');
   banner.innerHTML = `<div class="new-items-banner-inner" onclick="openNewItemsModal()">${items}&nbsp;&nbsp;&nbsp;&nbsp;${items}</div>`;
@@ -4210,7 +4202,7 @@ function openNewItemsModal() {
   const listEl = document.getElementById('new-items-modal-list');
   listEl.innerHTML = newItems.map(n => {
     const m = menu.find(i => i.id === n.menuItemId);
-    if (!m) return '';
+    if (!m) return ';
     const until = n.endDate ? `Until ${n.endDate}` : 'Limited time offer';
     return `
       <div class="ni-modal-item">
@@ -4282,11 +4274,11 @@ function launchNewItem() {
   DB.saveNewItems(newItems);
 
   // Clear form
-  document.getElementById('ni-select-item').value    = '';
-  document.getElementById('ni-special-price').value  = '';
-  document.getElementById('ni-launch-date').value    = '';
-  document.getElementById('ni-end-date').value       = '';
-  document.getElementById('ni-announce').value       = '';
+  document.getElementById('ni-select-item').value    = ';
+  document.getElementById('ni-special-price').value  = ';
+  document.getElementById('ni-launch-date').value    = ';
+  document.getElementById('ni-end-date').value       = ';
+  document.getElementById('ni-announce').value       = ';
 
   showToast('?? New item launched!');
   renderNewItemsMgmt();
@@ -4322,7 +4314,7 @@ function renderNewItemsMgmt() {
 
   function renderCard(n, isPast) {
     const m = menu.find(i => i.id === n.menuItemId);
-    if (!m) return '';
+    if (!m) return ';
     const priceText = n.specialPrice ? `${mt('mNiSpecial')}${n.specialPrice.toFixed(2)} (${mt('mNiWas')}${m.price.toFixed(2)})` : `RM${m.price.toFixed(2)}`;
     return `
       <div class="new-item-mgmt-card ${isPast ? 'expired' : ''}">
@@ -4363,7 +4355,7 @@ function renderNewItemsMgmt() {
 // ===========================
 
 let _pendingStampReward = null; // { cardId, memberId, rewardType, rewardValue, cardName, cardEmoji }
-let _stampPagePhone = '';
+let _stampPagePhone = ';
 
 // ---- Helpers ----
 function getMemberStampProgress(memberId, cardId) {
@@ -4491,7 +4483,7 @@ function renderStampCardsDisplay(member) {
     const unclaimed = completed - claimed;
 
     // Reward description
-    let rewardDesc = '';
+    let rewardDesc = ';
     if (card.rewardType === 'free_item') {
       const m = menu.find(i => i.id === card.rewardValue);
       rewardDesc = m ? t('stampFreeItem').replace('{item}', `${m.emoji} ${m.name}`) : t('stampFreeItemGeneric');
@@ -4504,7 +4496,7 @@ function renderStampCardsDisplay(member) {
     }
 
     // Rule description
-    let ruleDesc = '';
+    let ruleDesc = ';
     if (card.rule === 'per_order')  ruleDesc = t('stampPerPurchase');
     else if (card.rule === 'per_amount') ruleDesc = t('stampPerAmount').replace('{v}', card.ruleValue);
     else if (card.rule === 'per_item') {
@@ -4560,7 +4552,7 @@ function openStampRedeemModal(cardId, memberId) {
   const menu   = DB.getMenu() || DEFAULT_MENU;
   if (!card) return;
 
-  let rewardHtml = '';
+  let rewardHtml = ';
   if (card.rewardType === 'free_item') {
     const m = menu.find(i => i.id === card.rewardValue);
     rewardHtml = `<div style="font-size:3rem;margin:12px 0">${m ? m.emoji : '??'}</div>
@@ -4677,7 +4669,7 @@ function onRuleChange() {
       <select id="sc-rule-item">${menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name}</option>`).join('')}</select>`;
   } else {
     extra.classList.add('hidden');
-    extra.innerHTML = '';
+    extra.innerHTML = ';
   }
 }
 
@@ -4689,7 +4681,7 @@ function onRewardTypeChange() {
 
   if (type === 'free_item') {
     label.textContent = mt('mRewardFreeItem');
-    itemSel.style.display = '';
+    itemSel.style.display = ';
     detail.classList.remove('hidden');
     // Remove any extra input
     const old = document.getElementById('sc-reward-val-input');
@@ -4754,8 +4746,8 @@ function createStampCard() {
   DB.saveStampCards(cards);
 
   // Reset form
-  document.getElementById('sc-name').value  = '';
-  document.getElementById('sc-emoji').value = '';
+  document.getElementById('sc-name').value  = ';
+  document.getElementById('sc-emoji').value = ';
   document.getElementById('sc-total').value = '10';
 
   showToast(`${emoji} ${name} stamp card created!`);
@@ -4773,7 +4765,7 @@ function renderMerchantStampCards() {
   }
 
   el.innerHTML = cards.map(card => {
-    let rewardDesc = '';
+    let rewardDesc = ';
     if (card.rewardType === 'free_item') {
       const m = menu.find(i => i.id === card.rewardValue);
       rewardDesc = m ? `${mt('mFreePrefix')} ${m.emoji} ${m.name}` : mt('mFreeItem');
@@ -4781,7 +4773,7 @@ function renderMerchantStampCards() {
     else if (card.rewardType === 'discount_pct')    rewardDesc = `${card.rewardValue}% ${mt('mPctOff')}`;
     else if (card.rewardType === 'points')          rewardDesc = `+${card.rewardValue} ${mt('mBonusPtsLabel')}`;
 
-    let ruleDesc = '';
+    let ruleDesc = ';
     if (card.rule === 'per_order') ruleDesc = mt('mStampPerPurchase');
     else if (card.rule === 'per_amount') ruleDesc = `${mt('mStampPerRM')}${card.ruleValue}`;
     else if (card.rule === 'per_item') {
@@ -4973,9 +4965,9 @@ function addTopupBonusRule() {
   rules.push({ id: 'rule_' + Date.now(), minAmount: min, bonusPercent: pct, expiry: expiry || '' });
   rules.sort((a, b) => a.minAmount - b.minAmount);
   saveTopupBonusRules(rules);
-  document.getElementById('bonus-rule-min').value = '';
-  document.getElementById('bonus-rule-pct').value = '';
-  document.getElementById('bonus-rule-expiry').value = '';
+  document.getElementById('bonus-rule-min').value = ';
+  document.getElementById('bonus-rule-pct').value = ';
+  document.getElementById('bonus-rule-expiry').value = ';
   renderTopupBonusRules();
   renderTopupAmountCards();
   showToast(mt('mAddRule') + ' ?');
@@ -5004,7 +4996,7 @@ function saveMemberWallet(memberId, wallet) {
   wallet.id = memberId;
   // Ensure createdAt exists for Firestore rules compliance
   if (!wallet.createdAt) wallet.createdAt = new Date().toISOString();
-  if (!wallet.memberPhone && wallet.memberPhone !== '') wallet.memberPhone = '';
+  if (!wallet.memberPhone && wallet.memberPhone !== '') wallet.memberPhone = ';
   wallet.updatedAt = new Date().toISOString();
   if (Array.isArray(wallets)) {
     const idx = wallets.findIndex(w => w && w.id === memberId);
@@ -5058,7 +5050,7 @@ function deductWallet(memberId, amount, note) {
 }
 
 // ---- Top Up Page ----
-let _topupPhone = '';
+let _topupPhone = ';
 let _selectedTopupPay = 0;
 let _selectedTopupCredit = 0;
 
@@ -5125,7 +5117,7 @@ function renderTopupAmountCards() {
     const activeRules = rules.filter(r => isRuleActive(r));
     if (activeRules.length > 0) {
       const best = activeRules.sort((a, b) => b.bonusPercent - a.bonusPercent)[0];
-      const expiryText = best.expiry ? ` � ${t('mBonusExpiry')}: ${best.expiry}` : '';
+      const expiryText = best.expiry ? ` � ${t('mBonusExpiry')}: ${best.expiry}` : ';
       banner.innerHTML = `
         <div class="topup-promo-banner">
           <div class="topup-promo-icon">??</div>
@@ -5135,7 +5127,7 @@ function renderTopupAmountCards() {
           </div>
         </div>`;
     } else {
-      banner.innerHTML = '';
+      banner.innerHTML = ';
     }
   }
 }
@@ -5166,7 +5158,7 @@ function showTopupPreview(payAmt, creditAmt) {
   document.getElementById('topup-pay-amount').textContent = 'RM' + payAmt.toFixed(2);
   document.getElementById('topup-get-amount').textContent = 'RM' + creditAmt.toFixed(2);
   document.getElementById('topup-bonus-amount').textContent = '+RM' + bonus.toFixed(2);
-  document.getElementById('topup-confirm-btn').style.display = '';
+  document.getElementById('topup-confirm-btn').style.display = ';
 }
 
 function confirmTopup() {
@@ -5202,7 +5194,7 @@ function confirmTopup() {
   document.getElementById('topup-confirm-btn').style.display = 'none';
   document.getElementById('topup-selected-preview').classList.add('hidden');
   document.querySelectorAll('.topup-amount-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById('topup-custom-amount').value = '';
+  document.getElementById('topup-custom-amount').value = ';
 }
 
 function renderWalletTxns(memberId) {
@@ -5212,7 +5204,7 @@ function renderWalletTxns(memberId) {
   const el = document.getElementById('wallet-txn-list');
   if (!el) return;
 
-  let html = '';
+  let html = ';
 
   // Show pending requests first
   pending.forEach(r => {
@@ -5293,7 +5285,7 @@ function renderTopupPendingRequests() {
   const el = document.getElementById('topup-pending-list');
   const badge = document.getElementById('topup-pending-badge');
   if (!el) return;
-  if (badge) badge.textContent = requests.length > 0 ? requests.length : '';
+  if (badge) badge.textContent = requests.length > 0 ? requests.length : ';
   if (requests.length === 0) {
     el.innerHTML = `<p style="color:#aaa;text-align:center;padding:16px">${mt('mNoPendingRequests')}</p>`;
     return;
@@ -5455,8 +5447,8 @@ function handleComplaintPhoto(event) {
 function removeComplaintPhoto() {
   _complaintPhotoData = null;
   document.getElementById('complaint-photo-preview').classList.add('hidden');
-  document.getElementById('complaint-photo-preview').innerHTML = '';
-  document.getElementById('complaint-photo-input').value = '';
+  document.getElementById('complaint-photo-preview').innerHTML = ';
+  document.getElementById('complaint-photo-input').value = ';
   document.getElementById('complaint-photo-drop').innerHTML = `<i class="fas fa-cloud-upload-alt"></i><span>Tap to upload photo</span><small>JPG, PNG up to 5MB</small>`;
 }
 
@@ -5480,7 +5472,7 @@ async function submitComplaint() {
     photoData: _complaintPhotoData || null,
     orderId: orderId || null,
     status: 'open',
-    response: '',
+    response: ',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -5508,8 +5500,8 @@ async function submitComplaint() {
   }
 
   // Reset form
-  document.getElementById('complaint-desc').value = '';
-  document.getElementById('complaint-order-id').value = '';
+  document.getElementById('complaint-desc').value = ';
+  document.getElementById('complaint-order-id').value = ';
   removeComplaintPhoto();
   showToast(t('complaintSubmitted') || '? Complaint submitted! We\'ll get back to you soon.');
   renderMyComplaints(currentCustomer.id);
@@ -5663,7 +5655,7 @@ async function openComplaintDetail(complaintId) {
       ${complaint.response ? `<div class="complaint-response-box" style="margin-top:8px"><i class="fas fa-reply"></i> ${mt('mDetailPrevResponse')}: <em>${escHtml(complaint.response)}</em></div>` : ''}
     </div>
   `;
-  document.getElementById('complaint-response-text').value = complaint.response || '';
+  document.getElementById('complaint-response-text').value = complaint.response || ';
   document.getElementById('complaint-detail-modal').classList.remove('hidden');
 }
 
@@ -5749,7 +5741,7 @@ function renderMyOrders(member, filter) {
     const showNotifyBtn = isCashOrder && o.status === 'pending' && notYetConfirmed;
     const showCompleteBtn = o.status === 'preparing';
     
-    let actionButtons = '';
+    let actionButtons = ';
     if (showNotifyBtn) {
       actionButtons = `
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e0e0e0">
@@ -5924,7 +5916,7 @@ function updateKitchenCountdown() {
     if (_kitchenCountdown <= 5) {
       icon.style.animation = 'spin 0.5s linear infinite';
     } else {
-      icon.style.animation = '';
+      icon.style.animation = ';
     }
   }
 }
@@ -6166,7 +6158,7 @@ function customerRegister() {
   DB.setCurrentMemberPhone(newMember.phone);
   updateLoginStatusUI();
   showToast('Welcome, ' + name + '! ??');
-  if (document.getElementById('reg-referrer')) document.getElementById('reg-referrer').value = '';
+  if (document.getElementById('reg-referrer')) document.getElementById('reg-referrer').value = ';
   if (_pendingRedirect) {
     const target = _pendingRedirect;
     _pendingRedirect = null;
@@ -6290,12 +6282,12 @@ function customerLogout() {
   currentCustomer = null;
   DB.setCurrentMemberPhone(null);
   updateLoginStatusUI();
-  _topupPhone = '';
-  _stampPagePhone = '';
+  _topupPhone = ';
+  _stampPagePhone = ';
   _pendingRedirect = null;
   document.getElementById('customer-auth').classList.remove('hidden');
   document.getElementById('customer-dashboard').classList.add('hidden');
-  document.getElementById('login-phone').value = '';
+  document.getElementById('login-phone').value = ';
   showPage('page-landing');
 }
 
@@ -6369,7 +6361,7 @@ function _showSuperAdminBtn() {
   navEl.style.setProperty('display', 'block', 'important');
   if (emailEl) {
     const fb = window.__lbFirebase;
-    const email = fb?.auth?.currentUser?.email || '';
+    const email = fb?.auth?.currentUser?.email || ';
     if (email) {
       emailEl.textContent = '(' + email.split('@')[0] + ')';
       emailEl.classList.remove('hidden');
@@ -7193,7 +7185,7 @@ const MERCHANT_LANGS = {
     mRemovePhoto: '???? ??????', mAddToMenu: '???????? ????', mMenuItems: '???? ????????',
     mAllMembers: '??????? ?????????????', mRecentTxns: '????????? ??????????????',
     mDeactivateMember: '?????????? ??????', mConfirmDeactivate: '?????? ??????????????',
-    mActivateMember: '?????????? ???????', mConfirmActivate: '确认激活会员'??? ?????',
+    mActivateMember: '?????????? ???????', mConfirmActivate: '确认激活会员?'??? ?????',
     mMemberActive: '已激活', mMemberInactive: '未激活',
     mDeactivateBtn: '停用', mActivateBtn: '激活',
     // Overview
@@ -7348,8 +7340,8 @@ function applyMerchantLang() {
 function initMerchantSavedPassword() {
   const saved = safeLS.json('loyalbrew_merchant_saved', null);
   if (saved) {
-    document.getElementById('m-user').value = saved.user || '';
-    document.getElementById('m-pass').value = saved.pass || '';
+    document.getElementById('m-user').value = saved.user || ';
+    document.getElementById('m-pass').value = saved.pass || ';
     document.getElementById('m-remember').checked = true;
   }
 }
@@ -7406,8 +7398,8 @@ async function merchantLogin() {
     if (mData.name || mData.announce || mData.banner) {
       const shopSettings = {
         name: mData.name || user,
-        announce: mData.announce || '',
-        banner: mData.banner || '',
+        announce: mData.announce || ',
+        banner: mData.banner || ',
         updatedAt: new Date().toISOString()
       };
       safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), shopSettings);
@@ -7438,8 +7430,8 @@ function merchantLogout() {
   // Only clear fields if not remembering
   var saved = safeLS.json('loyalbrew_merchant_saved', null);
   if (!saved) {
-    document.getElementById('m-user').value = '';
-    document.getElementById('m-pass').value = '';
+    document.getElementById('m-user').value = ';
+    document.getElementById('m-pass').value = ';
   }
   showPage('page-landing');
 }
@@ -7507,7 +7499,7 @@ function previewItemPhoto(input) {
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) {
     showToast(mt('mPhotoUnder5MB') || t('photoUnder5MB'), 'error');
-    input.value = '';
+    input.value = ';
     return;
   }
   const reader = new FileReader();
@@ -7526,8 +7518,8 @@ function previewItemPhoto(input) {
 
 function clearItemPhoto() {
   _newItemPhotoData = null;
-  document.getElementById('new-item-photo-input').value = '';
-  document.getElementById('item-photo-preview').src = '';
+  document.getElementById('new-item-photo-input').value = ';
+  document.getElementById('item-photo-preview').src = ';
   document.getElementById('item-photo-preview').style.display = 'none';
   document.getElementById('item-photo-placeholder').style.display = 'flex';
   document.getElementById('item-photo-clear-btn').style.display = 'none';
@@ -7705,8 +7697,8 @@ function addPoints() {
       document.getElementById('found-tier').textContent = getTier(foundMember.points);
 
       alert('????');
-      document.getElementById('m-search-phone').value = '';
-      document.getElementById('bill-amount').value = '';
+      document.getElementById('m-search-phone').value = ';
+      document.getElementById('bill-amount').value = ';
       loadMerchantDashboard();
     })
     .catch(err => {
@@ -7793,11 +7785,11 @@ function addMenuItem() {
   menu.push({ id: 'm' + Date.now(), name, emoji, price, category: cat, desc, image: _newItemPhotoData || null, promoPrice });
   DB.saveMenu(menu);
 
-  document.getElementById('new-item-name').value  = '';
-  document.getElementById('new-item-price').value = '';
-  document.getElementById('new-item-emoji').value = '';
-  document.getElementById('new-item-desc').value  = '';
-  document.getElementById('new-item-promo-price').value = '';
+  document.getElementById('new-item-name').value  = ';
+  document.getElementById('new-item-price').value = ';
+  document.getElementById('new-item-emoji').value = ';
+  document.getElementById('new-item-desc').value  = ';
+  document.getElementById('new-item-promo-price').value = ';
   clearItemPhoto();
 
   showToast(emoji + ' ' + name + ' added!');
@@ -7822,7 +7814,7 @@ function openPromoPriceModal(itemId) {
   document.getElementById('ppm-item-name').textContent = item.name;
   document.getElementById('ppm-normal-price').textContent = 'RM' + item.price.toFixed(2);
   document.getElementById('ppm-item-id').value = itemId;
-  document.getElementById('ppm-promo-price').value = item.promoPrice || '';
+  document.getElementById('ppm-promo-price').value = item.promoPrice || ';
   document.getElementById('ppm-clear-btn').style.display = item.promoPrice ? 'inline-block' : 'none';
   modal.classList.remove('hidden');
 }
@@ -7850,7 +7842,7 @@ function savePromoPrice() {
 }
 
 function clearPromoPrice() {
-  document.getElementById('ppm-promo-price').value = '';
+  document.getElementById('ppm-promo-price').value = ';
   savePromoPrice();
 }
 
@@ -7940,9 +7932,9 @@ function renderAllTxns(txns) {
 function generateQRCodes() {
   const count = parseInt(document.getElementById('qr-table-count').value) || 10;
   const baseUrl = window.location.href.split('?')[0];
-  const mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : '';
+  const mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : ';
   const grid = document.getElementById('qr-grid');
-  grid.innerHTML = '';
+  grid.innerHTML = ';
 
   for (let i = 1; i <= count; i++) {
     const url = mid ? (baseUrl + '?m=' + mid + '&table=' + i) : (baseUrl + '?table=' + i);
@@ -7984,7 +7976,7 @@ function printQR(tableNo) {
 // ===== ?????? & QR =====
 function getMerchantShopUrl() {
   var baseUrl = window.location.href.split('?')[0];
-  var mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : '';
+  var mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : ';
   return mid ? (baseUrl + '?m=' + mid) : baseUrl;
 }
 
@@ -7994,7 +7986,7 @@ function initMerchantShopQR() {
   if (!urlInput || !qrDiv) return;
   var url = getMerchantShopUrl();
   urlInput.value = url;
-  qrDiv.innerHTML = '';
+  qrDiv.innerHTML = ';
   new QRCode(qrDiv, {
     text: url,
     width: 160,
@@ -8275,7 +8267,7 @@ function renderPromosPage() {
       promosCurrentSlide = 0;
 
       wrapper.innerHTML = ads.map(ad => {
-        const ctaHtml = ad.link ? '<span class="promos-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : '';
+        const ctaHtml = ad.link ? '<span class="promos-slide-cta"><i class="fas fa-external-link-alt"></i> Learn More</span>' : ';
         return `<div class="promos-slide" data-ad-id="${ad.id}" onclick="onPromoSlideClick('${ad.id}')">
           <img src="${ad.image}" alt="${ad.title}" />
           <div class="promos-slide-overlay">
@@ -8306,7 +8298,7 @@ function renderPromosPage() {
       grid.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 16px">No promos available right now. Check back soon!</p>';
     } else {
       grid.innerHTML = ads.map(ad => {
-        const hasLink = ad.link ? `<i class="fas fa-external-link-alt" style="margin-left:4px;font-size:0.68rem"></i>` : '';
+        const hasLink = ad.link ? `<i class="fas fa-external-link-alt" style="margin-left:4px;font-size:0.68rem"></i>` : ';
         return `<div class="promo-card" onclick="onPromoCardClick('${ad.id}')">
           <img class="promo-card-img" src="${ad.image}" alt="${ad.title}" />
           <div class="promo-card-body">
