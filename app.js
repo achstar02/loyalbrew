@@ -2542,9 +2542,9 @@ function getShopSettings() {
 }
 
 function saveShopSettings() {
-  const name = document.getElementById('m-shop-name')?.value?.trim() || ';
-  const announce = document.getElementById('m-shop-announce')?.value?.trim() || ';
-  const banner = document.getElementById('m-shop-banner')?.value?.trim() || ';
+  const name = document.getElementById('m-shop-name')?.value?.trim() || '';
+  const announce = document.getElementById('m-shop-announce')?.value?.trim() || '';
+  const banner = document.getElementById('m-shop-banner')?.value?.trim() || '';
   const settings = { name, announce, banner, updatedAt: new Date().toISOString() };
   safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), settings);
   // Update display name if changed
@@ -2572,9 +2572,9 @@ function loadShopSettings() {
   const nameEl = document.getElementById('m-shop-name');
   const announceEl = document.getElementById('m-shop-announce');
   const bannerEl = document.getElementById('m-shop-banner');
-  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || ';
-  if (announceEl) announceEl.value = settings.announce || ';
-  if (bannerEl) bannerEl.value = settings.banner || ';
+  if (nameEl) nameEl.value = settings.name || window._currentMerchantName || '';
+  if (announceEl) announceEl.value = settings.announce || '';
+  if (bannerEl) bannerEl.value = settings.banner || '';
 }
 
 // ===== POINTS SETTINGS =====
@@ -3403,7 +3403,7 @@ function updateFloatCart() {
 }
 
 function changeTable() {
-  document.getElementById('table-input').value = currentTable || ';
+  document.getElementById('table-input').value = currentTable || '';
   // Update modal text to current language
   const modal = document.getElementById('table-modal');
   const h3 = modal.querySelector('[data-i18n="selectTable"]');
@@ -5639,7 +5639,7 @@ async function openComplaintDetail(complaintId) {
       ${complaint.response ? `<div class="complaint-response-box" style="margin-top:8px"><i class="fas fa-reply"></i> ${mt('mDetailPrevResponse')}: <em>${escHtml(complaint.response)}</em></div>` : ''}
     </div>
   `;
-  document.getElementById('complaint-response-text').value = complaint.response || ';
+  document.getElementById('complaint-response-text').value = complaint.response || '';
   document.getElementById('complaint-detail-modal').classList.remove('hidden');
 }
 
@@ -6345,7 +6345,7 @@ function _showSuperAdminBtn() {
   navEl.style.setProperty('display', 'block', 'important');
   if (emailEl) {
     const fb = window.__lbFirebase;
-    const email = fb?.auth?.currentUser?.email || ';
+    const email = fb?.auth?.currentUser?.email || '';
     if (email) {
       emailEl.textContent = '(' + email.split('@')[0] + ')';
       emailEl.classList.remove('hidden');
@@ -7324,8 +7324,8 @@ function applyMerchantLang() {
 function initMerchantSavedPassword() {
   const saved = safeLS.json('loyalbrew_merchant_saved', null);
   if (saved) {
-    document.getElementById('m-user').value = saved.user || ';
-    document.getElementById('m-pass').value = saved.pass || ';
+    document.getElementById('m-user').value = saved.user || '';
+    document.getElementById('m-pass').value = saved.pass || '';
     document.getElementById('m-remember').checked = true;
   }
 }
@@ -7382,8 +7382,8 @@ async function merchantLogin() {
     if (mData.name || mData.announce || mData.banner) {
       const shopSettings = {
         name: mData.name || user,
-        announce: mData.announce || ',
-        banner: mData.banner || ',
+        announce: mData.announce || '',
+        banner: mData.banner || '',
         updatedAt: new Date().toISOString()
       };
       safeLS.setJSON(_getMerchantStorageKey(SHOP_SETTINGS_KEY), shopSettings);
@@ -7798,7 +7798,7 @@ function openPromoPriceModal(itemId) {
   document.getElementById('ppm-item-name').textContent = item.name;
   document.getElementById('ppm-normal-price').textContent = 'RM' + item.price.toFixed(2);
   document.getElementById('ppm-item-id').value = itemId;
-  document.getElementById('ppm-promo-price').value = item.promoPrice || ';
+  document.getElementById('ppm-promo-price').value = item.promoPrice || '';
   document.getElementById('ppm-clear-btn').style.display = item.promoPrice ? 'inline-block' : 'none';
   modal.classList.remove('hidden');
 }
