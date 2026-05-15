@@ -2517,8 +2517,8 @@ function refreshPromoStatusUI() {
   const status = getPromoStatus();
   if (!badge || !live) return;
   if (!getMerchantPromoSettings()?.enabled) {
-    badge.textContent = ';
-    badge.style.color = ';
+    badge.textContent = '';
+    badge.style.color = '';
     live.innerHTML = '<b style="color:#888">Promo engine is OFF</b>';
     return;
   }
@@ -2744,11 +2744,11 @@ function clearAdImage() {
   const placeholder = document.getElementById('ad-image-placeholder');
   const clearBtn = document.getElementById('ad-image-clear-btn');
   const fileInput = document.getElementById('ad-image-input');
-  preview.src = ';
+  preview.src = '';
   preview.style.display = 'none';
   placeholder.style.display = 'flex';
   clearBtn.style.display = 'none';
-  fileInput.value = ';
+  fileInput.value = '';
 }
 
 function createAd() {
@@ -2776,10 +2776,10 @@ function createAd() {
   saveAds(ads);
 
   // Reset form
-  document.getElementById('ad-title').value = ';
-  document.getElementById('ad-link').value = ';
-  document.getElementById('ad-start-date').value = ';
-  document.getElementById('ad-end-date').value = ';
+  document.getElementById('ad-title').value = '';
+  document.getElementById('ad-link').value = '';
+  document.getElementById('ad-start-date').value = '';
+  document.getElementById('ad-end-date').value = '';
   document.getElementById('ad-priority').value = '0';
   clearAdImage();
 
@@ -2862,7 +2862,7 @@ function renderAdCard(ad, stat, isActive) {
   const isScheduled = now < new Date(ad.startDate);
   const statusClass = !ad.active ? 'inactive' : isExpired ? 'expired' : ';
 
-  let statusBadge = ';
+  let statusBadge = '';
   if (!ad.active) statusBadge = '<span class="nimb grey">Inactive</span>';
   else if (isExpired) statusBadge = '<span class="nimb red">Expired</span>';
   else if (isScheduled) statusBadge = '<span class="nimb orange">Scheduled</span>';
@@ -3206,8 +3206,8 @@ let cart = [];
 let currentTable = null;
 let activeCategory = 'All';
 let orderType = 'dinein';       // 'dinein' | 'takeaway'
-let takeawayPhone = ';
-let takeawayTime  = ';
+let takeawayPhone = '';
+let takeawayTime  = '';
 
 // --- Order type toggle ---
 function setOrderType(type) {
@@ -3221,8 +3221,8 @@ function setOrderType(type) {
   if (type === 'dinein') {
     tableBar.classList.remove('hidden');
     takeawayBar.classList.add('hidden');
-    takeawayPhone = ';
-    takeawayTime  = ';
+    takeawayPhone = '';
+    takeawayTime  = '';
     if (!currentTable) changeTable();
   } else {
     tableBar.classList.add('hidden');
@@ -3570,8 +3570,8 @@ function lookupCartMember() {
 function placeOrder() {
   if (cart.length === 0) { showToast(t('cartEmpty'), 'error'); return; }
 
-  let finalPhone = ';
-  let finalPickupTime = ';
+  let finalPhone = '';
+  let finalPickupTime = '';
 
   if (orderType === 'dinein') {
     if (!currentTable) { showToast(t('selectTableFirst'), 'error'); showPage('page-menu'); changeTable(); return; }
@@ -3720,13 +3720,13 @@ function placeOrder() {
   cart = [];
   const prevMemberPhone = document.getElementById('cart-phone').value.trim();
   cartMember = null;
-  document.getElementById('cart-phone').value = ';
+  document.getElementById('cart-phone').value = '';
   document.getElementById('cart-member-info').classList.add('hidden');
   document.getElementById('wallet-pay-section').classList.add('hidden');
   const walletCb = document.getElementById('use-wallet-checkbox');
   if (walletCb) walletCb.checked = false;
   document.getElementById('wallet-deduct-row').classList.add('hidden');
-  document.getElementById('order-notes').value = ';
+  document.getElementById('order-notes').value = '';
   // Reset payment
   resetPaymentMethod();
   // Reset stamp earned area
@@ -3870,8 +3870,8 @@ function removePaymentProof(type) {
   _paymentProofData = null;
   const previewEl = document.getElementById(type + '-proof-preview');
   previewEl.classList.add('hidden');
-  previewEl.innerHTML = ';
-  document.getElementById(type + '-proof-input').value = ';
+  previewEl.innerHTML = '';
+  document.getElementById(type + '-proof-input').value = '';
   document.querySelector(`#payment-${type}-section .payment-upload-area`).innerHTML = `
     <i class="fas fa-cloud-upload-alt"></i>
     <span>${t('uploadScreenshot')}</span>
@@ -3891,7 +3891,7 @@ function resetPaymentMethod() {
     const prev = document.getElementById(type + '-proof-preview');
     if (prev) { prev.classList.add('hidden'); prev.innerHTML = ''; }
     const inp = document.getElementById(type + '-proof-input');
-    if (inp) inp.value = ';
+    if (inp) inp.value = '';
   });
 }
 
@@ -4258,11 +4258,11 @@ function launchNewItem() {
   DB.saveNewItems(newItems);
 
   // Clear form
-  document.getElementById('ni-select-item').value    = ';
-  document.getElementById('ni-special-price').value  = ';
-  document.getElementById('ni-launch-date').value    = ';
-  document.getElementById('ni-end-date').value       = ';
-  document.getElementById('ni-announce').value       = ';
+  document.getElementById('ni-select-item').value    = '';
+  document.getElementById('ni-special-price').value  = '';
+  document.getElementById('ni-launch-date').value    = '';
+  document.getElementById('ni-end-date').value       = '';
+  document.getElementById('ni-announce').value       = '';
 
   showToast('?? New item launched!');
   renderNewItemsMgmt();
@@ -4339,7 +4339,7 @@ function renderNewItemsMgmt() {
 // ===========================
 
 let _pendingStampReward = null; // { cardId, memberId, rewardType, rewardValue, cardName, cardEmoji }
-let _stampPagePhone = ';
+let _stampPagePhone = '';
 
 // ---- Helpers ----
 function getMemberStampProgress(memberId, cardId) {
@@ -4467,7 +4467,7 @@ function renderStampCardsDisplay(member) {
     const unclaimed = completed - claimed;
 
     // Reward description
-    let rewardDesc = ';
+    let rewardDesc = '';
     if (card.rewardType === 'free_item') {
       const m = menu.find(i => i.id === card.rewardValue);
       rewardDesc = m ? t('stampFreeItem').replace('{item}', `${m.emoji} ${m.name}`) : t('stampFreeItemGeneric');
@@ -4480,7 +4480,7 @@ function renderStampCardsDisplay(member) {
     }
 
     // Rule description
-    let ruleDesc = ';
+    let ruleDesc = '';
     if (card.rule === 'per_order')  ruleDesc = t('stampPerPurchase');
     else if (card.rule === 'per_amount') ruleDesc = t('stampPerAmount').replace('{v}', card.ruleValue);
     else if (card.rule === 'per_item') {
@@ -4536,7 +4536,7 @@ function openStampRedeemModal(cardId, memberId) {
   const menu   = DB.getMenu() || DEFAULT_MENU;
   if (!card) return;
 
-  let rewardHtml = ';
+  let rewardHtml = '';
   if (card.rewardType === 'free_item') {
     const m = menu.find(i => i.id === card.rewardValue);
     rewardHtml = `<div style="font-size:3rem;margin:12px 0">${m ? m.emoji : '??'}</div>
@@ -4653,7 +4653,7 @@ function onRuleChange() {
       <select id="sc-rule-item">${menu.map(i => `<option value="${i.id}">${i.emoji} ${i.name}</option>`).join('')}</select>`;
   } else {
     extra.classList.add('hidden');
-    extra.innerHTML = ';
+    extra.innerHTML = '';
   }
 }
 
@@ -4665,7 +4665,7 @@ function onRewardTypeChange() {
 
   if (type === 'free_item') {
     label.textContent = mt('mRewardFreeItem');
-    itemSel.style.display = ';
+    itemSel.style.display = '';
     detail.classList.remove('hidden');
     // Remove any extra input
     const old = document.getElementById('sc-reward-val-input');
@@ -4730,8 +4730,8 @@ function createStampCard() {
   DB.saveStampCards(cards);
 
   // Reset form
-  document.getElementById('sc-name').value  = ';
-  document.getElementById('sc-emoji').value = ';
+  document.getElementById('sc-name').value  = '';
+  document.getElementById('sc-emoji').value = '';
   document.getElementById('sc-total').value = '10';
 
   showToast(`${emoji} ${name} stamp card created!`);
@@ -4749,7 +4749,7 @@ function renderMerchantStampCards() {
   }
 
   el.innerHTML = cards.map(card => {
-    let rewardDesc = ';
+    let rewardDesc = '';
     if (card.rewardType === 'free_item') {
       const m = menu.find(i => i.id === card.rewardValue);
       rewardDesc = m ? `${mt('mFreePrefix')} ${m.emoji} ${m.name}` : mt('mFreeItem');
@@ -4757,7 +4757,7 @@ function renderMerchantStampCards() {
     else if (card.rewardType === 'discount_pct')    rewardDesc = `${card.rewardValue}% ${mt('mPctOff')}`;
     else if (card.rewardType === 'points')          rewardDesc = `+${card.rewardValue} ${mt('mBonusPtsLabel')}`;
 
-    let ruleDesc = ';
+    let ruleDesc = '';
     if (card.rule === 'per_order') ruleDesc = mt('mStampPerPurchase');
     else if (card.rule === 'per_amount') ruleDesc = `${mt('mStampPerRM')}${card.ruleValue}`;
     else if (card.rule === 'per_item') {
@@ -4949,9 +4949,9 @@ function addTopupBonusRule() {
   rules.push({ id: 'rule_' + Date.now(), minAmount: min, bonusPercent: pct, expiry: expiry || '' });
   rules.sort((a, b) => a.minAmount - b.minAmount);
   saveTopupBonusRules(rules);
-  document.getElementById('bonus-rule-min').value = ';
-  document.getElementById('bonus-rule-pct').value = ';
-  document.getElementById('bonus-rule-expiry').value = ';
+  document.getElementById('bonus-rule-min').value = '';
+  document.getElementById('bonus-rule-pct').value = '';
+  document.getElementById('bonus-rule-expiry').value = '';
   renderTopupBonusRules();
   renderTopupAmountCards();
   showToast(mt('mAddRule') + ' ?');
@@ -4980,7 +4980,7 @@ function saveMemberWallet(memberId, wallet) {
   wallet.id = memberId;
   // Ensure createdAt exists for Firestore rules compliance
   if (!wallet.createdAt) wallet.createdAt = new Date().toISOString();
-  if (!wallet.memberPhone && wallet.memberPhone !== '') wallet.memberPhone = ';
+  if (!wallet.memberPhone && wallet.memberPhone !== '') wallet.memberPhone = '';
   wallet.updatedAt = new Date().toISOString();
   if (Array.isArray(wallets)) {
     const idx = wallets.findIndex(w => w && w.id === memberId);
@@ -5034,7 +5034,7 @@ function deductWallet(memberId, amount, note) {
 }
 
 // ---- Top Up Page ----
-let _topupPhone = ';
+let _topupPhone = '';
 let _selectedTopupPay = 0;
 let _selectedTopupCredit = 0;
 
@@ -5111,7 +5111,7 @@ function renderTopupAmountCards() {
           </div>
         </div>`;
     } else {
-      banner.innerHTML = ';
+      banner.innerHTML = '';
     }
   }
 }
@@ -5142,7 +5142,7 @@ function showTopupPreview(payAmt, creditAmt) {
   document.getElementById('topup-pay-amount').textContent = 'RM' + payAmt.toFixed(2);
   document.getElementById('topup-get-amount').textContent = 'RM' + creditAmt.toFixed(2);
   document.getElementById('topup-bonus-amount').textContent = '+RM' + bonus.toFixed(2);
-  document.getElementById('topup-confirm-btn').style.display = ';
+  document.getElementById('topup-confirm-btn').style.display = '';
 }
 
 function confirmTopup() {
@@ -5178,7 +5178,7 @@ function confirmTopup() {
   document.getElementById('topup-confirm-btn').style.display = 'none';
   document.getElementById('topup-selected-preview').classList.add('hidden');
   document.querySelectorAll('.topup-amount-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById('topup-custom-amount').value = ';
+  document.getElementById('topup-custom-amount').value = '';
 }
 
 function renderWalletTxns(memberId) {
@@ -5188,7 +5188,7 @@ function renderWalletTxns(memberId) {
   const el = document.getElementById('wallet-txn-list');
   if (!el) return;
 
-  let html = ';
+  let html = '';
 
   // Show pending requests first
   pending.forEach(r => {
@@ -5431,8 +5431,8 @@ function handleComplaintPhoto(event) {
 function removeComplaintPhoto() {
   _complaintPhotoData = null;
   document.getElementById('complaint-photo-preview').classList.add('hidden');
-  document.getElementById('complaint-photo-preview').innerHTML = ';
-  document.getElementById('complaint-photo-input').value = ';
+  document.getElementById('complaint-photo-preview').innerHTML = '';
+  document.getElementById('complaint-photo-input').value = '';
   document.getElementById('complaint-photo-drop').innerHTML = `<i class="fas fa-cloud-upload-alt"></i><span>Tap to upload photo</span><small>JPG, PNG up to 5MB</small>`;
 }
 
@@ -5484,8 +5484,8 @@ async function submitComplaint() {
   }
 
   // Reset form
-  document.getElementById('complaint-desc').value = ';
-  document.getElementById('complaint-order-id').value = ';
+  document.getElementById('complaint-desc').value = '';
+  document.getElementById('complaint-order-id').value = '';
   removeComplaintPhoto();
   showToast(t('complaintSubmitted') || '? Complaint submitted! We\'ll get back to you soon.');
   renderMyComplaints(currentCustomer.id);
@@ -5725,7 +5725,7 @@ function renderMyOrders(member, filter) {
     const showNotifyBtn = isCashOrder && o.status === 'pending' && notYetConfirmed;
     const showCompleteBtn = o.status === 'preparing';
     
-    let actionButtons = ';
+    let actionButtons = '';
     if (showNotifyBtn) {
       actionButtons = `
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e0e0e0">
@@ -5900,7 +5900,7 @@ function updateKitchenCountdown() {
     if (_kitchenCountdown <= 5) {
       icon.style.animation = 'spin 0.5s linear infinite';
     } else {
-      icon.style.animation = ';
+      icon.style.animation = '';
     }
   }
 }
@@ -6142,7 +6142,7 @@ function customerRegister() {
   DB.setCurrentMemberPhone(newMember.phone);
   updateLoginStatusUI();
   showToast('Welcome, ' + name + '! ??');
-  if (document.getElementById('reg-referrer')) document.getElementById('reg-referrer').value = ';
+  if (document.getElementById('reg-referrer')) document.getElementById('reg-referrer').value = '';
   if (_pendingRedirect) {
     const target = _pendingRedirect;
     _pendingRedirect = null;
@@ -6266,12 +6266,12 @@ function customerLogout() {
   currentCustomer = null;
   DB.setCurrentMemberPhone(null);
   updateLoginStatusUI();
-  _topupPhone = ';
-  _stampPagePhone = ';
+  _topupPhone = '';
+  _stampPagePhone = '';
   _pendingRedirect = null;
   document.getElementById('customer-auth').classList.remove('hidden');
   document.getElementById('customer-dashboard').classList.add('hidden');
-  document.getElementById('login-phone').value = ';
+  document.getElementById('login-phone').value = '';
   showPage('page-landing');
 }
 
@@ -7414,8 +7414,8 @@ function merchantLogout() {
   // Only clear fields if not remembering
   var saved = safeLS.json('loyalbrew_merchant_saved', null);
   if (!saved) {
-    document.getElementById('m-user').value = ';
-    document.getElementById('m-pass').value = ';
+    document.getElementById('m-user').value = '';
+    document.getElementById('m-pass').value = '';
   }
   showPage('page-landing');
 }
@@ -7483,7 +7483,7 @@ function previewItemPhoto(input) {
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) {
     showToast(mt('mPhotoUnder5MB') || t('photoUnder5MB'), 'error');
-    input.value = ';
+    input.value = '';
     return;
   }
   const reader = new FileReader();
@@ -7502,8 +7502,8 @@ function previewItemPhoto(input) {
 
 function clearItemPhoto() {
   _newItemPhotoData = null;
-  document.getElementById('new-item-photo-input').value = ';
-  document.getElementById('item-photo-preview').src = ';
+  document.getElementById('new-item-photo-input').value = '';
+  document.getElementById('item-photo-preview').src = '';
   document.getElementById('item-photo-preview').style.display = 'none';
   document.getElementById('item-photo-placeholder').style.display = 'flex';
   document.getElementById('item-photo-clear-btn').style.display = 'none';
@@ -7681,8 +7681,8 @@ function addPoints() {
       document.getElementById('found-tier').textContent = getTier(foundMember.points);
 
       alert('????');
-      document.getElementById('m-search-phone').value = ';
-      document.getElementById('bill-amount').value = ';
+      document.getElementById('m-search-phone').value = '';
+      document.getElementById('bill-amount').value = '';
       loadMerchantDashboard();
     })
     .catch(err => {
@@ -7769,11 +7769,11 @@ function addMenuItem() {
   menu.push({ id: 'm' + Date.now(), name, emoji, price, category: cat, desc, image: _newItemPhotoData || null, promoPrice });
   DB.saveMenu(menu);
 
-  document.getElementById('new-item-name').value  = ';
-  document.getElementById('new-item-price').value = ';
-  document.getElementById('new-item-emoji').value = ';
-  document.getElementById('new-item-desc').value  = ';
-  document.getElementById('new-item-promo-price').value = ';
+  document.getElementById('new-item-name').value  = '';
+  document.getElementById('new-item-price').value = '';
+  document.getElementById('new-item-emoji').value = '';
+  document.getElementById('new-item-desc').value  = '';
+  document.getElementById('new-item-promo-price').value = '';
   clearItemPhoto();
 
   showToast(emoji + ' ' + name + ' added!');
@@ -7826,7 +7826,7 @@ function savePromoPrice() {
 }
 
 function clearPromoPrice() {
-  document.getElementById('ppm-promo-price').value = ';
+  document.getElementById('ppm-promo-price').value = '';
   savePromoPrice();
 }
 
@@ -7918,7 +7918,7 @@ function generateQRCodes() {
   const baseUrl = window.location.href.split('?')[0];
   const mid = (typeof MERCHANT_DOC_PATH !== 'undefined' && MERCHANT_DOC_PATH.id) ? MERCHANT_DOC_PATH.id : ';
   const grid = document.getElementById('qr-grid');
-  grid.innerHTML = ';
+  grid.innerHTML = '';
 
   for (let i = 1; i <= count; i++) {
     const url = mid ? (baseUrl + '?m=' + mid + '&table=' + i) : (baseUrl + '?table=' + i);
@@ -7970,7 +7970,7 @@ function initMerchantShopQR() {
   if (!urlInput || !qrDiv) return;
   var url = getMerchantShopUrl();
   urlInput.value = url;
-  qrDiv.innerHTML = ';
+  qrDiv.innerHTML = '';
   new QRCode(qrDiv, {
     text: url,
     width: 160,
